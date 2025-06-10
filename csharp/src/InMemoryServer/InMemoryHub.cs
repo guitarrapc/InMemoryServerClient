@@ -314,11 +314,22 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     }
 
     /// <summary>
+    /// Handle client connection
+    /// </summary>
+    public override async Task OnConnectedAsync()
+    {
+        _logger.LogInformation($"Client {Context.ConnectionId} connected");
+        _state.ConnectionCount++;
+        await base.OnConnectedAsync();
+    }
+
+    /// <summary>
     /// Handle client disconnection
     /// </summary>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         _logger.LogInformation($"Client {Context.ConnectionId} disconnected");
+        _state.ConnectionCount--;
 
         // Remove from group
         await _groupManager.LeaveGroupAsync(Context.ConnectionId);
@@ -337,5 +348,52 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         }
 
         await base.OnDisconnectedAsync(exception);
+    }
+
+    /// <summary>
+    /// Get server status
+    /// </summary>
+    public async Task<ServerStatus> GetServerStatusAsync()
+    {
+        _logger.LogInformation($"Client {Context.ConnectionId} requested server status");
+
+        var status = new ServerStatus
+        {
+            Uptime = DateTime.UtcNow - _state.StartTime,
+            TotalConnections = _state.ConnectionCount,
+            GroupCount = _groupManager.GetAllGroups().Count(),
+            ActiveBattleCount = _state.BattleStates.Count
+        };
+
+        // Get group summaries
+        foreach (var group in _groupManager.GetAllGroups())
+        {
+            status.Groups.Add(new GroupSummary
+            {
+                Id = group.Id,
+                Name = group.Name,
+                ConnectionCount = group.ConnectionCount,
+                BattleId = group.BattleId
+            });
+        }
+
+        // Get battle summaries
+        foreach (var battleEntry in _state.BattleStates)
+        {
+            var battleState = battleEntry.Value;
+            var battleStatus = battleState.GetStatus();
+
+            status.ActiveBattles.Add(new BattleSummary
+            {
+                Id = battleEntry.Key,
+                GroupId = battleState.GroupId,
+                CurrentTurn = battleStatus.CurrentTurn,
+                PlayerCount = battleStatus.Players.Count,
+                EnemyCount = battleStatus.Enemies.Count,
+                StartedAt = battleState.StartTime
+            });
+        }
+
+        return status;
     }
 }

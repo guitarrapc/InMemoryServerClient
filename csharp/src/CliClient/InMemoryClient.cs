@@ -419,6 +419,15 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     }
 
     /// <summary>
+    /// Get server status
+    /// </summary>
+    public async Task<ServerStatus?> GetServerStatusAsync()
+    {
+        EnsureConnected();
+        return await _connection!.InvokeAsync<ServerStatus?>("GetServerStatusAsync");
+    }
+
+    /// <summary>
     /// Ensure client is connected to server
     /// </summary>
     private void EnsureConnected()

@@ -171,3 +171,101 @@ public class BattleFieldInfo
     /// </summary>
     public List<List<string>> Cells { get; set; } = [];
 }
+
+/// <summary>
+/// Server status information
+/// </summary>
+public class ServerStatus
+{
+    /// <summary>
+    /// Server uptime
+    /// </summary>
+    public TimeSpan Uptime { get; set; }
+
+    /// <summary>
+    /// Total active connections
+    /// </summary>
+    public int TotalConnections { get; set; }
+
+    /// <summary>
+    /// Number of groups
+    /// </summary>
+    public int GroupCount { get; set; }
+
+    /// <summary>
+    /// Number of active battles
+    /// </summary>
+    public int ActiveBattleCount { get; set; }
+
+    /// <summary>
+    /// List of group summaries
+    /// </summary>
+    public List<GroupSummary> Groups { get; set; } = [];
+
+    /// <summary>
+    /// List of active battle summaries
+    /// </summary>
+    public List<BattleSummary> ActiveBattles { get; set; } = [];
+}
+
+/// <summary>
+/// Group summary information
+/// </summary>
+public class GroupSummary
+{
+    /// <summary>
+    /// Group ID
+    /// </summary>
+    public required string Id { get; set; }
+
+    /// <summary>
+    /// Group name
+    /// </summary>
+    public required string Name { get; set; }
+
+    /// <summary>
+    /// Current connection count
+    /// </summary>
+    public int ConnectionCount { get; set; }
+
+    /// <summary>
+    /// Battle ID if battle is in progress
+    /// </summary>
+    public string? BattleId { get; set; }
+}
+
+/// <summary>
+/// Battle summary information
+/// </summary>
+public class BattleSummary
+{
+    /// <summary>
+    /// Battle ID
+    /// </summary>
+    public required string Id { get; set; }
+
+    /// <summary>
+    /// Associated group ID
+    /// </summary>
+    public required string GroupId { get; set; }
+
+    /// <summary>
+    /// Current turn
+    /// </summary>
+    public int CurrentTurn { get; set; }
+
+    /// <summary>
+    /// Number of players
+    /// </summary>
+    public int PlayerCount { get; set; }
+
+    /// <summary>
+    /// Number of enemies
+    /// </summary>
+    public int EnemyCount { get; set; }
+
+    /// <summary>
+    /// Battle started time
+    /// </summary>
+    public DateTime StartedAt { get; set; }
+}

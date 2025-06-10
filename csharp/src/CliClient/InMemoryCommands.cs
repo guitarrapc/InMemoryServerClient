@@ -92,6 +92,51 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                         Console.WriteLine($"Connection status: {(_client.IsConnected ? "Connected" : "Disconnected")}");
                         break;
 
+                    case "server-status":
+                        if (!_client.IsConnected)
+                        {
+                            Console.WriteLine("Not connected to server. Connect first.");
+                            break;
+                        }
+                        var serverStatus = await _client.GetServerStatusAsync();
+                        if (serverStatus != null)
+                        {
+                            Console.WriteLine("============ SERVER STATUS ============");
+                            Console.WriteLine($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
+                            Console.WriteLine($"Total Connections: {serverStatus.TotalConnections}");
+                            Console.WriteLine($"Group Count: {serverStatus.GroupCount}");
+                            Console.WriteLine($"Active Battle Count: {serverStatus.ActiveBattleCount}");
+
+                            if (serverStatus.Groups.Count > 0)
+                            {
+                                Console.WriteLine("\n---------- GROUPS ----------");
+                                foreach (var group in serverStatus.Groups)
+                                {
+                                    var battleStatus = !string.IsNullOrEmpty(group.BattleId) ? "[Battle in progress]" : "";
+                                    Console.WriteLine($"{group.Name} (ID: {group.Id}): {group.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatus}");
+                                }
+                            }
+
+                            if (serverStatus.ActiveBattles.Count > 0)
+                            {
+                                Console.WriteLine("\n---------- ACTIVE BATTLES ----------");
+                                foreach (var battle in serverStatus.ActiveBattles)
+                                {
+                                    var duration = DateTime.UtcNow - battle.StartedAt;
+                                    Console.WriteLine($"Battle {battle.Id} (Group: {battle.GroupId})");
+                                    Console.WriteLine($"  Turn: {battle.CurrentTurn}, Players: {battle.PlayerCount}, Enemies: {battle.EnemyCount}");
+                                    Console.WriteLine($"  Duration: {duration:h\\h\\ m\\m\\ s\\s}");
+                                }
+                            }
+
+                            Console.WriteLine("=======================================");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Failed to get server status.");
+                        }
+                        break;
+
                     case "get":
                         if (args.Length < 2)
                         {
@@ -786,6 +831,7 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
         Console.WriteLine("  connect-battle [url] [group] [count] - Connect multiple sessions (default: 5) to start a battle");
         Console.WriteLine("  disconnect             - Disconnect from server");
         Console.WriteLine("  status                 - Show connection status");
+        Console.WriteLine("  server-status          - Show detailed server status");
         Console.WriteLine("  get <key>              - Get value by key");
         Console.WriteLine("  set <key> <value>      - Set key-value pair");
         Console.WriteLine("  delete <key>           - Delete key");

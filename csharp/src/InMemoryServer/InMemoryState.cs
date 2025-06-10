@@ -8,6 +8,11 @@ namespace InMemoryServer;
 public class InMemoryState
 {
     /// <summary>
+    /// Server start time
+    /// </summary>
+    public DateTime StartTime { get; } = DateTime.UtcNow;
+
+    /// <summary>
     /// Key-value store
     /// </summary>
     public ConcurrentDictionary<string, string> KeyValueStore { get; } = new ConcurrentDictionary<string, string>();
@@ -21,4 +26,9 @@ public class InMemoryState
     /// Battle states (battle ID -> battle state)
     /// </summary>
     public ConcurrentDictionary<string, BattleState> BattleStates { get; } = new ConcurrentDictionary<string, BattleState>();
+
+    /// <summary>
+    /// Total connection count
+    /// </summary>
+    public int ConnectionCount { get; set; } = 0;
 }

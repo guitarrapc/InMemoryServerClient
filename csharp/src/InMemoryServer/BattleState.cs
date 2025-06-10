@@ -22,6 +22,16 @@ public partial class BattleState
     private readonly HashSet<string> _replayCompletedClients = new();
     private readonly List<string> _groupClientIds = [];
 
+    /// <summary>
+    /// Gets the group ID associated with this battle
+    /// </summary>
+    public string GroupId => _group.Id;
+
+    /// <summary>
+    /// Gets the time when the battle was started
+    /// </summary>
+    public DateTime StartTime { get; } = DateTime.UtcNow;
+
     public BattleState(string battleId, GroupInfo group)
     {
         _battleId = battleId;
