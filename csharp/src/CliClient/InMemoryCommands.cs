@@ -64,6 +64,25 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                         }
                         break;
 
+                    case "connect-battle":
+                        var battleUrl = args.Length > 1 ? args[1] : "http://localhost:5000";
+                        var battleGroup = args.Length > 2 ? args[2] : "battle-group";
+                        var count = args.Length > 3 && int.TryParse(args[3], out var c) ? c : 5;
+
+                        Console.WriteLine($"Connecting {count} sessions to server: {battleUrl}");
+                        Console.WriteLine($"Group name: {battleGroup}");
+
+                        if (await _client.ConnectMultipleAsync(battleUrl, battleGroup, count))
+                        {
+                            Console.WriteLine($"Successfully connected {count} sessions to group: {battleGroup}");
+                            Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to connect {count} sessions to server");
+                        }
+                        break;
+
                     case "disconnect":
                         await _client.DisconnectAsync();
                         Console.WriteLine("Disconnected from server");
@@ -693,10 +712,58 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
         }
     }
 
+    /// <summary>Connect multiple sessions to the server with the same group</summary>
+    /// <param name="url">-u, Server URL</param>
+    /// <param name="group">-g, Group name</param>
+    /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
+    [Command("connect-battle")]
+    public async Task ConnectMultipleAsync(
+        string url = "http://localhost:5000",
+        string group = "battle-group",
+        int count = 5)
+    {
+        if (count <= 0)
+        {
+            Console.WriteLine("Error: Count must be greater than 0");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        if (string.IsNullOrEmpty(group))
+        {
+            Console.WriteLine("Error: Group name is required for multiple connections");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        try
+        {
+            Console.WriteLine($"Connecting {count} sessions to server: {url}");
+            Console.WriteLine($"Group name: {group}");
+
+            if (await _client.ConnectMultipleAsync(url, group, count))
+            {
+                Console.WriteLine($"Successfully connected {count} sessions to group: {group}");
+                Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
+            }
+            else
+            {
+                Console.WriteLine($"Failed to connect {count} sessions to server");
+                Environment.ExitCode = 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error connecting multiple sessions: {ex.Message}");
+            Environment.ExitCode = 1;
+        }
+    }
+
     private static void ShowInteractiveHelp()
     {
         Console.WriteLine("Available commands:");
         Console.WriteLine("  connect [url] [group]  - Connect to server (default: http://localhost:5000)");
+        Console.WriteLine("  connect-battle [url] [group] [count] - Connect multiple sessions (default: 5) to start a battle");
         Console.WriteLine("  disconnect             - Disconnect from server");
         Console.WriteLine("  status                 - Show connection status");
         Console.WriteLine("  get <key>              - Get value by key");

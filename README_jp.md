@@ -92,6 +92,9 @@ dotnet run
 # サーバーに接続
 dotnet run -- connect -u http://localhost:5000
 
+# バトルテスト用に複数セッションを接続
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 5
+
 # キーバリュー操作
 dotnet run -- set mykey "Hello World"
 dotnet run -- get mykey

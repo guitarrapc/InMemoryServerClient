@@ -23,10 +23,9 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
         string filled = new string('█', filledLength);
         string empty = new string('░', length - filledLength);
 
-        string color;
-        if ((double)current / max > 0.6) color = "green";
-        else if ((double)current / max > 0.3) color = "yellow";
-        else color = "red";
+        // Determine color based on health percentage (not used in console output but kept for future UI implementations)
+        double percentage = (double)current / max;
+        // Color would be used in a graphical UI
 
         return $"[{filled}{empty}]";
     }
@@ -299,6 +298,85 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<string?>("GetBattleReplayAsync", battleId);
+    }
+
+    /// <summary>
+    /// Connect multiple sessions to server with the same group
+    /// </summary>
+    public async Task<bool> ConnectMultipleAsync(string serverUrl, string groupName, int count)
+    {
+        if (count <= 0)
+        {
+            _logger.LogWarning($"Invalid session count: {count}, must be greater than 0");
+            return false;
+        }
+
+        // If already connected, disconnect first
+        if (_connection != null && _connection.State == HubConnectionState.Connected)
+        {
+            _logger.LogInformation("Already connected to server, disconnecting first");
+            await DisconnectAsync();
+        }
+
+        // Create main connection
+        bool success = await ConnectAsync(serverUrl, groupName);
+        if (!success)
+        {
+            return false;
+        }
+
+        // If count is 1, we're done (already connected with the main connection)
+        if (count <= 1)
+        {
+            return true;
+        }
+
+        // Create additional connections (count-1 because we already have one connection)
+        var additionalConnections = new List<HubConnection>();
+        for (int i = 1; i < count; i++)
+        {
+            try
+            {
+                var connection = new HubConnectionBuilder()
+                    .WithUrl(serverUrl + Constants.HubRoute)
+                    .WithAutomaticReconnect()
+                    .Build();
+
+                // Start connection
+                await connection.StartAsync();
+
+                // Join the same group
+                await connection.InvokeAsync<string>("JoinGroupAsync", groupName);
+
+                // Add to list of connections to manage
+                additionalConnections.Add(connection);
+
+                _logger.LogInformation($"Created additional connection {i} and joined group: {groupName}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Failed to create additional connection {i}: {ex.Message}");
+
+                // Clean up already created connections
+                foreach (var conn in additionalConnections)
+                {
+                    try
+                    {
+                        await conn.StopAsync();
+                        await conn.DisposeAsync();
+                    }
+                    catch
+                    {
+                        // Ignore errors during cleanup
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        _logger.LogInformation($"Successfully connected {count} sessions to group: {groupName}");
+        return true;
     }
 
     /// <summary>

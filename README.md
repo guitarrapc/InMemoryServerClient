@@ -92,6 +92,9 @@ dotnet run
 # Connect to server
 dotnet run -- connect -u http://localhost:5000
 
+# Connect multiple sessions for battle testing
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 5
+
 # Key-value operations
 dotnet run -- set mykey "Hello World"
 dotnet run -- get mykey

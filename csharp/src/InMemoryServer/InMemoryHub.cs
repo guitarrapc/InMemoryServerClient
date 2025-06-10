@@ -264,7 +264,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             // Schedule cleanup for battle state (to save memory)
             _ = Task.Delay(TimeSpan.FromMinutes(5)).ContinueWith(_ =>
             {
-                _state.BattleStates.TryRemove(battleId, out _);
+                _state.BattleStates.TryRemove(battleId, out BattleState? _);
                 _logger.LogInformation($"Cleaned up battle state for {battleId}");
             });
         });
