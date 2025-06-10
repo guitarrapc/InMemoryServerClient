@@ -1,57 +1,37 @@
 ﻿using InMemoryServer;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Shared;
 
-var builder = new WebHostBuilder()
-    .UseKestrel()
-    .UseContentRoot(Directory.GetCurrentDirectory())
-    .UseIISIntegration()
-    .UseStartup<Startup>()
-    .Build();
+// Create a WebApplication builder
+var builder = WebApplication.CreateBuilder(args);
 
+// Configure logging
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
+// Add services to the container
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<InMemoryState>();
+builder.Services.AddSingleton<GroupManager>();
+builder.Services.AddSingleton<InMemoryHub>();
+
+// Build the app
+var app = builder.Build();
+
+// Configure the SignalR endpoint
+app.MapHub<InMemoryHub>(Constants.HubRoute);
+
+// Add a basic health check endpoint
+app.MapGet("/health", () => "Healthy");
+
+// Create directory for battle replays
+Directory.CreateDirectory(Constants.BattleReplayDirectory);
+
+// Start the server
 Console.WriteLine($"InMemory Server starting on port {Constants.DefaultServerPort}...");
 Console.WriteLine($"Hub available at {Constants.HubRoute}");
 
-await builder.RunAsync();
+// Configure the app to listen on the specified port
+app.Urls.Add($"http://0.0.0.0:{Constants.DefaultServerPort}");
 
-public class Startup
-{
-    public void ConfigureServices(IServiceCollection services)
-    {
-        // Configure logging
-        services.AddLogging(logging =>
-        {
-            logging.ClearProviders();
-            logging.AddConsole();
-        });
-
-        // Add services to the container
-        services.AddSignalR();
-        services.AddSingleton<InMemoryState>();
-        services.AddSingleton<GroupManager>();
-    }
-    public void Configure(IApplicationBuilder app, IHostEnvironment env)
-    {
-        // Configure the HTTP request pipeline
-        app.Use(async (context, next) =>
-        {
-            if (context.Request.Path == Constants.HubRoute)
-            {
-                var hubHandler = app.ApplicationServices.GetRequiredService<InMemoryHub>();
-                // Here would be SignalR hub handling code
-                // This is a simplified placeholder
-            }
-            else
-            {
-                await next();
-            }
-        });
-
-        // Create directory for battle replays
-        Directory.CreateDirectory(Constants.BattleReplayDirectory);
-    }
-}
+// Run the app
+await app.RunAsync();

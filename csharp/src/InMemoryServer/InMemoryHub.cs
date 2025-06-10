@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using Shared;
 
 namespace InMemoryServer;
@@ -278,7 +277,7 @@ public class InMemoryHub : Hub
     /// <summary>
     /// Handle client disconnection
     /// </summary>
-    public override async Task OnDisconnectedAsync(Exception exception)
+    public override async Task OnDisconnectedAsync(Exception? exception)
     {
         _logger.LogInformation($"Client {Context.ConnectionId} disconnected");
 

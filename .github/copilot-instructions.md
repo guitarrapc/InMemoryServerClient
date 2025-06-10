@@ -140,6 +140,7 @@ AIとのすべてのやり取りは日本語で行います。説明、コメン
 ### C#実装
 - .NET 9以上
 - C# 13以上
+- TreatWarningsAsErrorsを有効にして、警告をエラーとして扱います。すべての警告を解決することを目指します。
 - Top Level Statementsを使用して、エントリポイントを簡潔に保ちます。
 - サーバーはMinimal APIを使用して実装します。
 - 短寿命なオブジェクトにはstructを用いることができるか検討します。例えば`readonly ref struct`や`readonly struct`はパフォーマンス向上に寄与します。Mutable Structは意識的に避けます。
