@@ -1,4 +1,5 @@
-﻿using Shared;
+﻿using Microsoft.Extensions.Logging;
+using Shared;
 using System.Text.Json;
 
 namespace InMemoryServer;
@@ -143,6 +144,10 @@ public partial class BattleState
     /// </summary>
     public async Task RunBattleAsync(Func<BattleStatus, Task> statusCallback)
     {
+        var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<BattleState>();
+        logger.LogInformation($"Battle {_battleId}: Starting pre-computation of battle simulation with {_players.Count} players and {_enemies.Count} enemies");
+        var startTime = DateTime.UtcNow;
+
         // Create directory for battle replays if it doesn't exist
         Directory.CreateDirectory(Constants.BattleReplayDirectory);
 
@@ -190,6 +195,12 @@ public partial class BattleState
 
             // Write final state
             await WriteReplayFrameAsync(replayFile);
+
+            var endTime = DateTime.UtcNow;
+            var duration = endTime - startTime;
+            logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
+            logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
+            logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")}");
         }
     }
 

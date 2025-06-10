@@ -237,6 +237,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         group.BattleId = battleId;
 
         _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");
+        _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
 
         // Create and store battle state
         var battle = new BattleState(battleId, group);
@@ -248,6 +249,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // Start battle processing in background
         _ = Task.Run(async () =>
         {
+            _logger.LogInformation($"Battle {battleId}: Starting pre-computation of battle simulation");
             await battle.RunBattleAsync(async (status) =>
             {
                 // Send status updates to clients
@@ -257,6 +259,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             // Battle completed
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
             _logger.LogInformation($"Battle {battleId} completed");
+            _logger.LogInformation($"Battle {battleId}: Pre-computation of battle simulation completed successfully");
 
             // Reset battle ID in group to allow starting a new battle
             group.BattleId = null;
