@@ -74,6 +74,7 @@ AIとのすべてのやり取りは日本語で行います。説明、コメン
    - インタラクティブコマンドモード
    - バッチコマンドモード
    - 接続管理
+     - 接続先URLを環境変数やコマンドライン引数で設定可能にする
    - 結果の美しい表示
    - コマンド履歴
    - タブ補完機能（オプション）
@@ -102,12 +103,14 @@ AIとのすべてのやり取りは日本語で行います。説明、コメン
 - CLIパーシング用のConsoleAppFramework
 - JWT認証用のSystem.IdentityModel.Tokens.Jwt
 - サーバーにはMicrosoft.Extensions.Hostingの使用を検討
+- 設定管理にはIConfiguration/IOptionsパターンを使用し、appsettings.jsonと環境変数の両方をサポート
 - WebSocket通信用のSystem.Net.WebSockets
 - 後々のgRPC対応にMagicOnionを検討
 
 ### Go実装（将来）
 - Go 1.21以上
 - CLIパーシング用のCobra
+- 設定管理にはViperライブラリを使用（YAML/JSON設定ファイルと環境変数の両方をサポート）
 - JWT認証用のjwt-go
 - WebSocket通信用のgorilla/websocket
 - gRPC用の標準ライブラリとprotobuf
@@ -129,6 +132,7 @@ AIとのすべてのやり取りは日本語で行います。説明、コメン
 - サーバーはDockerコンテナとして実行できるようにDockerfileを提供
 - マルチステージビルドを使用して最終イメージのサイズを最小化
 - 環境変数による設定の注入をサポート
+  - 特に接続先URLは環境変数やコマンドライン引数で変更可能にし、コンテナイメージを再ビルドせずに異なる環境で使用できるようにする
 - コンテナ内で適切な権限で実行（rootユーザー以外）
 - ヘルスチェックエンドポイントの設定
 - Dockerイメージをビルドおよび実行するためのコマンド例をドキュメントに含める
