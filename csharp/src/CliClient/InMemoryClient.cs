@@ -17,7 +17,9 @@ public class InMemoryClient
     public InMemoryClient(ILogger<InMemoryClient> logger)
     {
         _logger = logger;
-    }/// <summary>
+    }
+
+    /// <summary>
     /// Connect to server
     /// </summary>
     public async Task<bool> ConnectAsync(string serverUrl, string? groupName = null)
@@ -172,57 +174,88 @@ public class InMemoryClient
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<bool>("WatchAsync", key);
-    }        /// <summary>
+    }
+
+    /// <summary>
     /// Join a group
     /// </summary>
-    public async Task<string?> JoinGroupAsync(string? groupName = null)
+    public async Task<bool> JoinGroupAsync(string? groupName = null)
     {
         EnsureConnected();
-        _currentGroupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
-        return _currentGroupId;
-    }        /// <summary>
+        var result = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
+        if (!string.IsNullOrEmpty(result))
+        {
+            _currentGroupId = result;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Broadcast message to current group
     /// </summary>
     public async Task<bool> BroadcastAsync(string message)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<bool>("BroadcastAsync", message);
-    }        /// <summary>
+    }
+
+    /// <summary>
     /// Get all available groups
     /// </summary>
-    public async Task<IEnumerable<GroupInfo>> GetGroupsAsync()
+    public async Task<IEnumerable<string>> GetGroupsAsync()
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
-    }/// <summary>
+        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
+        return groups.Select(g => g.Id);
+    }    /// <summary>
     /// Get current group info
+    /// </summary>
+    public async Task<string?> GetMyGroupAsync()
+    {
+        EnsureConnected();
+        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
+        return groupInfo?.Id;
+    }
+
+    /// <summary>
+    /// Get current group info (detailed)
     /// </summary>
     public async Task<GroupInfo?> GetCurrentGroupAsync()
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
-    }        /// <summary>
+    }
+
+    /// <summary>
     /// Get battle status
     /// </summary>
-    public async Task<BattleStatus?> GetBattleStatusAsync()
+    public async Task<string?> GetBattleStatusAsync()
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
-    }        /// <summary>
+        var status = await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
+        return status?.ToString();
+    }
+
+    /// <summary>
     /// Execute battle action
     /// </summary>
     public async Task<bool> BattleActionAsync(string actionType, string? parameters = null)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<bool>("BattleActionAsync", actionType, parameters);
-    }/// <summary>
+    }
+
+    /// <summary>
     /// Get battle replay data
     /// </summary>
     public async Task<string?> GetBattleReplayAsync(string battleId)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<string?>("GetBattleReplayAsync", battleId);
-    }        /// <summary>
+    }
+
+    /// <summary>
     /// Ensure client is connected to server
     /// </summary>
     private void EnsureConnected()
