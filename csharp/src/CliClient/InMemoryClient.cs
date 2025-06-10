@@ -14,6 +14,10 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
 
+    // Battle replay settings
+    private const int BattleReplayFps = 10; // 10fps for battle replay
+    private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
+
     /// <summary>
     /// Generate a text-based health bar
     /// </summary>
@@ -84,6 +88,9 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
             _connection.On<BattleStatus>("BattleStatusUpdated", (status) =>
             {
+                // Add delay for frame rate control (10fps)
+                Task.Delay(BattleReplayFrameTimeMs).Wait();
+
                 Console.WriteLine($"[BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
 
                 // Display players info
@@ -326,6 +333,8 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     /// </summary>
     public async Task<bool> ConnectMultipleAsync(string serverUrl, string groupName, int count)
     {
+        _logger.LogInformation($"Connecting {count} sessions to group '{groupName}' on server '{serverUrl}'");
+
         if (count <= 0)
         {
             _logger.LogWarning($"Invalid session count: {count}, must be greater than 0");
