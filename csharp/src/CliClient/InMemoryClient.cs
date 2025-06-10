@@ -15,7 +15,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     private string _currentGroupId = string.Empty;
 
     // Battle replay settings
-    private const int BattleReplayFps = 10; // 10fps for battle replay
+    private const int BattleReplayFps = 5; // 5fps for battle replay
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
     /// <summary>
