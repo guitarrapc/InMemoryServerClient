@@ -106,6 +106,7 @@ dotnet run -- my-group
 
 # Battle features
 dotnet run -- battle-status
+dotnet run -- battle-replay <battle_id>
 ```
 
 #### Interactive Mode Commands
@@ -123,66 +124,75 @@ broadcast <message>    - Send message to group
 groups                 - List groups
 mygroup                - Current group info
 battle-status          - Check battle status
+battle-replay <id>     - Show replay data for a battle
 exit, quit             - Exit
 help                   - Show help
 ```
 
-## Battle System
+#### Example: Group Session Workflow
 
-### Battle Start Conditions
-- Automatically starts when 5 clients connect to a group
+Here's an example of a typical group session workflow:
 
-### Battle Features
-- **Field**: 20x20 grid
-- **Entities**: Players (HP 200 fixed) and enemies (Small: HP 100, Medium: HP 200, Large: HP 300)
-- **Stats**: Attack power (10-30), Defense (5-15), Movement speed (1-3) randomly generated
-- **Actions**: Move, Attack, Defend (3 types)
-- **Turn-based**: Actions ordered by movement speed
-- **Duration**: Completes in 100-300 turns
+1. **Start the server:**
+   ```bash
+   cd csharp/src/InMemoryServer
+   dotnet run
+   ```
 
-### Battle Replay
-- Saved in JSON LINE format in `./battle_replay/` directory
-- Records the state of each turn
+2. **Start multiple clients in separate terminals:**
+   ```bash
+   cd csharp/src/CliClient
+   dotnet run
+   ```
 
-## Configuration
+3. **Connect to the server and check available groups:**
+   ```
+   > connect http://localhost:5000
+   Connected to server: http://localhost:5000
 
-### Server Configuration
-- **Port**: 5000 (default)
-- **SignalR Endpoint**: `/inmemoryhub`
-- **Health Check**: `/health`
+   > groups
+   Available groups:
+     3f7e8d2c-9a6b-4c5d-8e7f-1a2b3c4d5e6f
+   ```
 
-### Environment Variables
-- `ASPNETCORE_URLS`: Server URL configuration
-- `Logging__LogLevel__Default`: Log level configuration
+4. **Join an existing group or create a new one:**
+   ```
+   > join my-team
+   Joined group: my-team
+   ```
 
-## Development Information
+5. **Check your current group information:**
+   ```
+   > mygroup
+   Current group: 7b8c9d0e-1f2a-3b4c-5d6e-7f8a9b0c1d2e
+   ```
 
-### Coding Standards
-- TreatWarningsAsErrors enabled
-- Nullable Reference Types enabled
-- XML documentation comments for all public APIs
+6. **Send a message to everyone in your group:**
+   ```
+   > broadcast Hello teammates! Ready for battle?
+   Message broadcasted: Hello teammates! Ready for battle?
+   ```
 
-### Test Coverage
-- InMemoryState: Basic operation tests
-- GroupManager: Group management tests
-- BattleState: Battle logic tests
+7. **You'll receive messages from other group members:**
+   ```
+   [GROUP] Message from a4b5c6d7-e8f9-0a1b-2c3d-4e5f6a7b8c9d: I'm ready!
+   ```
 
-## License
+8. **If your group reaches 5 members, a battle will automatically start**
 
-This project is published under the MIT License.
+9. **Check current battle status during battle:**
+   ```
+   > battle-status
+   [BATTLE] ========== Battle Status ==========
+   [BATTLE] Battle ID: 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
+   [BATTLE] Turn: 45/231
+   [BATTLE] Players alive: 5/5
+   ...
+   ```
 
-## Contributing
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Future Expansion Plans
-
-- JWT authentication implementation
-- gRPC (MagicOnion) support
-- Go language implementation
-- Web-based client
-- More complex battle system
+10. **After battle completes, view the replay:**
+    ```
+    > battle-replay 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
+    Battle replay for battle 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212:
+    ...
+    ```

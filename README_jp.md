@@ -106,6 +106,7 @@ dotnet run -- my-group
 
 # バトル機能
 dotnet run -- battle-status
+dotnet run -- battle-replay <battle_id>
 ```
 
 #### インタラクティブモードコマンド
@@ -123,66 +124,77 @@ broadcast <message>    - グループ内メッセージ送信
 groups                 - グループ一覧
 mygroup                - 現在のグループ情報
 battle-status          - バトル状況確認
+battle-replay <id>     - バトルリプレイデータ表示
 exit, quit             - 終了
 help                   - ヘルプ表示
 ```
 
-## バトルシステム
+#### 例：グループセッションワークフロー
 
-### バトル開始条件
-- グループに5人のクライアントが接続した時に自動開始
+典型的なグループセッションワークフローの例を示します：
 
-### バトルの特徴
-- **フィールド**: 20x20のグリッド
-- **エンティティ**: プレイヤー（HP200固定）と敵（小型:HP100、中型:HP200、大型:HP300）
-- **ステータス**: 攻撃力(10-30)、防御力(5-15)、移動速度(1-3)はランダム生成
-- **行動**: 移動、攻撃、防御の3種類
-- **ターン制**: 移動速度順で行動
-- **期間**: 100-300ターンで完了
+1. **サーバーを起動する：**
+   ```bash
+   cd csharp/src/InMemoryServer
+   dotnet run
+   ```
 
-### バトルリプレイ
-- `./battle_replay/` ディレクトリにJSON LINE形式で保存
-- 各ターンの状態が記録される
+2. **別々のターミナルで複数のクライアントを起動する：**
+   ```bash
+   cd csharp/src/CliClient
+   dotnet run
+   ```
 
-## 設定
+3. **サーバーに接続し、利用可能なグループを確認する：**
+   ```
+   > connect http://localhost:5000
+   Connected to server: http://localhost:5000
 
-### サーバー設定
-- **ポート**: 5000 (デフォルト)
-- **SignalRエンドポイント**: `/inmemoryhub`
-- **ヘルスチェック**: `/health`
+   > groups
+   Available groups:
+     3f7e8d2c-9a6b-4c5d-8e7f-1a2b3c4d5e6f
+   ```
 
-### 環境変数対応
-- `ASPNETCORE_URLS`: サーバーURL設定
-- `Logging__LogLevel__Default`: ログレベル設定
+4. **既存のグループに参加するか、新しいグループを作成する：**
+   ```
+   > join my-team
+   Joined group: my-team
+   ```
 
-## 開発情報
+5. **現在のグループ情報を確認する：**
+   ```
+   > mygroup
+   Current group: 7b8c9d0e-1f2a-3b4c-5d6e-7f8a9b0c1d2e
+   ```
 
-### コーディング規約
-- TreatWarningsAsErrors が有効
-- Nullable Reference Types が有効
-- すべての公開APIにXMLドキュメントコメント
+6. **グループ内の全員にメッセージを送信する：**
+   ```
+   > broadcast バトルの準備はできていますか？
+   Message broadcasted: バトルの準備はできていますか？
+   ```
 
-### テストカバレッジ
-- InMemoryState: 基本操作テスト
-- GroupManager: グループ管理テスト
-- BattleState: バトルロジックテスト
+7. **他のグループメンバーからのメッセージを受信する：**
+   ```
+   [GROUP] Message from a4b5c6d7-e8f9-0a1b-2c3d-4e5f6a7b8c9d: 準備OK！
+   ```
 
-## ライセンス
+8. **グループが5人に達すると、バトルが自動的に開始する**
 
-このプロジェクトはMITライセンスの下で公開されています。
+9. **バトル中に現在のバトル状態を確認する：**
+   ```
+   > battle-status
+   [BATTLE] ========== Battle Status ==========
+   [BATTLE] Battle ID: 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
+   [BATTLE] Turn: 45/231
+   [BATTLE] Players alive: 5/5
+   ...
+   ```
 
-## 貢献
+10. **バトル完了後、リプレイを表示する：**
+    ```
+    > battle-replay 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
+    Battle replay for battle 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212:
+    ...
+    ```
 
-1. フォークしてください
-2. フィーチャーブランチを作成してください (`git checkout -b feature/amazing-feature`)
-3. 変更をコミットしてください (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュしてください (`git push origin feature/amazing-feature`)
-5. プルリクエストを開いてください
-
-## 今後の拡張予定
-
-- JWT認証の実装
-- gRPC（MagicOnion）サポート
-- Go言語での実装
-- Webベースのクライアント
-- より複雑なバトルシステム
+バトル終了後、グループのバトルIDはリセットされ、グループが再び5人に達すると新しいバトルが開始できるようになります。
