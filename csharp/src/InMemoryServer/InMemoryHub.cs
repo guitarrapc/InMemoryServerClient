@@ -212,17 +212,20 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // This method is included for future expansion
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle action {actionType}, but battles are currently automated");
         return false;
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Get battle replay data
     /// </summary>
     public async Task<string?> GetBattleReplayAsync(string battleId)
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 
-        // Simple implementation for now, will be expanded later
-        return _state.BattleStates.TryGetValue(battleId, out var _) ? $"Replay data for battle {battleId}" : null;
+        var replayPath = Path.Combine(Constants.BattleReplayDirectory, $"{battleId}.jsonl");
+        if (File.Exists(replayPath))
+        {
+            return await File.ReadAllTextAsync(replayPath);
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -254,6 +257,16 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             // Battle completed
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
             _logger.LogInformation($"Battle {battleId} completed");
+
+            // Reset battle ID in group to allow starting a new battle
+            group.BattleId = null;
+
+            // Schedule cleanup for battle state (to save memory)
+            _ = Task.Delay(TimeSpan.FromMinutes(5)).ContinueWith(_ =>
+            {
+                _state.BattleStates.TryRemove(battleId, out _);
+                _logger.LogInformation($"Cleaned up battle state for {battleId}");
+            });
         });
     }
 

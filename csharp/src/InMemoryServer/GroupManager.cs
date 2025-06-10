@@ -34,6 +34,13 @@ public class GroupManager
                 existingGroup.ConnectionCount++;
                 _connectionToGroup[connectionId] = existingGroup.Id;
                 _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.Id})");
+
+                // Check if group is full for battle start
+                if (existingGroup.ConnectionCount == Constants.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
+                {
+                    _logger.LogInformation($"Group {existingGroup.Name} is now full and ready for battle!");
+                }
+
                 return existingGroup;
             }
             else
@@ -54,6 +61,13 @@ public class GroupManager
             availableGroup.ConnectionCount++;
             _connectionToGroup[connectionId] = availableGroup.Id;
             _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.Id})");
+
+            // Check if group is full for battle start
+            if (availableGroup.ConnectionCount == Constants.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+            {
+                _logger.LogInformation($"Group {availableGroup.Name} is now full and ready for battle!");
+            }
+
             return availableGroup;
         }
 

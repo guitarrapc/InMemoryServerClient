@@ -15,6 +15,23 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     private string _currentGroupId = string.Empty;
 
     /// <summary>
+    /// Generate a text-based health bar
+    /// </summary>
+    private string GenerateHealthBar(int current, int max, int length)
+    {
+        int filledLength = (int)Math.Round((double)current / max * length);
+        string filled = new string('█', filledLength);
+        string empty = new string('░', length - filledLength);
+
+        string color;
+        if ((double)current / max > 0.6) color = "green";
+        else if ((double)current / max > 0.3) color = "yellow";
+        else color = "red";
+
+        return $"[{filled}{empty}]";
+    }
+
+    /// <summary>
     /// Connect to server
     /// </summary>
     public async Task<bool> ConnectAsync(string serverUrl, string? groupName = null)
@@ -59,33 +76,68 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
             _connection.On<string>("BattleStarted", (battleId) =>
             {
-                Console.WriteLine($"[BATTLE] Battle started! Battle ID: {battleId}");
+                Console.WriteLine($"[BATTLE] ========== Battle Started! ==========");
+                Console.WriteLine($"[BATTLE] 🏆 Battle ID: {battleId}");
+                Console.WriteLine($"[BATTLE] Group is full! Automatic battle starting...");
+                Console.WriteLine($"[BATTLE] Preparing battlefield and players...");
+                Console.WriteLine("[BATTLE] ======================================");
             });
 
             _connection.On<BattleStatus>("BattleStatusUpdated", (status) =>
             {
-                Console.WriteLine($"[BATTLE] Turn {status.CurrentTurn}/{status.TotalTurns}");
-                Console.WriteLine($"[BATTLE] Players alive: {status.Players.Count}, Enemies alive: {status.Enemies.Count}");
+                Console.WriteLine($"[BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
+
+                // Display players info
+                var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+                Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{status.Players.Count}");
+                foreach (var player in status.Players)
+                {
+                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                    Console.WriteLine($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
+                }
+
+                // Display enemies info
+                var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+                Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
+
+                // Display logs
+                Console.WriteLine("[BATTLE] Recent actions:");
                 foreach (var log in status.RecentLogs)
                 {
-                    Console.WriteLine($"[BATTLE] {log}");
+                    Console.WriteLine($"[BATTLE] > {log}");
                 }
+                Console.WriteLine("[BATTLE] ====================================");
             });
 
             _connection.On<BattleStatus>("BattleCompleted", (status) =>
             {
-                Console.WriteLine($"[BATTLE] Battle completed!");
-                var playerCount = status.Players.FindAll(p => p.CurrentHp > 0).Count;
-                var enemyCount = status.Enemies.FindAll(e => e.CurrentHp > 0).Count;
+                Console.WriteLine($"[BATTLE] ========== Battle Completed! ==========");
 
-                if (enemyCount == 0)
+                var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+                var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+
+                // Display outcome
+                if (aliveEnemies == 0)
                 {
-                    Console.WriteLine($"[BATTLE] Victory! All enemies defeated!");
+                    Console.WriteLine($"[BATTLE] 🎉 Victory! All enemies defeated! 🎉");
+                    Console.WriteLine($"[BATTLE] Surviving players: {alivePlayers}/{status.Players.Count}");
+
+                    // Show surviving players stats
+                    foreach (var player in status.Players.Where(p => p.CurrentHp > 0))
+                    {
+                        var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                        Console.WriteLine($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                    }
                 }
                 else
                 {
-                    Console.WriteLine($"[BATTLE] Defeat! All players defeated!");
+                    Console.WriteLine($"[BATTLE] ❌ Defeat! All players defeated! ❌");
+                    Console.WriteLine($"[BATTLE] Remaining enemies: {aliveEnemies}/{status.Enemies.Count}");
                 }
+
+                Console.WriteLine($"[BATTLE] Total turns: {status.CurrentTurn}");
+                Console.WriteLine($"[BATTLE] Battle ID: {status.BattleId} (replay available)");
+                Console.WriteLine("[BATTLE] ========================================");
             });
 
             await _connection.StartAsync();
@@ -225,11 +277,10 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     /// <summary>
     /// Get battle status
     /// </summary>
-    public async Task<string?> GetBattleStatusAsync()
+    public async Task<BattleStatus?> GetBattleStatusAsync()
     {
         EnsureConnected();
-        var status = await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
-        return status?.ToString();
+        return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
     }
 
     /// <summary>

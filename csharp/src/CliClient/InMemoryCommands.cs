@@ -202,16 +202,76 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                             Console.WriteLine("Not in any group");
                         }
                         break;
-
                     case "battle-status":
-                        var status = await _client.GetBattleStatusAsync();
-                        if (status != null)
+                        var battleStatus = await _client.GetBattleStatusAsync();
+                        if (battleStatus != null)
                         {
-                            Console.WriteLine($"Battle status: {status}");
+                            if (battleStatus.IsInProgress)
+                            {
+                                Console.WriteLine($"[BATTLE] ========== Battle Status ==========");
+                                Console.WriteLine($"[BATTLE] Battle ID: {battleStatus.BattleId}");
+                                Console.WriteLine($"[BATTLE] Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
+
+                                // Display players
+                                var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
+                                Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Count}");
+                                foreach (var player in battleStatus.Players)
+                                {
+                                    var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
+                                    Console.WriteLine($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.PositionX},{player.PositionY})");
+                                }
+
+                                // Display enemies
+                                var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
+                                Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Count}");
+
+                                // Show recent logs
+                                if (battleStatus.RecentLogs.Count > 0)
+                                {
+                                    Console.WriteLine("[BATTLE] Recent actions:");
+                                    foreach (var log in battleStatus.RecentLogs.TakeLast(5))
+                                    {
+                                        Console.WriteLine($"[BATTLE] > {log}");
+                                    }
+                                }
+
+                                Console.WriteLine("[BATTLE] ===================================");
+                            }
+                            else
+                            {
+                                Console.WriteLine("No active battle in progress.");
+                            }
                         }
                         else
                         {
-                            Console.WriteLine("No active battle");
+                            Console.WriteLine("No active battle or not in a group.");
+                        }
+                        break;
+
+                    case "battle-replay":
+                        if (args.Length < 2)
+                        {
+                            Console.WriteLine("Usage: battle-replay <battle_id>");
+                            break;
+                        }
+                        var replayData = await _client.GetBattleReplayAsync(args[1]);
+                        if (replayData != null)
+                        {
+                            Console.WriteLine($"Battle replay for battle {args[1]}:");
+                            Console.WriteLine("Showing first 10 turns of replay data:");
+                            var lines = replayData.Split('\n');
+                            foreach (var line in lines.Take(10))
+                            {
+                                if (!string.IsNullOrEmpty(line))
+                                {
+                                    Console.WriteLine($"  {line[..Math.Min(100, line.Length)]}...");
+                                }
+                            }
+                            Console.WriteLine($"Total turns in replay: {lines.Length}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Replay data not found for battle: {args[1]}");
                         }
                         break;
 
@@ -540,14 +600,90 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
     {
         try
         {
-            var status = await _client.GetBattleStatusAsync();
-            if (status != null)
+            var battleStatus = await _client.GetBattleStatusAsync();
+            if (battleStatus != null)
             {
-                Console.WriteLine($"Battle status: {status}");
+                if (battleStatus.IsInProgress)
+                {
+                    Console.WriteLine($"[BATTLE] ========== Battle Status ==========");
+                    Console.WriteLine($"[BATTLE] Battle ID: {battleStatus.BattleId}");
+                    Console.WriteLine($"[BATTLE] Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
+
+                    // Display players
+                    var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
+                    Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Count}");
+                    foreach (var player in battleStatus.Players)
+                    {
+                        var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
+                        Console.WriteLine($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.PositionX},{player.PositionY})");
+                    }
+
+                    // Display enemies
+                    var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
+                    Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Count}");
+
+                    // Show recent logs
+                    if (battleStatus.RecentLogs.Count > 0)
+                    {
+                        Console.WriteLine("[BATTLE] Recent actions:");
+                        foreach (var log in battleStatus.RecentLogs.TakeLast(5))
+                        {
+                            Console.WriteLine($"[BATTLE] > {log}");
+                        }
+                    }
+
+                    Console.WriteLine("[BATTLE] ===================================");
+                }
+                else
+                {
+                    Console.WriteLine("No active battle in progress.");
+                }
             }
             else
             {
-                Console.WriteLine("No active battle");
+                Console.WriteLine("No active battle or not in a group.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Environment.ExitCode = 1;
+        }
+    }
+
+    /// <summary>Get battle replay data</summary>
+    /// <param name="battleId">The battle ID to get replay for</param>
+    [Command("battle-replay")]
+    public async Task BattleReplayAsync(string battleId)
+    {
+        if (string.IsNullOrEmpty(battleId))
+        {
+            Console.WriteLine("Error: Battle ID is required");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        try
+        {
+            var replayData = await _client.GetBattleReplayAsync(battleId);
+            if (replayData != null)
+            {
+                Console.WriteLine($"Battle replay for battle {battleId}:");
+                Console.WriteLine("Showing first 10 turns of replay data:");
+                var lines = replayData.Split('\n');
+                foreach (var line in lines.Take(10))
+                {
+                    if (!string.IsNullOrEmpty(line))
+                    {
+                        Console.WriteLine($"  {line[..Math.Min(100, line.Length)]}...");
+                    }
+                }
+                Console.WriteLine($"Total turns in replay: {lines.Length}");
+            }
+            else
+            {
+                Console.WriteLine($"Replay data not found for battle: {battleId}");
+                Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
@@ -569,10 +705,10 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                 Console.WriteLine("  list [pattern]         - List keys matching pattern (default: *)");
         Console.WriteLine("  watch <key>            - Watch key for changes");
         Console.WriteLine("  join <group_name>      - Join a group");
-        Console.WriteLine("  broadcast <message>    - Broadcast message to current group");
-        Console.WriteLine("  groups                 - List available groups");
+        Console.WriteLine("  broadcast <message>    - Broadcast message to current group");        Console.WriteLine("  groups                 - List available groups");
         Console.WriteLine("  mygroup                - Show current group information");
         Console.WriteLine("  battle-status          - Show battle status");
+        Console.WriteLine("  battle-replay <id>     - Show replay data for a battle");
         Console.WriteLine("  exit, quit             - Exit the program");
         Console.WriteLine("  help                   - Show this help");
     }
