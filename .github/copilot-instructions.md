@@ -150,7 +150,7 @@ AIとのすべてのやり取りは日本語で行います。説明、コメン
 - JWT認証用に`System.IdentityModel.Tokens.Jwt`を用います。
 - WebSocket通信用に[SignalR](https://github.com/SignalR/SignalR)を用います。
 - 後々のgRPC対応にMagicOnionを検討します。
-- ユニットテストに`xUnit.v3`、モックに`NSubstirute`を用います。
+- ユニットテストに`xunit.v3`、モックに`NSubstirute`を用います。
 
 ### Go実装（将来）
 - Go 1.21以上
