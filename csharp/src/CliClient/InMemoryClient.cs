@@ -136,7 +136,28 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
                 Console.WriteLine($"[BATTLE] Total turns: {status.CurrentTurn}");
                 Console.WriteLine($"[BATTLE] Battle ID: {status.BattleId} (replay available)");
+                Console.WriteLine($"[BATTLE] Simulation complete! Notifying server...");
+
+                // Automatically notify server that replay is complete
+                Task.Run(async () => {
+                    try {
+                        await BattleReplayCompleteAsync();
+                        Console.WriteLine($"[BATTLE] Successfully notified server about replay completion");
+                    } catch (Exception ex) {
+                        _logger.LogError($"Failed to notify server about replay completion: {ex.Message}");
+                    }
+                });
+
                 Console.WriteLine("[BATTLE] ========================================");
+            });
+
+            _connection.On<string>("AllBattleReplaysCompleted", (battleId) =>
+            {
+                Console.WriteLine($"[BATTLE] ========== All Replays Completed! ==========");
+                Console.WriteLine($"[BATTLE] All clients have completed watching the battle replay");
+                Console.WriteLine($"[BATTLE] Battle ID: {battleId}");
+                Console.WriteLine($"[BATTLE] You can now disconnect or start a new battle");
+                Console.WriteLine("[BATTLE] ===========================================");
             });
 
             await _connection.StartAsync();
@@ -377,6 +398,15 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
         _logger.LogInformation($"Successfully connected {count} sessions to group: {groupName}");
         return true;
+    }
+
+    /// <summary>
+    /// Notify server that battle replay is complete
+    /// </summary>
+    public async Task<bool> BattleReplayCompleteAsync()
+    {
+        EnsureConnected();
+        return await _connection!.InvokeAsync<bool>("BattleReplayCompleteAsync");
     }
 
     /// <summary>

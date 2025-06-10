@@ -38,6 +38,12 @@ public class GroupInfo
     /// Battle ID if battle is in progress
     /// </summary>
     public string? BattleId { get; set; }
+
+    /// <summary>
+    /// Client IDs in this group (not sent to clients)
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<string> ClientIds { get; set; } = [];
 }
 
 /// <summary>

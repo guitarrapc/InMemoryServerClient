@@ -33,6 +33,7 @@ public class GroupManager
                 // Add connection to group
                 existingGroup.ConnectionCount++;
                 _connectionToGroup[connectionId] = existingGroup.Id;
+                existingGroup.ClientIds.Add(connectionId);
                 _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.Id})");
 
                 // Check if group is full for battle start
@@ -60,6 +61,7 @@ public class GroupManager
             // Add connection to group
             availableGroup.ConnectionCount++;
             _connectionToGroup[connectionId] = availableGroup.Id;
+            availableGroup.ClientIds.Add(connectionId);
             _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.Id})");
 
             // Check if group is full for battle start
@@ -74,7 +76,6 @@ public class GroupManager
         // Create a new group
         var newGroupId = Guid.NewGuid().ToString();
         var newGroupName = !string.IsNullOrEmpty(groupName) ? groupName : $"Group-{newGroupId[..8]}";
-
         var newGroup = new GroupInfo
         {
             Id = newGroupId,
@@ -82,7 +83,8 @@ public class GroupManager
             ConnectionCount = 1,
             MaxConnections = Constants.MaxConnectionsPerGroup,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(Constants.GroupExpirationMinutes)
+            ExpiresAt = DateTime.UtcNow.AddMinutes(Constants.GroupExpirationMinutes),
+            ClientIds = new List<string> { connectionId }
         };
 
         _groups[newGroupId] = newGroup;
@@ -102,6 +104,7 @@ public class GroupManager
             if (_groups.TryGetValue(groupId, out var group))
             {
                 group.ConnectionCount--;
+                group.ClientIds.Remove(connectionId);
                 _logger.LogInformation($"Connection {connectionId} left group {group.Name} (ID: {groupId})");
 
                 // Remove group if empty

@@ -19,12 +19,20 @@ public partial class BattleState
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
+    private readonly HashSet<string> _replayCompletedClients = new();
+    private readonly List<string> _groupClientIds = [];
 
     public BattleState(string battleId, GroupInfo group)
     {
         _battleId = battleId;
         _group = group;
         _battleField = new string[Constants.BattleFieldHeight, Constants.BattleFieldWidth];
+
+        // Store client IDs from the group
+        foreach (var clientId in group.ClientIds)
+        {
+            _groupClientIds.Add(clientId);
+        }
 
         // Initialize battle
         InitializeBattle();
@@ -554,5 +562,26 @@ public partial class BattleState
             },
             RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
+    }
+
+    /// <summary>
+    /// Mark a client as having completed the battle replay
+    /// </summary>
+    public void MarkReplayCompleteForClient(string clientId)
+    {
+        _replayCompletedClients.Add(clientId);
+    }
+
+    /// <summary>
+    /// Check if all clients in the group have completed the battle replay
+    /// </summary>
+    public bool AreAllReplaysCompleted()
+    {
+        // If no clients in group (shouldn't happen), return true
+        if (_groupClientIds.Count == 0)
+            return true;
+
+        // Check if all clients have completed the replay
+        return _groupClientIds.All(clientId => _replayCompletedClients.Contains(clientId));
     }
 }

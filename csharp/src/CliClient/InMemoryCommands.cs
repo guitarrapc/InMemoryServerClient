@@ -294,6 +294,26 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                         }
                         break;
 
+                    case "battle-complete":
+                        try
+                        {
+                            if (await _client.BattleReplayCompleteAsync())
+                            {
+                                Console.WriteLine("Successfully notified server about battle replay completion");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Failed to notify server about battle replay completion");
+                                Environment.ExitCode = 1;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Error: {ex.Message}");
+                            Environment.ExitCode = 1;
+                        }
+                        break;
+
                     default:
                         Console.WriteLine($"Unknown command: {command}");
                         break;
@@ -769,13 +789,15 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
         Console.WriteLine("  get <key>              - Get value by key");
         Console.WriteLine("  set <key> <value>      - Set key-value pair");
         Console.WriteLine("  delete <key>           - Delete key");
-                Console.WriteLine("  list [pattern]         - List keys matching pattern (default: *)");
+        Console.WriteLine("  list [pattern]         - List keys matching pattern (default: *)");
         Console.WriteLine("  watch <key>            - Watch key for changes");
         Console.WriteLine("  join <group_name>      - Join a group");
-        Console.WriteLine("  broadcast <message>    - Broadcast message to current group");        Console.WriteLine("  groups                 - List available groups");
+        Console.WriteLine("  broadcast <message>    - Broadcast message to current group");
+        Console.WriteLine("  groups                 - List available groups");
         Console.WriteLine("  mygroup                - Show current group information");
         Console.WriteLine("  battle-status          - Show battle status");
         Console.WriteLine("  battle-replay <id>     - Show replay data for a battle");
+        Console.WriteLine("  battle-complete        - Notify server that battle replay is complete");
         Console.WriteLine("  exit, quit             - Exit the program");
         Console.WriteLine("  help                   - Show this help");
     }

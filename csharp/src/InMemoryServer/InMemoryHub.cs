@@ -229,6 +229,47 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     }
 
     /// <summary>
+    /// Notify that battle replay is complete for this client
+    /// </summary>
+    public async Task<bool> BattleReplayCompleteAsync()
+    {
+        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        if (string.IsNullOrEmpty(groupId))
+        {
+            _logger.LogWarning($"Client {Context.ConnectionId} notified battle replay completion but is not in any group");
+            return false;
+        }
+
+        var group = _groupManager.GetGroupInfo(groupId);
+        if (group == null || string.IsNullOrEmpty(group.BattleId))
+        {
+            _logger.LogWarning($"Group {groupId} does not have an active battle for replay completion");
+            return false;
+        }
+
+        // Get battle state
+        if (!_state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        {
+            _logger.LogWarning($"Battle state not found for battle {group.BattleId}");
+            return false;
+        }
+
+        // Mark this client as having completed the replay
+        var clientId = Context.ConnectionId;
+        battle.MarkReplayCompleteForClient(clientId);
+        _logger.LogInformation($"Client {clientId} completed battle replay for battle {group.BattleId}");
+
+        // Check if all clients have completed the replay
+        if (battle.AreAllReplaysCompleted())
+        {
+            _logger.LogInformation($"All clients completed battle replay for battle {group.BattleId}. Notifying group.");
+            await Clients.Group(groupId).SendAsync("AllBattleReplaysCompleted", group.BattleId);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Start a battle for a full group
     /// </summary>
     private async Task StartBattleAsync(GroupInfo group)
@@ -259,7 +300,6 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             // Battle completed
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
             _logger.LogInformation($"Battle {battleId} completed");
-            _logger.LogInformation($"Battle {battleId}: Pre-computation of battle simulation completed successfully");
 
             // Reset battle ID in group to allow starting a new battle
             group.BattleId = null;
