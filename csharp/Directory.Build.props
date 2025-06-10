@@ -1,0 +1,9 @@
+<Project>
+
+  <PropertyGroup>
+    <NoWarn>CS1998</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+
+</Project>
