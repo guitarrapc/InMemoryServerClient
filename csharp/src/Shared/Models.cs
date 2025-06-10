@@ -68,12 +68,12 @@ public class BattleStatus
     /// <summary>
     /// Players in battle
     /// </summary>
-    public List<EntityInfo> Players { get; set; } = new List<EntityInfo>();
+    public List<EntityInfo> Players { get; set; } = [];
 
     /// <summary>
     /// Enemies in battle
     /// </summary>
-    public List<EntityInfo> Enemies { get; set; } = new List<EntityInfo>();
+    public List<EntityInfo> Enemies { get; set; } = [];
 
     /// <summary>
     /// Battle field information
@@ -83,7 +83,7 @@ public class BattleStatus
     /// <summary>
     /// Recent battle logs
     /// </summary>
-    public List<string> RecentLogs { get; set; } = new List<string>();
+    public List<string> RecentLogs { get; set; } = [];
 }    /// <summary>
 /// Entity information (player or enemy)
 /// </summary>
@@ -163,5 +163,5 @@ public class BattleFieldInfo
     /// <summary>
     /// Field cells
     /// </summary>
-    public List<List<string>> Cells { get; set; } = new List<List<string>>();
+    public List<List<string>> Cells { get; set; } = [];
 }

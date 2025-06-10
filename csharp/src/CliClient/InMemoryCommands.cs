@@ -8,16 +8,10 @@ namespace CliClient;
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class InMemoryCommands
+public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> logger)
 {
-    private readonly InMemoryClient _client;
-    private readonly ILogger<InMemoryCommands> _logger;
-
-    public InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> logger)
-    {
-        _client = client;
-        _logger = logger;
-    }
+    private readonly InMemoryClient _client = client;
+    private readonly ILogger<InMemoryCommands> _logger = logger;
 
     /// <summary>Start interactive mode</summary>
     [Command("")]
@@ -563,7 +557,7 @@ public class InMemoryCommands
         }
     }
 
-    private void ShowInteractiveHelp()
+    private static void ShowInteractiveHelp()
     {
         Console.WriteLine("Available commands:");
         Console.WriteLine("  connect [url] [group]  - Connect to server (default: http://localhost:5000)");

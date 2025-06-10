@@ -59,7 +59,7 @@ public class GroupManager
 
         // Create a new group
         var newGroupId = Guid.NewGuid().ToString();
-        var newGroupName = !string.IsNullOrEmpty(groupName) ? groupName : $"Group-{newGroupId.Substring(0, 8)}";
+        var newGroupName = !string.IsNullOrEmpty(groupName) ? groupName : $"Group-{newGroupId[..8]}";
 
         var newGroup = new GroupInfo
         {

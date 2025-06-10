@@ -11,9 +11,9 @@ public partial class BattleState
     private readonly string _battleId;
     private readonly GroupInfo _group;
     private readonly Random _random = new Random();
-    private readonly List<EntityInfo> _players = new List<EntityInfo>();
-    private readonly List<EntityInfo> _enemies = new List<EntityInfo>();
-    private readonly List<string> _battleLogs = new List<string>();
+    private readonly List<EntityInfo> _players = [];
+    private readonly List<EntityInfo> _enemies = [];
+    private readonly List<string> _battleLogs = [];
     private readonly string?[,] _battleField;
     private int _currentTurn = 0;
     private int _totalTurns;

@@ -7,17 +7,12 @@ namespace CliClient;
 /// <summary>
 /// Client for InMemory server
 /// </summary>
-public class InMemoryClient
+public class InMemoryClient(ILogger<InMemoryClient> logger)
 {
-    private readonly ILogger<InMemoryClient> _logger;
+    private readonly ILogger<InMemoryClient> _logger = logger;
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-
-    public InMemoryClient(ILogger<InMemoryClient> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Connect to server

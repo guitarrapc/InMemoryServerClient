@@ -6,28 +6,19 @@ namespace InMemoryServer;
 /// <summary>
 /// InMemory SignalR Hub
 /// </summary>
-public class InMemoryHub : Hub
+public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager) : Hub
 {
-    private readonly ILogger<InMemoryHub> _logger;
-    private readonly InMemoryState _state;
-    private readonly GroupManager _groupManager;
+    private readonly ILogger<InMemoryHub> _logger = logger;
+    private readonly InMemoryState _state = state;
+    private readonly GroupManager _groupManager = groupManager;
 
-    public InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager)
-    {
-        _logger = logger;
-        _state = state;
-        _groupManager = groupManager;
-    }        /// <summary>
+    /// <summary>
     /// Get value by key
     /// </summary>
     public async Task<string?> GetAsync(string key)
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested value for key: {key}");
-        if (_state.KeyValueStore.TryGetValue(key, out var value))
-        {
-            return value;
-        }
-        return null;
+        return _state.KeyValueStore.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>
@@ -98,7 +89,7 @@ public class InMemoryHub : Hub
 
         if (!_state.KeyWatchers.TryGetValue(key, out var watchers))
         {
-            watchers = new HashSet<string>();
+            watchers = [];
             _state.KeyWatchers[key] = watchers;
         }
 
@@ -193,32 +184,29 @@ public class InMemoryHub : Hub
                 {
                     Width = Constants.BattleFieldWidth,
                     Height = Constants.BattleFieldHeight,
-                    Cells = new List<List<string>>()
+                    Cells = []
                 }
             };
         }
 
-        if (_state.BattleStates.TryGetValue(group.BattleId, out var battle))
-        {
-            return battle.GetStatus();
-        }
-
-        return new BattleStatus
-        {
-            IsInProgress = false,
-            Field = new BattleFieldInfo
+        return _state.BattleStates.TryGetValue(group.BattleId, out var battle)
+            ? battle.GetStatus()
+            : new BattleStatus
             {
-                Width = Constants.BattleFieldWidth,
-                Height = Constants.BattleFieldHeight,
-                Cells = new List<List<string>>()
-            }
-        };
+                IsInProgress = false,
+                Field = new BattleFieldInfo
+                {
+                    Width = Constants.BattleFieldWidth,
+                    Height = Constants.BattleFieldHeight,
+                    Cells = []
+                }
+            };
     }
 
     /// <summary>
     /// Execute battle action
     /// </summary>
-    public async Task<bool> BattleActionAsync(string actionType, string? parameters = null)
+    public async Task<bool> BattleActionAsync(string actionType)
     {
         // For the initial implementation, battle is fully automated
         // This method is included for future expansion
@@ -234,12 +222,7 @@ public class InMemoryHub : Hub
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 
         // Simple implementation for now, will be expanded later
-        if (_state.BattleStates.TryGetValue(battleId, out var battle))
-        {
-            return $"Replay data for battle {battleId}";
-        }
-
-        return null;
+        return _state.BattleStates.TryGetValue(battleId, out var _) ? $"Replay data for battle {battleId}" : null;
     }
 
     /// <summary>
