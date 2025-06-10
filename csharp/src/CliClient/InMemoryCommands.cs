@@ -1,5 +1,6 @@
 ﻿using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
+using Shared;
 
 namespace CliClient;
 
@@ -106,14 +107,13 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                             Console.WriteLine($"Total Connections: {serverStatus.TotalConnections}");
                             Console.WriteLine($"Group Count: {serverStatus.GroupCount}");
                             Console.WriteLine($"Active Battle Count: {serverStatus.ActiveBattleCount}");
-
                             if (serverStatus.Groups.Count > 0)
                             {
                                 Console.WriteLine("\n---------- GROUPS ----------");
-                                foreach (var group in serverStatus.Groups)
+                                foreach (var groupSummary in serverStatus.Groups)
                                 {
-                                    var battleStatus = !string.IsNullOrEmpty(group.BattleId) ? "[Battle in progress]" : "";
-                                    Console.WriteLine($"{group.Name} (ID: {group.Id}): {group.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatus}");
+                                    var battleStatusText = !string.IsNullOrEmpty(groupSummary.BattleId) ? "[Battle in progress]" : "";
+                                    Console.WriteLine($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatusText}");
                                 }
                             }
 
@@ -256,16 +256,17 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                         break;
 
                     case "mygroup":
-                        var groupInfo = await _client.GetMyGroupAsync();
-                        if (groupInfo != null)
+                        var currentGroup = await _client.GetMyGroupAsync();
+                        if (currentGroup != null)
                         {
-                            Console.WriteLine($"Current group: {groupInfo}");
+                            Console.WriteLine($"Current group: {currentGroup}");
                         }
                         else
                         {
                             Console.WriteLine("Not in any group");
                         }
                         break;
+
                     case "battle-status":
                         var battleStatus = await _client.GetBattleStatusAsync();
                         if (battleStatus != null)
@@ -660,11 +661,10 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
     public async Task MyGroupAsync()
     {
         try
-        {
-            var groupInfo = await _client.GetMyGroupAsync();
-            if (groupInfo != null)
+        {            var currentGroup = await _client.GetMyGroupAsync();
+            if (currentGroup != null)
             {
-                Console.WriteLine($"Current group: {groupInfo}");
+                Console.WriteLine($"Current group: {currentGroup}");
             }
             else
             {

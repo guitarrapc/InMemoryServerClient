@@ -77,11 +77,30 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 Console.WriteLine($"[GROUP] Message from {connectionId}: {message}");
             });
 
+            _connection.On<string>("ConnectionsReady", (battleId) =>
+            {
+                Console.WriteLine($"[BATTLE] ========== Connections Ready! ==========");
+                Console.WriteLine($"[BATTLE] 🔄 Battle ID: {battleId}");
+                Console.WriteLine($"[BATTLE] Group is full! All clients connected.");
+                Console.WriteLine($"[BATTLE] Confirming connection ready status...");
+                Console.WriteLine("[BATTLE] ========================================");
+
+                // Automatically confirm connection ready status
+                Task.Run(async () => {
+                    try {
+                        await ConfirmConnectionReadyAsync();
+                        Console.WriteLine($"[BATTLE] Connection ready confirmation sent to server");
+                    } catch (Exception ex) {
+                        _logger.LogError($"Failed to confirm connection ready status: {ex.Message}");
+                    }
+                });
+            });
+
             _connection.On<string>("BattleStarted", (battleId) =>
             {
                 Console.WriteLine($"[BATTLE] ========== Battle Started! ==========");
                 Console.WriteLine($"[BATTLE] 🏆 Battle ID: {battleId}");
-                Console.WriteLine($"[BATTLE] Group is full! Automatic battle starting...");
+                Console.WriteLine($"[BATTLE] All clients confirmed! Automatic battle starting...");
                 Console.WriteLine($"[BATTLE] Preparing battlefield and players...");
                 Console.WriteLine("[BATTLE] ======================================");
             });
@@ -425,6 +444,15 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<ServerStatus?>("GetServerStatusAsync");
+    }
+
+    /// <summary>
+    /// Confirm that client has received the ConnectionsReady notification
+    /// </summary>
+    public async Task<bool> ConfirmConnectionReadyAsync()
+    {
+        EnsureConnected();
+        return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
     }
 
     /// <summary>

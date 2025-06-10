@@ -20,6 +20,7 @@ public partial class BattleState
     private int _totalTurns;
     private bool _isCompleted = false;
     private readonly HashSet<string> _replayCompletedClients = new();
+    private readonly HashSet<string> _connectionReadyConfirmedClients = new(); // クライアントからの準備完了確認を記録
     private readonly List<string> _groupClientIds = [];
 
     /// <summary>
@@ -581,7 +582,6 @@ public partial class BattleState
     {
         _replayCompletedClients.Add(clientId);
     }
-
     /// <summary>
     /// Check if all clients in the group have completed the battle replay
     /// </summary>
@@ -593,5 +593,26 @@ public partial class BattleState
 
         // Check if all clients have completed the replay
         return _groupClientIds.All(clientId => _replayCompletedClients.Contains(clientId));
+    }
+
+    /// <summary>
+    /// Mark a client as having confirmed connection readiness
+    /// </summary>
+    public void MarkConnectionReadyConfirmed(string clientId)
+    {
+        _connectionReadyConfirmedClients.Add(clientId);
+    }
+
+    /// <summary>
+    /// Check if all clients in the group have confirmed connection readiness
+    /// </summary>
+    public bool AreAllConnectionsReadyConfirmed()
+    {
+        // If no clients in group (shouldn't happen), return true
+        if (_groupClientIds.Count == 0)
+            return true;
+
+        // Check if all clients have confirmed connection readiness
+        return _groupClientIds.All(clientId => _connectionReadyConfirmedClients.Contains(clientId));
     }
 }

@@ -284,12 +284,31 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         var battle = new BattleState(battleId, group);
         _state.BattleStates[battleId] = battle;
 
-        // Notify group members
-        await Clients.Group(group.Id).SendAsync("BattleStarted", battleId);
+        // 1. Notify all clients that connections are ready
+        _logger.LogInformation($"Battle {battleId}: Notifying all clients that connections are ready");
+        await Clients.Group(group.Id).SendAsync("ConnectionsReady", battleId);
 
-        // Start battle processing in background
+        // 2. Start battle processing in background after all clients confirm readiness
         _ = Task.Run(async () =>
         {
+            // Wait for all clients to confirm they received the ConnectionsReady notification
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
+
+            while (!battle.AreAllConnectionsReadyConfirmed())
+            {
+                if (await Task.WhenAny(Task.Delay(100), timeoutTask) == timeoutTask)
+                {
+                    // タイムアウト発生、確認が揃わなかった
+                    _logger.LogWarning($"Battle {battleId}: Timed out waiting for client confirmations. Proceeding anyway.");
+                    break;
+                }
+            }
+
+            // 3. Send BattleStarted notification once all clients have confirmed
+            _logger.LogInformation($"Battle {battleId}: All clients confirmed. Starting battle.");
+            await Clients.Group(group.Id).SendAsync("BattleStarted", battleId);
+
+            // 4. Run pre-computation
             _logger.LogInformation($"Battle {battleId}: Starting pre-computation of battle simulation");
             await battle.RunBattleAsync(async (status) =>
             {
@@ -395,5 +414,39 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         }
 
         return status;
+    }
+
+    /// <summary>
+    /// Confirms that a client has received the ConnectionsReady notification
+    /// </summary>
+    public async Task<bool> ConfirmConnectionReadyAsync()
+    {
+        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        if (string.IsNullOrEmpty(groupId))
+        {
+            _logger.LogWarning($"Client {Context.ConnectionId} attempted to confirm connection ready but is not in any group");
+            return false;
+        }
+
+        var group = _groupManager.GetGroupInfo(groupId);
+        if (group == null || string.IsNullOrEmpty(group.BattleId))
+        {
+            _logger.LogWarning($"Group {groupId} does not have an active battle for connection ready confirmation");
+            return false;
+        }
+
+        // Get battle state
+        if (!_state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        {
+            _logger.LogWarning($"Battle state not found for battle {group.BattleId}");
+            return false;
+        }
+
+        // Mark this client as having confirmed connection readiness
+        var clientId = Context.ConnectionId;
+        battle.MarkConnectionReadyConfirmed(clientId);
+        _logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
+
+        return true;
     }
 }
