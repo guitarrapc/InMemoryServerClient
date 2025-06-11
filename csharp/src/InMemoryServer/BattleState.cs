@@ -9,6 +9,13 @@ namespace InMemoryServer;
 /// </summary>
 public partial class BattleState
 {
+    public enum State
+    {
+        Connected = 0,
+        Ready,
+        ReplayCompleted,
+    }
+
     private readonly string _battleId;
     private readonly GroupInfo _group;
     private readonly Random _random = new Random();
@@ -19,10 +26,11 @@ public partial class BattleState
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
-    private readonly ConcurrentDictionary<string, bool> _replayCompletedClients = new();
     private readonly ILogger<BattleState> _logger;
-    private readonly ConcurrentDictionary<string, bool> _connectionReadyConfirmedClients = new(); // クライアントからの準備完了確認を記録
-    private readonly ConcurrentBag<string> _groupClientIds = [];
+    private readonly ConcurrentDictionary<string, State> _clients = [];
+    private int _connectedClientsCount = 0;
+    private int _readyClientsCount = 0;
+    private int _replaytCompletedClientsCount = 0;
 
     /// <summary>
     /// Gets the group ID associated with this battle
@@ -49,7 +57,8 @@ public partial class BattleState
         // Store client IDs from the group
         foreach (var clientId in group.ClientIds)
         {
-            _groupClientIds.Add(clientId);
+            _clients.AddOrUpdate(clientId, State.Connected, (_, _) => State.Connected);
+            Interlocked.Increment(ref _connectedClientsCount);
         }
 
         // Initialize battle
@@ -586,7 +595,8 @@ public partial class BattleState
     /// </summary>
     public void MarkReplayCompleteForClient(string clientId)
     {
-        _replayCompletedClients.TryAdd(clientId, true);
+        _clients.AddOrUpdate(clientId, State.Ready, (_, _) => State.ReplayCompleted);
+        Interlocked.Increment(ref _replaytCompletedClientsCount);
     }
 
     /// <summary>
@@ -594,12 +604,8 @@ public partial class BattleState
     /// </summary>
     public bool AreAllReplaysCompleted()
     {
-        // If no clients in group (shouldn't happen), return true
-        if (_groupClientIds.Count == 0)
-            return true;
-
         // Check if all clients have completed the replay
-        return _groupClientIds.All(clientId => _replayCompletedClients.ContainsKey(clientId));
+        return _replaytCompletedClientsCount == _connectedClientsCount;
     }
 
     /// <summary>
@@ -608,7 +614,7 @@ public partial class BattleState
     public int GetRemainingReplaysCount()
     {
         // Count how many clients have not yet completed the replay
-        return _groupClientIds.Count(clientId => !_replayCompletedClients.ContainsKey(clientId));
+        return _readyClientsCount - _replaytCompletedClientsCount;
     }
 
     /// <summary>
@@ -616,7 +622,8 @@ public partial class BattleState
     /// </summary>
     public void MarkConnectionReadyConfirmed(string clientId)
     {
-        _connectionReadyConfirmedClients.TryAdd(clientId, true);
+        _clients.AddOrUpdate(clientId, State.Ready, (_, _) => State.Ready);
+        Interlocked.Increment(ref _readyClientsCount);
     }
 
     /// <summary>
@@ -624,11 +631,7 @@ public partial class BattleState
     /// </summary>
     public bool AreAllConnectionsReadyConfirmed()
     {
-        // If no clients in group (shouldn't happen), return true
-        if (_groupClientIds.Count == 0)
-            return true;
-
         // Check if all clients have confirmed connection readiness
-        return _groupClientIds.All(clientId => _connectionReadyConfirmedClients.ContainsKey(clientId));
+        return _readyClientsCount == _connectedClientsCount;
     }
 }
