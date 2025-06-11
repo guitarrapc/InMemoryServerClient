@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CliClient": {
+      "commandName": "Project",
+      "commandLineArgs": "connect-battle -u http://localhost:5000 -g battle-group -c 5"
+    }
+  }
+}

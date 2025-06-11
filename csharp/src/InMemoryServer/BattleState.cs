@@ -29,6 +29,11 @@ public partial class BattleState
     public string GroupId => _group.Id;
 
     /// <summary>
+    /// Gets the battle ID
+    /// </summary>
+    public string BattleId => _battleId;
+
+    /// <summary>
     /// Gets the time when the battle was started
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;

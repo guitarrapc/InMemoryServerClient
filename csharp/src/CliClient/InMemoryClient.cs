@@ -192,13 +192,25 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 Console.WriteLine("[BATTLE] ========================================");
             });
 
-            _connection.On<string>("AllBattleReplaysCompleted", (battleId) =>
+            _connection.On<string>("AllBattleReplaysCompleted", async (battleId) =>
             {
                 Console.WriteLine($"[BATTLE] ========== All Replays Completed! ==========");
                 Console.WriteLine($"[BATTLE] All clients have completed watching the battle replay");
                 Console.WriteLine($"[BATTLE] Battle ID: {battleId}");
                 Console.WriteLine($"[BATTLE] You can now disconnect or start a new battle");
                 Console.WriteLine("[BATTLE] ===========================================");
+
+                // バトル完了後に自動的に切断する
+                try
+                {
+                    await Task.Delay(1000); // 1秒待機してから切断
+                    await DisconnectAsync();
+                    Console.WriteLine("[BATTLE] Automatically disconnected from server after battle completion");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error automatically disconnecting after battle: {ex.Message}");
+                }
             });
 
             await _connection.StartAsync();
@@ -416,7 +428,6 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     .WithUrl(serverUrl + Constants.HubRoute)
                     .WithAutomaticReconnect()
                     .Build();
-
                 // 各接続に必要なイベントハンドラを設定
                 connection.On<string>("ConnectionsReady", async (battleId) =>
                 {
@@ -431,9 +442,35 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     }
                 });
 
-                connection.On<BattleStatus>("BattleCompleted", (status) =>
+                // バトル完了時に自動切断するようにイベントハンドラを設定
+                connection.On<string>("AllBattleReplaysCompleted", async (battleId) =>
                 {
-                    // サブ接続では特に何もしない（メイン接続で処理する）
+                    try
+                    {
+                        // 少し待機してから切断
+                        await Task.Delay(1000);
+                        await connection.StopAsync();
+                        await connection.DisposeAsync();
+                        _logger.LogInformation($"Additional connection automatically disconnected after battle completion");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error automatically disconnecting additional connection: {ex.Message}");
+                    }
+                });
+
+                connection.On<BattleStatus>("BattleCompleted", async (status) =>
+                {
+                    // サブ接続でもリプレイ完了を通知する
+                    try
+                    {
+                        await connection.InvokeAsync<bool>("BattleReplayCompleteAsync");
+                        _logger.LogInformation($"Additional connection notified server about replay completion");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Failed to notify server about replay completion from additional connection: {ex.Message}");
+                    }
                 });
 
                 // Start connection

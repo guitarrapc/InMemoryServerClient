@@ -240,31 +240,51 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             _logger.LogWarning($"Client {Context.ConnectionId} notified battle replay completion but is not in any group");
             return false;
         }
-
         var group = _groupManager.GetGroupInfo(groupId);
-        if (group == null || string.IsNullOrEmpty(group.BattleId))
+        if (group == null)
         {
-            _logger.LogWarning($"Group {groupId} does not have an active battle for replay completion");
+            _logger.LogWarning($"Group {groupId} not found for battle replay completion");
             return false;
         }
 
-        // Get battle state
-        if (!_state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        BattleState? battleState = null;
+
+        // Try to find battle state using group's battleId first
+        if (!string.IsNullOrEmpty(group.BattleId) && _state.BattleStates.TryGetValue(group.BattleId, out var battle))
         {
-            _logger.LogWarning($"Battle state not found for battle {group.BattleId}");
-            return false;
+            battleState = battle;
+        }
+        else
+        {
+            // If group has no battleId or battle state not found, search by groupId
+            battleState = _state.BattleStates.Values.FirstOrDefault(b => b.GroupId == groupId);
+            if (battleState == null)
+            {
+                _logger.LogWarning($"Group {groupId} does not have an active battle for replay completion");
+                return false;
+            }
         }
 
         // Mark this client as having completed the replay
         var clientId = Context.ConnectionId;
-        battle.MarkReplayCompleteForClient(clientId);
-        _logger.LogInformation($"Client {clientId} completed battle replay for battle {group.BattleId}");
+        battleState.MarkReplayCompleteForClient(clientId);
+        _logger.LogInformation($"Client {clientId} completed battle replay for battle {battleState.BattleId}");
 
         // Check if all clients have completed the replay
-        if (battle.AreAllReplaysCompleted())
+        if (battleState.AreAllReplaysCompleted())
         {
-            _logger.LogInformation($"All clients completed battle replay for battle {group.BattleId}. Notifying group.");
-            await Clients.Group(groupId).SendAsync("AllBattleReplaysCompleted", group.BattleId);
+            _logger.LogInformation($"All clients completed battle replay for battle {battleState.BattleId}. Notifying group.");
+            await Clients.Group(groupId).SendAsync("AllBattleReplaysCompleted", battleState.BattleId);
+
+            // Only reset battleId after all clients have completed replay
+            group.BattleId = null;
+
+            // Schedule cleanup for battle state (to save memory)
+            _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(_ =>
+            {
+                _state.BattleStates.TryRemove(battleState.BattleId, out BattleState? _);
+                _logger.LogInformation($"Cleaned up battle state for {battleState.BattleId}");
+            });
         }
 
         return true;
@@ -278,7 +298,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         var battleId = Guid.NewGuid().ToString();
         group.BattleId = battleId;
 
-        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}"); _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
+        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");
+        _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
 
         // Create and store battle state
         var battleLogger = _loggerFactory.CreateLogger<BattleState>();
@@ -321,15 +342,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
             _logger.LogInformation($"Battle {battleId} completed");
 
-            // Reset battle ID in group to allow starting a new battle
-            group.BattleId = null;
-
-            // Schedule cleanup for battle state (to save memory)
-            _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(_ =>
-            {
-                _state.BattleStates.TryRemove(battleId, out BattleState? _);
-                _logger.LogInformation($"Cleaned up battle state for {battleId}");
-            });
+            // Note: battleId will be reset in BattleReplayCompleteAsync after all clients have finished watching
         });
     }
 
