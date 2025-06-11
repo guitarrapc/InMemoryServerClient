@@ -23,6 +23,7 @@ var app = ConsoleApp.Create()
     .ConfigureServices(services =>
     {
         services.AddSingleton<InMemoryClient>();
+        services.AddSingleton<MultiClientManager>();
     });
 
 // Add commands

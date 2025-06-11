@@ -9,9 +9,10 @@ namespace CliClient;
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> logger)
+public class InMemoryCommands(InMemoryClient client, MultiClientManager multiClientManager, ILogger<InMemoryCommands> logger)
 {
     private readonly InMemoryClient _client = client;
+    private readonly MultiClientManager _multiClientManager = multiClientManager;
     private readonly ILogger<InMemoryCommands> _logger = logger;
 
     /// <summary>Start interactive mode</summary>
@@ -73,15 +74,31 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                         Console.WriteLine($"Connecting {count} sessions to server: {battleUrl}");
                         Console.WriteLine($"Group name: {battleGroup}");
 
-                        if (await _client.ConnectMultipleAsync(battleUrl, battleGroup, count))
+                        // 新しいMultiClientManagerを使用
+                        if (await _multiClientManager.ConnectMultipleClientsAsync(battleUrl, battleGroup, count))
                         {
-                            Console.WriteLine($"Successfully connected {count} sessions to group: {battleGroup}");
+                            Console.WriteLine($"Successfully connected {count} clients to group: {battleGroup}");
                             Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
-                            // ConnectMultipleAsyncメソッド内でバトル完了まで待機するようになりました
+
+                            // バトルの完了を待機
+                            var timeout = TimeSpan.FromSeconds(30);
+                            Console.WriteLine($"Waiting for battle to complete (timeout: {timeout})...");
+
+                            if (await _multiClientManager.WaitForBattleCompletionAsync(timeout))
+                            {
+                                Console.WriteLine("Battle completed successfully!");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Timed out or error occurred while waiting for battle completion");
+                            }
+
+                            // クリーンアップ
+                            await _multiClientManager.CleanupClientsAsync();
                         }
                         else
                         {
-                            Console.WriteLine($"Failed to connect {count} sessions to server");
+                            Console.WriteLine($"Failed to connect {count} clients to server");
                         }
                         break;
 
@@ -777,12 +794,10 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
             Console.WriteLine($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
-    }
-
-    /// <summary>Connect multiple sessions to the server with the same group</summary>
-    /// <param name="url">-u, Server URL</param>
-    /// <param name="group">-g, Group name</param>
-    /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
+    }    /// <summary>Connect multiple sessions to the server with the same group</summary>
+         /// <param name="url">-u, Server URL</param>
+         /// <param name="group">-g, Group name</param>
+         /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     [Command("connect-battle")]
     public async Task ConnectMultipleAsync(
         string url = "http://localhost:5000",
@@ -808,21 +823,37 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
             Console.WriteLine($"Connecting {count} sessions to server: {url}");
             Console.WriteLine($"Group name: {group}");
 
-            if (await _client.ConnectMultipleAsync(url, group, count))
+            // 新しいMultiClientManagerを使用
+            if (await _multiClientManager.ConnectMultipleClientsAsync(url, group, count))
             {
-                Console.WriteLine($"Successfully connected {count} sessions to group: {group}");
+                Console.WriteLine($"Successfully connected {count} clients to group: {group}");
                 Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
-                // ConnectMultipleAsyncメソッド内でバトル完了まで待機するようになりました
+
+                // バトルの完了を待機
+                var timeout = TimeSpan.FromMinutes(5);
+                Console.WriteLine($"Waiting for battle to complete (timeout: {timeout})...");
+
+                if (await _multiClientManager.WaitForBattleCompletionAsync(timeout))
+                {
+                    Console.WriteLine("Battle completed successfully!");
+                }
+                else
+                {
+                    Console.WriteLine("Timed out or error occurred while waiting for battle completion");
+                }
+
+                // クリーンアップ
+                await _multiClientManager.CleanupClientsAsync();
             }
             else
             {
-                Console.WriteLine($"Failed to connect {count} sessions to server");
+                Console.WriteLine($"Failed to connect {count} clients to server");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error connecting multiple sessions: {ex.Message}");
+            Console.WriteLine($"Error connecting multiple clients: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }

@@ -18,8 +18,9 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     private const int BattleReplayFps = 5; // 5fps for battle replay
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
-    // バトル完了を追跡するためのTaskCompletionSourceフィールドを追加
+    // バトル完了を追跡するためのフィールド
     private TaskCompletionSource<bool>? _battleCompletionSource = null;
+    private Action? _battleCompletedCallback = null;
 
     /// <summary>
     /// Generate a text-based health bar
@@ -181,6 +182,9 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
                         // バトルの完了を通知
                         _battleCompletionSource?.TrySetResult(true);
+
+                        // コールバックがあれば実行
+                        _battleCompletedCallback?.Invoke();
                     }
                     catch (Exception ex)
                     {
@@ -464,8 +468,14 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     // サブ接続でもリプレイ完了を通知する
                     try
                     {
-                        await connection.InvokeAsync<bool>("BattleReplayCompleteAsync");
+                        // タイムアウト付きで通知を送信
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                        await connection.InvokeAsync<bool>("BattleReplayCompleteAsync", cts.Token);
                         _logger.LogInformation($"Additional connection notified server about replay completion");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        _logger.LogWarning("Battle replay complete notification timed out");
                     }
                     catch (Exception ex)
                     {
@@ -545,6 +555,14 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Set a callback to be triggered when a battle is completed
+    /// </summary>
+    public void SetBattleCompletedCallback(Action callback)
+    {
+        _battleCompletedCallback = callback;
     }
 
     /// <summary>
