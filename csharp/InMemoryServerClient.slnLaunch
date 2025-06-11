@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "Server&Client",
+    "Projects": [
+      {
+        "Path": "src\\CliClient\\CliClient.csproj",
+        "Action": "Start",
+        "DebugTarget": "CliClient"
+      },
+      {
+        "Path": "src\\InMemoryServer\\InMemoryServer.csproj",
+        "Action": "Start",
+        "DebugTarget": "InMemoryServer"
+      }
+    ]
+  }
+]
