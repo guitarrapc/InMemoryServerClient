@@ -7,7 +7,8 @@ namespace InMemoryServer;
 /// Represents a battle state
 /// </summary>
 public partial class BattleState
-{    private readonly string _battleId;
+{
+    private readonly string _battleId;
     private readonly GroupInfo _group;
     private readonly Random _random = new Random();
     private readonly List<EntityInfo> _players = [];
@@ -60,7 +61,7 @@ public partial class BattleState
             var player = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = $"Player{i+1}",
+                Name = $"Player{i + 1}",
                 Type = "Player",
                 CurrentHp = Constants.PlayerHp,
                 MaxHp = Constants.PlayerHp,
@@ -81,7 +82,7 @@ public partial class BattleState
             var enemy = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = $"{enemyType}Enemy{i+1}",
+                Name = $"{enemyType}Enemy{i + 1}",
                 Type = enemyType,
                 CurrentHp = Constants.EnemyHpByType[enemyType],
                 MaxHp = Constants.EnemyHpByType[enemyType],
@@ -212,7 +213,7 @@ public partial class BattleState
             }
 
             // Write final state
-            await WriteReplayFrameAsync(replayFile);            var endTime = DateTime.UtcNow;
+            await WriteReplayFrameAsync(replayFile); var endTime = DateTime.UtcNow;
             var duration = endTime - startTime;
             _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
             _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");

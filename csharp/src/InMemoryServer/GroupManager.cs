@@ -124,8 +124,8 @@ public class GroupManager
     {
         return _groups.Values;
     }        /// <summary>
-    /// Get group info by ID
-    /// </summary>
+             /// Get group info by ID
+             /// </summary>
     public GroupInfo? GetGroupInfo(string groupId)
     {
         return _groups.TryGetValue(groupId, out var group) ? group : null;

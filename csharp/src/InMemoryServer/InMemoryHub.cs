@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using Shared;
 
 namespace InMemoryServer;
@@ -215,8 +214,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle action {actionType}, but battles are currently automated");
         return false;
     }    /// <summary>
-    /// Get battle replay data
-    /// </summary>
+         /// Get battle replay data
+         /// </summary>
     public async Task<string?> GetBattleReplayAsync(string battleId)
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
@@ -279,7 +278,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         var battleId = Guid.NewGuid().ToString();
         group.BattleId = battleId;
 
-        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");        _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
+        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}"); _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
 
         // Create and store battle state
         var battleLogger = _loggerFactory.CreateLogger<BattleState>();

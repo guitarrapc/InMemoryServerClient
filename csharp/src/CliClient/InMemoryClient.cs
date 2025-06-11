@@ -89,11 +89,15 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 Console.WriteLine("[BATTLE] ========================================");
 
                 // Automatically confirm connection ready status
-                Task.Run(async () => {
-                    try {
+                Task.Run(async () =>
+                {
+                    try
+                    {
                         await ConfirmConnectionReadyAsync();
                         Console.WriteLine($"[BATTLE] Connection ready confirmation sent to server");
-                    } catch (Exception ex) {
+                    }
+                    catch (Exception ex)
+                    {
                         _logger.LogError($"Failed to confirm connection ready status: {ex.Message}");
                     }
                 });
@@ -168,14 +172,18 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 Console.WriteLine($"[BATTLE] Simulation complete! Notifying server...");
 
                 // Automatically notify server that replay is complete
-                Task.Run(async () => {
-                    try {
+                Task.Run(async () =>
+                {
+                    try
+                    {
                         await BattleReplayCompleteAsync();
                         Console.WriteLine($"[BATTLE] Successfully notified server about replay completion");
 
                         // バトルの完了を通知
                         _battleCompletionSource?.TrySetResult(true);
-                    } catch (Exception ex) {
+                    }
+                    catch (Exception ex)
+                    {
                         _logger.LogError($"Failed to notify server about replay completion: {ex.Message}");
                         _battleCompletionSource?.TrySetException(ex);
                     }
@@ -221,7 +229,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             try
             {
                 await _connection.StopAsync();
-                await _connection.DisposeAsync();                    _connection = null;
+                await _connection.DisposeAsync(); _connection = null;
                 _currentGroupId = string.Empty;
                 _logger.LogInformation("Disconnected from server");
             }
@@ -231,18 +239,18 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             }
         }
     }        /// <summary>
-    /// Check if connected to server
-    /// </summary>
+             /// Check if connected to server
+             /// </summary>
     public bool IsConnected => _connection?.State == HubConnectionState.Connected;        /// <summary>
-    /// Get value by key
-    /// </summary>
+                                                                                          /// Get value by key
+                                                                                          /// </summary>
     public async Task<string?> GetAsync(string key)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<string?>("GetAsync", key);
     }        /// <summary>
-    /// Set key-value pair
-    /// </summary>
+             /// Set key-value pair
+             /// </summary>
     public async Task<bool> SetAsync(string key, string value)
     {
         EnsureConnected();
@@ -309,8 +317,8 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
         var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
         return groups.Select(g => g.Id);
     }    /// <summary>
-    /// Get current group info
-    /// </summary>
+         /// Get current group info
+         /// </summary>
     public async Task<string?> GetMyGroupAsync()
     {
         EnsureConnected();
@@ -412,10 +420,13 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 // 各接続に必要なイベントハンドラを設定
                 connection.On<string>("ConnectionsReady", async (battleId) =>
                 {
-                    try {
+                    try
+                    {
                         await connection.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
                         _logger.LogInformation($"Additional connection confirmed ready for battle");
-                    } catch (Exception ex) {
+                    }
+                    catch (Exception ex)
+                    {
                         _logger.LogError($"Failed to confirm connection ready status: {ex.Message}");
                     }
                 });

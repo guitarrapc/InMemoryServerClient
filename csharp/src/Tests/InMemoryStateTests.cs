@@ -1,4 +1,4 @@
-using InMemoryServer;
+﻿using InMemoryServer;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Shared;

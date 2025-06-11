@@ -662,7 +662,8 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
     public async Task MyGroupAsync()
     {
         try
-        {            var currentGroup = await _client.GetMyGroupAsync();
+        {
+            var currentGroup = await _client.GetMyGroupAsync();
             if (currentGroup != null)
             {
                 Console.WriteLine($"Current group: {currentGroup}");
