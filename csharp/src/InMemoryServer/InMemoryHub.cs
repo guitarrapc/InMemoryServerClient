@@ -277,7 +277,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 await Clients.Group(group.Id).SendAsync("BattleStatusUpdated", status);
             });
 
-            // Battle completed
+            // 5. Battle completed
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
             _logger.LogInformation($"Battle {battleId}: completed");
         });
