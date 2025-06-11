@@ -63,31 +63,31 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             // Set up event handlers
             _connection.On<string, string>("KeyChanged", (key, value) =>
             {
-                Console.WriteLine($"[NOTIFICATION] Key changed: {key} = {value}");
+                _logger.LogInformation($"[NOTIFICATION] Key changed: {key} = {value}");
             });
 
             _connection.On<string>("KeyDeleted", (key) =>
             {
-                Console.WriteLine($"[NOTIFICATION] Key deleted: {key}");
+                _logger.LogInformation($"[NOTIFICATION] Key deleted: {key}");
             });
 
             _connection.On<string, int>("MemberJoined", (connectionId, count) =>
             {
-                Console.WriteLine($"[GROUP] New member joined: {connectionId} (Total: {count})");
+                _logger.LogInformation($"[GROUP] New member joined: {connectionId} (Total: {count})");
             });
 
             _connection.On<string, string>("GroupMessage", (connectionId, message) =>
             {
-                Console.WriteLine($"[GROUP] Message from {connectionId}: {message}");
+                _logger.LogInformation($"[GROUP] Message from {connectionId}: {message}");
             });
 
             _connection.On<string>("ConnectionsReady", (battleId) =>
             {
-                Console.WriteLine($"[BATTLE] ========== Connections Ready! ==========");
-                Console.WriteLine($"[BATTLE] 🔄 Battle ID: {battleId}");
-                Console.WriteLine($"[BATTLE] Group is full! All clients connected.");
-                Console.WriteLine($"[BATTLE] Confirming connection ready status...");
-                Console.WriteLine("[BATTLE] ========================================");
+                _logger.LogInformation($"[BATTLE] ========== Connections Ready! ==========");
+                _logger.LogInformation($"[BATTLE] 🔄 Battle ID: {battleId}");
+                _logger.LogInformation($"[BATTLE] Group is full! All clients connected.");
+                _logger.LogInformation($"[BATTLE] Confirming connection ready status...");
+                _logger.LogInformation("[BATTLE] ========================================");
 
                 // Automatically confirm connection ready status
                 Task.Run(async () =>
@@ -95,7 +95,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     try
                     {
                         await ConfirmConnectionReadyAsync();
-                        Console.WriteLine($"[BATTLE] Connection ready confirmation sent to server");
+                        _logger.LogInformation($"[BATTLE] Connection ready confirmation sent to server");
                     }
                     catch (Exception ex)
                     {
@@ -106,11 +106,11 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
             _connection.On<string>("BattleStarted", (battleId) =>
             {
-                Console.WriteLine($"[BATTLE] ========== Battle Started! ==========");
-                Console.WriteLine($"[BATTLE] 🏆 Battle ID: {battleId}");
-                Console.WriteLine($"[BATTLE] All clients confirmed! Automatic battle starting...");
-                Console.WriteLine($"[BATTLE] Preparing battlefield and players...");
-                Console.WriteLine("[BATTLE] ======================================");
+                _logger.LogInformation($"[BATTLE] ========== Battle Started! ==========");
+                _logger.LogInformation($"[BATTLE] 🏆 Battle ID: {battleId}");
+                _logger.LogInformation($"[BATTLE] All clients confirmed! Automatic battle starting...");
+                _logger.LogInformation($"[BATTLE] Preparing battlefield and players...");
+                _logger.LogInformation("[BATTLE] ======================================");
             });
 
             _connection.On<BattleStatus>("BattleStatusUpdated", (status) =>
@@ -118,33 +118,33 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 // Add delay for frame rate control (10fps)
                 Task.Delay(BattleReplayFrameTimeMs).Wait();
 
-                Console.WriteLine($"[BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
+                _logger.LogInformation($"[BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
 
                 // Display players info
                 var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-                Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{status.Players.Count}");
+                _logger.LogInformation($"[BATTLE] Players alive: {alivePlayers}/{status.Players.Count}");
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    Console.WriteLine($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
+                    _logger.LogInformation($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
                 }
 
                 // Display enemies info
                 var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-                Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
+                _logger.LogInformation($"[BATTLE] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
 
                 // Display logs
-                Console.WriteLine("[BATTLE] Recent actions:");
+                _logger.LogInformation("[BATTLE] Recent actions:");
                 foreach (var log in status.RecentLogs)
                 {
-                    Console.WriteLine($"[BATTLE] > {log}");
+                    _logger.LogInformation($"[BATTLE] > {log}");
                 }
-                Console.WriteLine("[BATTLE] ====================================");
+                _logger.LogInformation("[BATTLE] ====================================");
             });
 
             _connection.On<BattleStatus>("BattleCompleted", (status) =>
             {
-                Console.WriteLine($"[BATTLE] ========== Battle Completed! ==========");
+                _logger.LogInformation($"[BATTLE] ========== Battle Completed! ==========");
 
                 var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
                 var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
@@ -152,25 +152,25 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 // Display outcome
                 if (aliveEnemies == 0)
                 {
-                    Console.WriteLine($"[BATTLE] 🎉 Victory! All enemies defeated! 🎉");
-                    Console.WriteLine($"[BATTLE] Surviving players: {alivePlayers}/{status.Players.Count}");
+                    _logger.LogInformation($"[BATTLE] 🎉 Victory! All enemies defeated! 🎉");
+                    _logger.LogInformation($"[BATTLE] Surviving players: {alivePlayers}/{status.Players.Count}");
 
                     // Show surviving players stats
                     foreach (var player in status.Players.Where(p => p.CurrentHp > 0))
                     {
                         var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                        Console.WriteLine($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                        _logger.LogInformation($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"[BATTLE] ❌ Defeat! All players defeated! ❌");
-                    Console.WriteLine($"[BATTLE] Remaining enemies: {aliveEnemies}/{status.Enemies.Count}");
+                    _logger.LogInformation($"[BATTLE] ❌ Defeat! All players defeated! ❌");
+                    _logger.LogInformation($"[BATTLE] Remaining enemies: {aliveEnemies}/{status.Enemies.Count}");
                 }
 
-                Console.WriteLine($"[BATTLE] Total turns: {status.CurrentTurn}");
-                Console.WriteLine($"[BATTLE] Battle ID: {status.BattleId} (replay available)");
-                Console.WriteLine($"[BATTLE] Simulation complete! Notifying server...");
+                _logger.LogInformation($"[BATTLE] Total turns: {status.CurrentTurn}");
+                _logger.LogInformation($"[BATTLE] Battle ID: {status.BattleId} (replay available)");
+                _logger.LogInformation($"[BATTLE] Simulation complete! Notifying server...");
 
                 // Automatically notify server that replay is complete
                 Task.Run(async () =>
@@ -178,7 +178,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     try
                     {
                         await BattleReplayCompleteAsync();
-                        Console.WriteLine($"[BATTLE] Successfully notified server about replay completion");
+                        _logger.LogInformation($"[BATTLE] Successfully notified server about replay completion");
 
                         // バトルの完了を通知
                         _battleCompletionSource?.TrySetResult(true);
@@ -193,23 +193,23 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     }
                 });
 
-                Console.WriteLine("[BATTLE] ========================================");
+                _logger.LogInformation("[BATTLE] ========================================");
             });
 
             _connection.On<string>("AllBattleReplaysCompleted", async (battleId) =>
             {
-                Console.WriteLine($"[BATTLE] ========== All Replays Completed! ==========");
-                Console.WriteLine($"[BATTLE] All clients have completed watching the battle replay");
-                Console.WriteLine($"[BATTLE] Battle ID: {battleId}");
-                Console.WriteLine($"[BATTLE] You can now disconnect or start a new battle");
-                Console.WriteLine("[BATTLE] ===========================================");
+                _logger.LogInformation($"[BATTLE] ========== All Replays Completed! ==========");
+                _logger.LogInformation($"[BATTLE] All clients have completed watching the battle replay");
+                _logger.LogInformation($"[BATTLE] Battle ID: {battleId}");
+                _logger.LogInformation($"[BATTLE] You can now disconnect or start a new battle");
+                _logger.LogInformation("[BATTLE] ===========================================");
 
                 // バトル完了後に自動的に切断する
                 try
                 {
                     await Task.Delay(1000); // 1秒待機してから切断
                     await DisconnectAsync();
-                    Console.WriteLine("[BATTLE] Automatically disconnected from server after battle completion");
+                    _logger.LogInformation("[BATTLE] Automatically disconnected from server after battle completion");
                 }
                 catch (Exception ex)
                 {
@@ -521,16 +521,16 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
         try
         {
             // バトルが完了するまで待機（タイムアウト3分）
-            Console.WriteLine("Waiting for battle to complete. This may take a minute...");
+            _logger.LogInformation("Waiting for battle to complete. This may take a minute...");
             await Task.WhenAny(_battleCompletionSource.Task, Task.Delay(TimeSpan.FromMinutes(3)));
 
             if (_battleCompletionSource.Task.IsCompleted)
             {
-                Console.WriteLine("Battle has completed successfully!");
+                _logger.LogInformation("Battle has completed successfully!");
             }
             else
             {
-                Console.WriteLine("Timed out waiting for battle to complete.");
+                _logger.LogWarning("Timed out waiting for battle to complete.");
             }
         }
         catch (Exception ex)
