@@ -1,4 +1,4 @@
-﻿using InMemoryServer;
+using InMemoryServer;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 using Shared;
@@ -122,6 +122,12 @@ public class GroupManagerTests
 /// </summary>
 public class BattleStateTests
 {
+    private readonly ILogger<BattleState> _logger;
+
+    public BattleStateTests()
+    {
+        _logger = Substitute.For<ILogger<BattleState>>();
+    }
     [Fact]
     public void BattleState_ShouldInitialize_WithProvidedGroup()
     {
@@ -138,7 +144,7 @@ public class BattleStateTests
         };
 
         // Act
-        var battleState = new BattleState(battleId, group);
+        var battleState = new BattleState(battleId, group, _logger);
         var status = battleState.GetStatus();
 
         // Assert
@@ -167,7 +173,7 @@ public class BattleStateTests
         };
 
         // Act
-        var battleState = new BattleState(battleId, group);
+        var battleState = new BattleState(battleId, group, _logger);
         var status = battleState.GetStatus();
 
         // Assert
@@ -199,7 +205,7 @@ public class BattleStateTests
         };
 
         // Act
-        var battleState = new BattleState(battleId, group);
+        var battleState = new BattleState(battleId, group, _logger);
         var status = battleState.GetStatus();
 
         // Assert

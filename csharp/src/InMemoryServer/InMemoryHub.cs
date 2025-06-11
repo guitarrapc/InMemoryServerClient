@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using Shared;
 
 namespace InMemoryServer;
@@ -6,11 +7,12 @@ namespace InMemoryServer;
 /// <summary>
 /// InMemory SignalR Hub
 /// </summary>
-public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager) : Hub
+public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory) : Hub
 {
     private readonly ILogger<InMemoryHub> _logger = logger;
     private readonly InMemoryState _state = state;
     private readonly GroupManager _groupManager = groupManager;
+    private readonly ILoggerFactory _loggerFactory = loggerFactory;
 
     /// <summary>
     /// Get value by key
@@ -277,11 +279,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         var battleId = Guid.NewGuid().ToString();
         group.BattleId = battleId;
 
-        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");
-        _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
+        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");        _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
 
         // Create and store battle state
-        var battle = new BattleState(battleId, group);
+        var battleLogger = _loggerFactory.CreateLogger<BattleState>();
+        var battle = new BattleState(battleId, group, battleLogger);
         _state.BattleStates[battleId] = battle;
 
         // 1. Notify all clients that connections are ready

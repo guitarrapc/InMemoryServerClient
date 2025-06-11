@@ -7,8 +7,7 @@ namespace InMemoryServer;
 /// Represents a battle state
 /// </summary>
 public partial class BattleState
-{
-    private readonly string _battleId;
+{    private readonly string _battleId;
     private readonly GroupInfo _group;
     private readonly Random _random = new Random();
     private readonly List<EntityInfo> _players = [];
@@ -19,6 +18,7 @@ public partial class BattleState
     private int _totalTurns;
     private bool _isCompleted = false;
     private readonly HashSet<string> _replayCompletedClients = new();
+    private readonly ILogger<BattleState> _logger;
     private readonly HashSet<string> _connectionReadyConfirmedClients = new(); // クライアントからの準備完了確認を記録
     private readonly List<string> _groupClientIds = [];
 
@@ -32,10 +32,11 @@ public partial class BattleState
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(string battleId, GroupInfo group)
+    public BattleState(string battleId, GroupInfo group, ILogger<BattleState> logger)
     {
         _battleId = battleId;
         _group = group;
+        _logger = logger;
         _battleField = new string[Constants.BattleFieldHeight, Constants.BattleFieldWidth];
 
         // Store client IDs from the group
@@ -162,8 +163,7 @@ public partial class BattleState
     /// </summary>
     public async Task RunBattleAsync(Func<BattleStatus, Task> statusCallback)
     {
-        var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<BattleState>();
-        logger.LogInformation($"Battle {_battleId}: Starting pre-computation of battle simulation with {_players.Count} players and {_enemies.Count} enemies");
+        _logger.LogInformation($"Battle {_battleId}: Starting pre-computation of battle simulation with {_players.Count} players and {_enemies.Count} enemies");
         var startTime = DateTime.UtcNow;
 
         // Create directory for battle replays if it doesn't exist
@@ -212,13 +212,11 @@ public partial class BattleState
             }
 
             // Write final state
-            await WriteReplayFrameAsync(replayFile);
-
-            var endTime = DateTime.UtcNow;
+            await WriteReplayFrameAsync(replayFile);            var endTime = DateTime.UtcNow;
             var duration = endTime - startTime;
-            logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
-            logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
-            logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")}");
+            _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
+            _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
+            _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")}");
         }
     }
 
@@ -533,7 +531,9 @@ public partial class BattleState
 
         await writer.WriteLineAsync(JsonSerializer.Serialize(frame));
         await writer.FlushAsync();
-    }        /// <summary>
+    }
+
+    /// <summary>
     /// Get a snapshot of the battle field
     /// </summary>
     private List<List<string>> GetBattleFieldSnapshot()
@@ -581,6 +581,7 @@ public partial class BattleState
     {
         _replayCompletedClients.Add(clientId);
     }
+
     /// <summary>
     /// Check if all clients in the group have completed the battle replay
     /// </summary>
