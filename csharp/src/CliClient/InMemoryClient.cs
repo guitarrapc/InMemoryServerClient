@@ -7,12 +7,13 @@ namespace CliClient;
 /// <summary>
 /// Client for InMemory server
 /// </summary>
-public class InMemoryClient(ILogger<InMemoryClient> logger)
+public class InMemoryClient
 {
-    private readonly ILogger<InMemoryClient> _logger = logger;
+    private readonly ILogger<InMemoryClient> _logger;
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
+    private int _clientId;
 
     // Battle replay settings
     private const int BattleReplayFps = 5; // 5fps for battle replay
@@ -21,6 +22,16 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     // バトル完了を追跡するためのフィールド
     private TaskCompletionSource<bool>? _battleCompletionSource = null;
     private Action? _battleCompletedCallback = null;
+
+    public InMemoryClient(ILogger<InMemoryClient> logger) : this(0, logger)
+    {
+    }
+
+    public InMemoryClient(int clientId, ILogger<InMemoryClient> logger)
+    {
+        _clientId = clientId;
+        _logger = logger;
+    }
 
     /// <summary>
     /// Generate a text-based health bar
@@ -45,7 +56,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     {
         if (_connection != null && _connection.State == HubConnectionState.Connected)
         {
-            _logger.LogInformation("Already connected to server, disconnecting first");
+            _logger.LogInformation($"Client {_clientId}: Already connected to server, disconnecting first");
             await DisconnectAsync();
         }
 
@@ -53,7 +64,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
         try
         {
-            _logger.LogInformation($"Connecting to server: {serverUrl}");
+            _logger.LogInformation($"Client {_clientId}: Connecting to server: {serverUrl}");
 
             _connection = new HubConnectionBuilder()
                 .WithUrl(_serverUrl + Constants.HubRoute)
@@ -63,31 +74,31 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             // Set up event handlers
             _connection.On<string, string>("KeyChanged", (key, value) =>
             {
-                _logger.LogInformation($"[NOTIFICATION] Key changed: {key} = {value}");
+                _logger.LogInformation($"Client {_clientId}: [NOTIFICATION] Key changed: {key} = {value}");
             });
 
             _connection.On<string>("KeyDeleted", (key) =>
             {
-                _logger.LogInformation($"[NOTIFICATION] Key deleted: {key}");
+                _logger.LogInformation($"Client {_clientId}: [NOTIFICATION] Key deleted: {key}");
             });
 
             _connection.On<string, int>("MemberJoined", (connectionId, count) =>
             {
-                _logger.LogInformation($"[GROUP] New member joined: {connectionId} (Total: {count})");
+                _logger.LogInformation($"Client {_clientId}: [GROUP] New member joined: {connectionId} (Total: {count})");
             });
 
             _connection.On<string, string>("GroupMessage", (connectionId, message) =>
             {
-                _logger.LogInformation($"[GROUP] Message from {connectionId}: {message}");
+                _logger.LogInformation($"Client {_clientId}: [GROUP] Message from {connectionId}: {message}");
             });
 
             _connection.On<string>("ConnectionsReady", (battleId) =>
             {
-                _logger.LogInformation($"[BATTLE] ========== Connections Ready! ==========");
-                _logger.LogInformation($"[BATTLE] 🔄 Battle ID: {battleId}");
-                _logger.LogInformation($"[BATTLE] Group is full! All clients connected.");
-                _logger.LogInformation($"[BATTLE] Confirming connection ready status...");
-                _logger.LogInformation("[BATTLE] ========================================");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========== Connections Ready! ==========");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] 🔄 Battle ID: {battleId}");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Group is full! All clients connected.");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Confirming connection ready status...");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========================================");
 
                 // Automatically confirm connection ready status
                 Task.Run(async () =>
@@ -95,22 +106,22 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     try
                     {
                         await ConfirmConnectionReadyAsync();
-                        _logger.LogInformation($"[BATTLE] Connection ready confirmation sent to server");
+                        _logger.LogInformation($"Client {_clientId}: [BATTLE] Connection ready confirmation sent to server");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Failed to confirm connection ready status: {ex.Message}");
+                        _logger.LogError($"Client {_clientId}: Failed to confirm connection ready status: {ex.Message}");
                     }
                 });
             });
 
             _connection.On<string>("BattleStarted", (battleId) =>
             {
-                _logger.LogInformation($"[BATTLE] ========== Battle Started! ==========");
-                _logger.LogInformation($"[BATTLE] 🏆 Battle ID: {battleId}");
-                _logger.LogInformation($"[BATTLE] All clients confirmed! Automatic battle starting...");
-                _logger.LogInformation($"[BATTLE] Preparing battlefield and players...");
-                _logger.LogInformation("[BATTLE] ======================================");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========== Battle Started! ==========");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] 🏆 Battle ID: {battleId}");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] All clients confirmed! Automatic battle starting...");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Preparing battlefield and players...");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ======================================");
             });
 
             _connection.On<BattleStatus>("BattleStatusUpdated", (status) =>
@@ -118,33 +129,33 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 // Add delay for frame rate control (10fps)
                 Task.Delay(BattleReplayFrameTimeMs).Wait();
 
-                _logger.LogInformation($"[BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
 
                 // Display players info
                 var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-                _logger.LogInformation($"[BATTLE] Players alive: {alivePlayers}/{status.Players.Count}");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Players alive: {alivePlayers}/{status.Players.Count}");
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
                 }
 
                 // Display enemies info
                 var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-                _logger.LogInformation($"[BATTLE] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
 
                 // Display logs
-                _logger.LogInformation("[BATTLE] Recent actions:");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Recent actions:");
                 foreach (var log in status.RecentLogs)
                 {
-                    _logger.LogInformation($"[BATTLE] > {log}");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] > {log}");
                 }
-                _logger.LogInformation("[BATTLE] ====================================");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ====================================");
             });
 
             _connection.On<BattleStatus>("BattleCompleted", (status) =>
             {
-                _logger.LogInformation($"[BATTLE] ========== Battle Completed! ==========");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========== Battle Completed! ==========");
 
                 var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
                 var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
@@ -152,25 +163,25 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 // Display outcome
                 if (aliveEnemies == 0)
                 {
-                    _logger.LogInformation($"[BATTLE] 🎉 Victory! All enemies defeated! 🎉");
-                    _logger.LogInformation($"[BATTLE] Surviving players: {alivePlayers}/{status.Players.Count}");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] 🎉 Victory! All enemies defeated! 🎉");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] Surviving players: {alivePlayers}/{status.Players.Count}");
 
                     // Show surviving players stats
                     foreach (var player in status.Players.Where(p => p.CurrentHp > 0))
                     {
                         var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                        _logger.LogInformation($"[BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                        _logger.LogInformation($"Client {_clientId}: [BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
                     }
                 }
                 else
                 {
-                    _logger.LogInformation($"[BATTLE] ❌ Defeat! All players defeated! ❌");
-                    _logger.LogInformation($"[BATTLE] Remaining enemies: {aliveEnemies}/{status.Enemies.Count}");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] ❌ Defeat! All players defeated! ❌");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] Remaining enemies: {aliveEnemies}/{status.Enemies.Count}");
                 }
 
-                _logger.LogInformation($"[BATTLE] Total turns: {status.CurrentTurn}");
-                _logger.LogInformation($"[BATTLE] Battle ID: {status.BattleId} (replay available)");
-                _logger.LogInformation($"[BATTLE] Simulation complete! Notifying server...");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Total turns: {status.CurrentTurn}");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Battle ID: {status.BattleId} (replay available)");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Simulation complete! Notifying server...");
 
                 // Automatically notify server that replay is complete
                 Task.Run(async () =>
@@ -178,7 +189,7 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     try
                     {
                         await BattleReplayCompleteAsync();
-                        _logger.LogInformation($"[BATTLE] Successfully notified server about replay completion");
+                        _logger.LogInformation($"Client {_clientId}: [BATTLE] Successfully notified server about replay completion");
 
                         // バトルの完了を通知
                         _battleCompletionSource?.TrySetResult(true);
@@ -188,32 +199,32 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Failed to notify server about replay completion: {ex.Message}");
+                        _logger.LogError($"Client {_clientId}: Failed to notify server about replay completion: {ex.Message}");
                         _battleCompletionSource?.TrySetException(ex);
                     }
                 });
 
-                _logger.LogInformation("[BATTLE] ========================================");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========================================");
             });
 
             _connection.On<string>("AllBattleReplaysCompleted", async (battleId) =>
             {
-                _logger.LogInformation($"[BATTLE] ========== All Replays Completed! ==========");
-                _logger.LogInformation($"[BATTLE] All clients have completed watching the battle replay");
-                _logger.LogInformation($"[BATTLE] Battle ID: {battleId}");
-                _logger.LogInformation($"[BATTLE] You can now disconnect or start a new battle");
-                _logger.LogInformation("[BATTLE] ===========================================");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ========== All Replays Completed! ==========");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] All clients have completed watching the battle replay");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] Battle ID: {battleId}");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] You can now disconnect or start a new battle");
+                _logger.LogInformation($"Client {_clientId}: [BATTLE] ===========================================");
 
                 // バトル完了後に自動的に切断する
                 try
                 {
                     await Task.Delay(1000); // 1秒待機してから切断
                     await DisconnectAsync();
-                    _logger.LogInformation("[BATTLE] Automatically disconnected from server after battle completion");
+                    _logger.LogInformation($"Client {_clientId}: [BATTLE] Automatically disconnected from server after battle completion");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Error automatically disconnecting after battle: {ex.Message}");
+                    _logger.LogError($"Client {_clientId}: Error automatically disconnecting after battle: {ex.Message}");
                 }
             });
 
@@ -223,14 +234,14 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             if (!string.IsNullOrEmpty(groupName))
             {
                 _currentGroupId = await _connection.InvokeAsync<string>("JoinGroupAsync", groupName);
-                _logger.LogInformation($"Joined group: {groupName} (ID: {_currentGroupId})");
+                _logger.LogInformation($"Client {_clientId}: Joined group: {groupName} (ID: {_currentGroupId})");
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Failed to connect to server: {ex.Message}");
+            _logger.LogError($"Client {_clientId}: Failed to connect to server: {ex.Message}");
             return false;
         }
     }
@@ -247,11 +258,11 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 await _connection.StopAsync();
                 await _connection.DisposeAsync(); _connection = null;
                 _currentGroupId = string.Empty;
-                _logger.LogInformation("Disconnected from server");
+                _logger.LogInformation($"Client {_clientId}: Disconnected from server");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error disconnecting from server: {ex.Message}");
+                _logger.LogError($"Client {_clientId}: Error disconnecting from server: {ex.Message}");
             }
         }
     }        /// <summary>
@@ -383,18 +394,18 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     /// </summary>
     public async Task<bool> ConnectMultipleAsync(string serverUrl, string groupName, int count)
     {
-        _logger.LogInformation($"Connecting {count} sessions to group '{groupName}' on server '{serverUrl}'");
+        _logger.LogInformation($"Client {_clientId}: Connecting {count} sessions to group '{groupName}' on server '{serverUrl}'");
 
         if (count <= 0)
         {
-            _logger.LogWarning($"Invalid session count: {count}, must be greater than 0");
+            _logger.LogWarning($"Client {_clientId}: Invalid session count: {count}, must be greater than 0");
             return false;
         }
 
         // If already connected, disconnect first
         if (_connection != null && _connection.State == HubConnectionState.Connected)
         {
-            _logger.LogInformation("Already connected to server, disconnecting first");
+            _logger.LogInformation($"Client {_clientId}: Already connected to server, disconnecting first");
             await DisconnectAsync();
         }
 
@@ -438,11 +449,11 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     try
                     {
                         await connection.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
-                        _logger.LogInformation($"Additional connection confirmed ready for battle");
+                        _logger.LogInformation($"Client {_clientId}: Additional connection confirmed ready for battle");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Failed to confirm connection ready status: {ex.Message}");
+                        _logger.LogError($"Client {_clientId}: Failed to confirm connection ready status: {ex.Message}");
                     }
                 });
 
@@ -455,11 +466,11 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                         await Task.Delay(1000);
                         await connection.StopAsync();
                         await connection.DisposeAsync();
-                        _logger.LogInformation($"Additional connection automatically disconnected after battle completion");
+                        _logger.LogInformation($"Client {_clientId}: Additional connection automatically disconnected after battle completion");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Error automatically disconnecting additional connection: {ex.Message}");
+                        _logger.LogError($"Client {_clientId}: Error automatically disconnecting additional connection: {ex.Message}");
                     }
                 });
 
@@ -471,15 +482,15 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                         // タイムアウト付きで通知を送信
                         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                         await connection.InvokeAsync<bool>("BattleReplayCompleteAsync", cts.Token);
-                        _logger.LogInformation($"Additional connection notified server about replay completion");
+                        _logger.LogInformation($"Client {_clientId}: Additional connection notified server about replay completion");
                     }
                     catch (OperationCanceledException)
                     {
-                        _logger.LogWarning("Battle replay complete notification timed out");
+                        _logger.LogWarning($"Client {_clientId}: Battle replay complete notification timed out");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Failed to notify server about replay completion from additional connection: {ex.Message}");
+                        _logger.LogError($"Client {_clientId}: Failed to notify server about replay completion from additional connection: {ex.Message}");
                     }
                 });
 
@@ -492,11 +503,11 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                 // Add to list of connections to manage
                 additionalConnections.Add(connection);
 
-                _logger.LogInformation($"Created additional connection {i} and joined group: {groupName}");
+                _logger.LogInformation($"Client {_clientId}: Created additional connection {i} and joined group: {groupName}");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Failed to create additional connection {i}: {ex.Message}");
+                _logger.LogError($"Client {_clientId}: Failed to create additional connection {i}: {ex.Message}");
 
                 // Clean up already created connections
                 foreach (var conn in additionalConnections)
@@ -516,26 +527,26 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             }
         }
 
-        _logger.LogInformation($"Successfully connected {count} sessions to group: {groupName}");
+        _logger.LogInformation($"Client {_clientId}: Successfully connected {count} sessions to group: {groupName}");
 
         try
         {
             // バトルが完了するまで待機（タイムアウト3分）
-            _logger.LogInformation("Waiting for battle to complete. This may take a minute...");
+            _logger.LogInformation($"Client {_clientId}: Waiting for battle to complete. This may take a minute...");
             await Task.WhenAny(_battleCompletionSource.Task, Task.Delay(TimeSpan.FromMinutes(3)));
 
             if (_battleCompletionSource.Task.IsCompleted)
             {
-                _logger.LogInformation("Battle has completed successfully!");
+                _logger.LogInformation($"Client {_clientId}: Battle has completed successfully!");
             }
             else
             {
-                _logger.LogWarning("Timed out waiting for battle to complete.");
+                _logger.LogWarning($"Client {_clientId}: Timed out waiting for battle to complete.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Error while waiting for battle completion: {ex.Message}");
+            _logger.LogError($"Client {_clientId}: Error while waiting for battle completion: {ex.Message}");
         }
         finally
         {

@@ -40,7 +40,7 @@ public class MultiClientManager
             try
             {
                 var clientLogger = _loggerFactory.CreateLogger<InMemoryClient>();
-                var client = new InMemoryClient(clientLogger);
+                var client = new InMemoryClient(i, clientLogger);
                 var completionSource = new TaskCompletionSource<bool>();
 
                 // バトル完了のモニタリングを設定
