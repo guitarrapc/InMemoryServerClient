@@ -200,7 +200,7 @@ public class InMemoryClient
         catch (Exception ex)
         {
             _logger.LogError($"Client {_clientIndex}: Failed to connect to server: {ex.Message}");
-            _battleCompletionSource.SetException(ex);
+            _battleCompletionSource.TrySetException(ex);
             return false;
         }
     }
@@ -215,13 +215,18 @@ public class InMemoryClient
             try
             {
                 await _connection.StopAsync();
-                await _connection.DisposeAsync(); _connection = null;
+                await _connection.DisposeAsync();
+                _connection = null;
                 _currentGroupId = string.Empty;
                 _logger.LogInformation($"Client {_clientIndex}: Disconnected from server");
+
+                // If battle completion is still pending, mark it as cancelled
+                _battleCompletionSource.TrySetCanceled();
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Client {_clientIndex}: Error disconnecting from server: {ex.Message}");
+                _battleCompletionSource.TrySetException(ex);
             }
         }
     }
@@ -372,7 +377,7 @@ public class InMemoryClient
         return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
     }
 
-    /// <summary>
+        /// <summary>
     /// Ensure client is connected to server
     /// </summary>
     private void EnsureConnected()
