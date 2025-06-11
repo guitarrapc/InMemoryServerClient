@@ -20,7 +20,9 @@ public class InMemoryClient
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
     // This is used to track if the battle has completed and to notify the client when it is done
-    private TaskCompletionSource<bool>? _battleCompletionSource = null;
+    private readonly TaskCompletionSource<bool> _battleCompletionSource;
+
+    public TaskCompletionSource<bool> BattleCompletionSource => _battleCompletionSource;
 
     public InMemoryClient(ILogger<InMemoryClient> logger) : this(0, logger)
     {
@@ -30,14 +32,7 @@ public class InMemoryClient
     {
         _clientIndex = clientIndex;
         _logger = logger;
-    }
-
-    /// <summary>
-    /// Set the battle completion source for external notification
-    /// </summary>
-    public void SetBattleCompletionSource(TaskCompletionSource<bool> completionSource)
-    {
-        _battleCompletionSource = completionSource;
+        _battleCompletionSource = new TaskCompletionSource<bool>();
     }
 
     /// <summary>
@@ -188,7 +183,7 @@ public class InMemoryClient
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Simulation complete! Notifying server...");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========================================");
 
-                _battleCompletionSource?.TrySetResult(true);
+                _battleCompletionSource.TrySetResult(true);
             });
 
             await _connection.StartAsync();
@@ -205,6 +200,7 @@ public class InMemoryClient
         catch (Exception ex)
         {
             _logger.LogError($"Client {_clientIndex}: Failed to connect to server: {ex.Message}");
+            _battleCompletionSource.SetException(ex);
             return false;
         }
     }

@@ -10,7 +10,6 @@ public class MultiClientManager
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<MultiClientManager> _logger;
     private readonly List<InMemoryClient> _clients = new();
-    private readonly List<TaskCompletionSource<bool>> _battleCompletionSources = new();
 
     public MultiClientManager(ILoggerFactory loggerFactory)
     {
@@ -41,14 +40,9 @@ public class MultiClientManager
             {
                 var clientLogger = _loggerFactory.CreateLogger<InMemoryClient>();
                 var client = new InMemoryClient(i, clientLogger);
-                var completionSource = new TaskCompletionSource<bool>();
-
-                // バトル完了通知を設定
-                client.SetBattleCompletionSource(completionSource);
 
                 // クライアントをリストに追加
                 _clients.Add(client);
-                _battleCompletionSources.Add(completionSource);
 
                 // 接続
                 var success = await client.ConnectAsync(serverUrl, groupName);
@@ -78,18 +72,18 @@ public class MultiClientManager
     /// </summary>
     public async Task<bool> WaitForBattleCompletionAsync(TimeSpan timeout)
     {
-        if (_battleCompletionSources.Count == 0)
+        if (_clients.Count == 0)
         {
             _logger.LogWarning("No clients to wait for");
             return false;
         }
 
-        _logger.LogInformation($"Waiting for battle to complete on {_battleCompletionSources.Count} clients (timeout: {timeout})");
+        _logger.LogInformation($"Waiting for battle to complete on {_clients.Count} clients (timeout: {timeout})");
 
         try
         {
             // すべてのクライアントの完了を待機
-            var allTasks = _battleCompletionSources.Select(source => source.Task).ToArray();
+            var allTasks = _clients.Select(source => source.BattleCompletionSource.Task).ToArray();
             var timeoutTask = Task.Delay(timeout);
 
             var completedTask = await Task.WhenAny(Task.WhenAll(allTasks), timeoutTask);
@@ -133,6 +127,5 @@ public class MultiClientManager
         }
 
         _clients.Clear();
-        _battleCompletionSources.Clear();
     }
 }
