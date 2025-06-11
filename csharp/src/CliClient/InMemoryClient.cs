@@ -13,7 +13,7 @@ public class InMemoryClient
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-    private int _clientIndex;
+    private readonly int _clientIndex;
 
     // Battle replay settings
     private const int BattleReplayFps = 5; // 5fps for battle replay
