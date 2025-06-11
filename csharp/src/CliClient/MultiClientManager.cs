@@ -43,6 +43,9 @@ public class MultiClientManager
                 var client = new InMemoryClient(i, clientLogger);
                 var completionSource = new TaskCompletionSource<bool>();
 
+                // バトル完了通知を設定
+                client.SetBattleCompletionSource(completionSource);
+
                 // クライアントをリストに追加
                 _clients.Add(client);
                 _battleCompletionSources.Add(completionSource);
@@ -52,6 +55,7 @@ public class MultiClientManager
                 if (!success)
                 {
                     _logger.LogError($"Client {i}: Failed to connect");
+                    await CleanupClientsAsync();
                     return false;
                 }
 
@@ -60,11 +64,8 @@ public class MultiClientManager
             catch (Exception ex)
             {
                 _logger.LogError($"Failed to create client {i}: {ex.Message}");
-                return false;
-            }
-            finally
-            {
                 await CleanupClientsAsync();
+                return false;
             }
         }
 

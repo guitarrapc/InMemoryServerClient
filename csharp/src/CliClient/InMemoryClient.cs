@@ -19,6 +19,9 @@ public class InMemoryClient
     private const int BattleReplayFps = 5; // 5fps for battle replay
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
+    // This is used to track if the battle has completed and to notify the client when it is done
+    private TaskCompletionSource<bool>? _battleCompletionSource = null;
+
     public InMemoryClient(ILogger<InMemoryClient> logger) : this(0, logger)
     {
     }
@@ -27,6 +30,14 @@ public class InMemoryClient
     {
         _clientIndex = clientIndex;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Set the battle completion source for external notification
+    /// </summary>
+    public void SetBattleCompletionSource(TaskCompletionSource<bool> completionSource)
+    {
+        _battleCompletionSource = completionSource;
     }
 
     /// <summary>
@@ -176,27 +187,8 @@ public class InMemoryClient
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {status.BattleId} (replay available)");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Simulation complete! Notifying server...");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========================================");
-            });
 
-            _connection.On<string>("AllBattleReplaysCompleted", async (battleId) =>
-            {
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== All Replays Completed! ==========");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All clients have completed watching the battle replay");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {battleId}");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] You can now disconnect or start a new battle");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ===========================================");
-
-                // バトル完了後に自動的に切断する
-                try
-                {
-                    await Task.Delay(1000); // 1秒待機してから切断
-                    await DisconnectAsync();
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Automatically disconnected from server after battle completion");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Client {_clientIndex}: [BATTLE] Error automatically disconnecting after battle: {ex.Message}");
-                }
+                _battleCompletionSource?.TrySetResult(true);
             });
 
             await _connection.StartAsync();

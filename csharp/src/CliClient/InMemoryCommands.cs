@@ -13,7 +13,9 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 {
     private readonly InMemoryClient _client = client;
     private readonly MultiClientManager _multiClientManager = multiClientManager;
-    private readonly ILogger<InMemoryCommands> _logger = logger;    /// <summary>Start interactive mode</summary>
+    private readonly ILogger<InMemoryCommands> _logger = logger;
+
+    /// <summary>Start interactive mode</summary>
     [Command("")]
     public async Task InteractiveAsync()
     {
@@ -673,9 +675,6 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                 {
                     Console.WriteLine("Timed out or error occurred while waiting for battle completion");
                 }
-
-                // クリーンアップ
-                await _multiClientManager.CleanupClientsAsync();
             }
             else
             {
@@ -687,6 +686,18 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
         {
             Console.WriteLine($"Error connecting multiple clients: {ex.Message}");
             Environment.ExitCode = 1;
+        }
+        finally
+        {
+            // 最後に必ずクリーンアップを実行
+            try
+            {
+                await _multiClientManager.CleanupClientsAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during cleanup: {ex.Message}");
+            }
         }
     }
 
