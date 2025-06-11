@@ -154,10 +154,6 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                         await BattleReplayAsync(args[1]);
                         break;
 
-                    case "battle-complete":
-                        await BattleCompleteAsync();
-                        break;
-
                     default:
                         Console.WriteLine($"Unknown command: {command}");
                         break;
@@ -623,29 +619,6 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
             else
             {
                 Console.WriteLine("Failed to get server status.");
-                Environment.ExitCode = 1;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error: {ex.Message}");
-            Environment.ExitCode = 1;
-        }
-    }
-
-    /// <summary>Notify server that battle replay is complete</summary>
-    [Command("battle-complete")]
-    public async Task BattleCompleteAsync()
-    {
-        try
-        {
-            if (await _client.BattleReplayCompleteAsync())
-            {
-                Console.WriteLine("Successfully notified server about battle replay completion");
-            }
-            else
-            {
-                Console.WriteLine("Failed to notify server about battle replay completion");
                 Environment.ExitCode = 1;
             }
         }
