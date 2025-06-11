@@ -184,6 +184,7 @@ C#の基礎的なルールは次の通り
 
 - 短寿命なオブジェクトにはstructを用いることができるか検討します。例えば`readonly ref struct`や`readonly struct`はパフォーマンス向上に寄与します。Mutable Structは意識的に避けます。
 - 非同期メソッドは`async`/`await`を使用して、I/Oバウンド操作のパフォーマンスを向上させます。生`Task`メソッドを避けて、意識的に`async/await`パターンを使用します。
+- 並列アクセスがあるコレクションは、スレッドセーフなコレクションを使用します。例えば、`ConcurrentDictionary<TKey, TValue>`や`ConcurrentBag<T>`などを利用します。
 
 ライブラリやコーディングパターンは次の通りです
 
