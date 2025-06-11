@@ -292,7 +292,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _ = Task.Run(async () =>
         {
             // Wait for all clients to confirm they received the ConnectionsReady notification
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5)); // 5秒のタイムアウト
 
             while (!battle.AreAllConnectionsReadyConfirmed())
             {
@@ -324,7 +324,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             group.BattleId = null;
 
             // Schedule cleanup for battle state (to save memory)
-            _ = Task.Delay(TimeSpan.FromMinutes(5)).ContinueWith(_ =>
+            _ = Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(_ =>
             {
                 _state.BattleStates.TryRemove(battleId, out BattleState? _);
                 _logger.LogInformation($"Cleaned up battle state for {battleId}");

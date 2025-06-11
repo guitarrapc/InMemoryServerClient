@@ -462,9 +462,9 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
 
         try
         {
-            // バトルが完了するまで待機（タイムアウト20分）
-            Console.WriteLine("Waiting for battle to complete. This may take several minutes...");
-            await Task.WhenAny(_battleCompletionSource.Task, Task.Delay(TimeSpan.FromMinutes(20)));
+            // バトルが完了するまで待機（タイムアウト3分）
+            Console.WriteLine("Waiting for battle to complete. This may take a minute...");
+            await Task.WhenAny(_battleCompletionSource.Task, Task.Delay(TimeSpan.FromMinutes(3)));
 
             if (_battleCompletionSource.Task.IsCompleted)
             {
