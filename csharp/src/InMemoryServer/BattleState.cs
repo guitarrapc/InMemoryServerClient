@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Shared;
+﻿using Shared;
 using System.Text.Json;
 
 namespace InMemoryServer;

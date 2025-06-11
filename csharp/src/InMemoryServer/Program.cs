@@ -6,7 +6,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Configure logging
 builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
+builder.Logging.AddConsole(options =>
+{
+    options.FormatterName = "customTimestamp";
+});
+// カスタムのタイムスタンプフォーマッタを登録
+builder.Logging.AddConsoleFormatter<CustomTimestampConsoleFormatter, CustomTimestampConsoleFormatterOptions>(options =>
+{
+    options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
+    options.IncludeScopes = true;
+});
 
 // Add services to the container
 builder.Services.AddSignalR();

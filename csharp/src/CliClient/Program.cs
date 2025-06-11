@@ -8,7 +8,17 @@ var app = ConsoleApp.Create()
     .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
-        logging.AddConsole();
+        logging.AddConsole(options =>
+        {
+            options.FormatterName = "customTimestamp";
+        });
+
+        // カスタムのタイムスタンプフォーマッタを登録
+        logging.AddConsoleFormatter<CustomTimestampConsoleFormatter, CustomTimestampConsoleFormatterOptions>(options =>
+        {
+            options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
+            options.IncludeScopes = true;
+        });
     })
     .ConfigureServices(services =>
     {
