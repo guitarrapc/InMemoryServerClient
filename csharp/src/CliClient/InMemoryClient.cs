@@ -41,8 +41,16 @@ public class InMemoryClient
     private string GenerateHealthBar(int current, int max, int length)
     {
         int filledLength = (int)Math.Round((double)current / max * length);
-        string filled = new string('█', filledLength);
-        string empty = new string('░', length - filledLength);
+
+        // ASCII-compatible characters for better Windows cmd.exe compatibility
+        string filled = new string('=', filledLength);
+        string empty = new string('-', length - filledLength);
+
+        // Alternative patterns for different visual preferences:
+        // Pattern 1: [==========----------] (current)
+        // Pattern 2: [##########..........] using # and .
+        // Pattern 3: [**********          ] using * and space
+        // Pattern 4: [||||||||||||--------] using | and -
 
         // Determine color based on health percentage (not used in console output but kept for future UI implementations)
         double percentage = (double)current / max;
