@@ -18,6 +18,9 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
     private const int BattleReplayFps = 5; // 5fps for battle replay
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
+    // バトル完了を追跡するためのTaskCompletionSourceフィールドを追加
+    private TaskCompletionSource<bool>? _battleCompletionSource = null;
+
     /// <summary>
     /// Generate a text-based health bar
     /// </summary>
@@ -169,8 +172,12 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     try {
                         await BattleReplayCompleteAsync();
                         Console.WriteLine($"[BATTLE] Successfully notified server about replay completion");
+
+                        // バトルの完了を通知
+                        _battleCompletionSource?.TrySetResult(true);
                     } catch (Exception ex) {
                         _logger.LogError($"Failed to notify server about replay completion: {ex.Message}");
+                        _battleCompletionSource?.TrySetException(ex);
                     }
                 });
 
@@ -380,6 +387,17 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
             return true;
         }
 
+        // 完了通知を受け取るための TaskCompletionSource を作成
+        _battleCompletionSource = new TaskCompletionSource<bool>();
+
+        // メインコネクションに BattleCompleted イベントを追加
+        _connection!.On<BattleStatus>("BattleCompleted", (status) =>
+        {
+            // すでに BattleCompleted イベントハンドラがあるので、
+            // そちらで表示は行い、ここでは完了通知のみ行う
+            _battleCompletionSource?.TrySetResult(true);
+        });
+
         // Create additional connections (count-1 because we already have one connection)
         var additionalConnections = new List<HubConnection>();
         for (int i = 1; i < count; i++)
@@ -390,6 +408,22 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
                     .WithUrl(serverUrl + Constants.HubRoute)
                     .WithAutomaticReconnect()
                     .Build();
+
+                // 各接続に必要なイベントハンドラを設定
+                connection.On<string>("ConnectionsReady", async (battleId) =>
+                {
+                    try {
+                        await connection.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
+                        _logger.LogInformation($"Additional connection confirmed ready for battle");
+                    } catch (Exception ex) {
+                        _logger.LogError($"Failed to confirm connection ready status: {ex.Message}");
+                    }
+                });
+
+                connection.On<BattleStatus>("BattleCompleted", (status) =>
+                {
+                    // サブ接続では特に何もしない（メイン接続で処理する）
+                });
 
                 // Start connection
                 await connection.StartAsync();
@@ -425,6 +459,43 @@ public class InMemoryClient(ILogger<InMemoryClient> logger)
         }
 
         _logger.LogInformation($"Successfully connected {count} sessions to group: {groupName}");
+
+        try
+        {
+            // バトルが完了するまで待機（タイムアウト20分）
+            Console.WriteLine("Waiting for battle to complete. This may take several minutes...");
+            await Task.WhenAny(_battleCompletionSource.Task, Task.Delay(TimeSpan.FromMinutes(20)));
+
+            if (_battleCompletionSource.Task.IsCompleted)
+            {
+                Console.WriteLine("Battle has completed successfully!");
+            }
+            else
+            {
+                Console.WriteLine("Timed out waiting for battle to complete.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Error while waiting for battle completion: {ex.Message}");
+        }
+        finally
+        {
+            // クリーンアップ - 追加接続を閉じる
+            foreach (var conn in additionalConnections)
+            {
+                try
+                {
+                    await conn.StopAsync();
+                    await conn.DisposeAsync();
+                }
+                catch
+                {
+                    // Ignore errors during cleanup
+                }
+            }
+        }
+
         return true;
     }
 

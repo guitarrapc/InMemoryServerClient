@@ -77,6 +77,7 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
                         {
                             Console.WriteLine($"Successfully connected {count} sessions to group: {battleGroup}");
                             Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
+                            // ConnectMultipleAsyncメソッド内でバトル完了まで待機するようになりました
                         }
                         else
                         {
@@ -810,6 +811,7 @@ public class InMemoryCommands(InMemoryClient client, ILogger<InMemoryCommands> l
             {
                 Console.WriteLine($"Successfully connected {count} sessions to group: {group}");
                 Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
+                // ConnectMultipleAsyncメソッド内でバトル完了まで待機するようになりました
             }
             else
             {
