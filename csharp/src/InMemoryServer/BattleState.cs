@@ -79,9 +79,10 @@ public partial class BattleState
                 Name = $"Player{i + 1}",
                 Type = "Player",
                 CurrentHp = Constants.PlayerHp,
-                MaxHp = Constants.PlayerHp,
-                Attack = _random.Next(Constants.MinAttackPower, Constants.MaxAttackPower + 1),
-                Defense = _random.Next(Constants.MinDefensePower, Constants.MaxDefensePower + 1),
+                // Players get slightly better stats than enemies for balance
+                MaxHp = _random.Next(Constants.PlayerHp - 70, Constants.PlayerHp + 70),
+                Attack = _random.Next(Constants.MinAttackPower, Constants.MaxAttackPower + 6),
+                Defense = _random.Next(Constants.MinDefensePower + 2, Constants.MaxDefensePower + 4),
                 Speed = _random.Next(Constants.MinMovementSpeed, Constants.MaxMovementSpeed + 1),
                 IsDefending = false
             };
@@ -89,7 +90,7 @@ public partial class BattleState
         }
 
         // Create enemies
-        int enemyCount = _random.Next(Constants.MinEnemyCount, Constants.MaxEnemyCount + 1);
+        int enemyCount = _random.Next(Constants.MinEnemyCount, Constants.MaxEnemyCount);
         string[] enemyTypes = Constants.EnemyHpByType.Keys.ToArray();
         for (int i = 0; i < enemyCount; i++)
         {
@@ -100,9 +101,10 @@ public partial class BattleState
                 Name = $"{enemyType}Enemy{i + 1}",
                 Type = enemyType,
                 CurrentHp = Constants.EnemyHpByType[enemyType],
-                MaxHp = Constants.EnemyHpByType[enemyType],
-                Attack = _random.Next(Constants.MinAttackPower, Constants.MaxAttackPower + 1),
-                Defense = _random.Next(Constants.MinDefensePower, Constants.MaxDefensePower + 1),
+                // Enemies get slightly weaker stats for balance
+                MaxHp = _random.Next(Constants.EnemyHpByType[enemyType], Constants.EnemyHpByType[enemyType] + 50),
+                Attack = _random.Next(Constants.MinAttackPower - 5, Constants.MaxAttackPower - 3),
+                Defense = _random.Next(Constants.MinDefensePower - 2, Constants.MaxDefensePower),
                 Speed = _random.Next(Constants.MinMovementSpeed, Constants.MaxMovementSpeed + 1),
                 IsDefending = false
             };

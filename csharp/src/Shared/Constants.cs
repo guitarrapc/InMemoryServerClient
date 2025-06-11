@@ -38,37 +38,37 @@ public static class Constants
     /// <summary>
     /// Player HP
     /// </summary>
-    public const int PlayerHp = 200;
+    public const int PlayerHp = 300;
 
     /// <summary>
     /// Enemy types and their HP
     /// </summary>
     public static readonly Dictionary<string, int> EnemyHpByType = new Dictionary<string, int>
     {
-        { "Small", 100 },
-        { "Medium", 200 },
-        { "Large", 300 }
+        { "Small", 80 },
+        { "Medium", 150 },
+        { "Large", 250 }
     };
 
     /// <summary>
     /// Minimum attack power
     /// </summary>
-    public const int MinAttackPower = 10;
+    public const int MinAttackPower = 15;
 
     /// <summary>
     /// Maximum attack power
     /// </summary>
-    public const int MaxAttackPower = 30;
+    public const int MaxAttackPower = 35;
 
     /// <summary>
     /// Minimum defense power
     /// </summary>
-    public const int MinDefensePower = 5;
+    public const int MinDefensePower = 8;
 
     /// <summary>
     /// Maximum defense power
     /// </summary>
-    public const int MaxDefensePower = 15;
+    public const int MaxDefensePower = 18;
 
     /// <summary>
     /// Minimum movement speed
@@ -93,7 +93,7 @@ public static class Constants
     /// <summary>
     /// Maximum number of enemies in battle
     /// </summary>
-    public const int MaxEnemyCount = 15;
+    public const int MaxEnemyCount = 20;
 
     /// <summary>
     /// Minimum battle turns
