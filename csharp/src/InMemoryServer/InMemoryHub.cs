@@ -270,7 +270,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             // Mark this client as having completed the replay
             var clientId = Context.ConnectionId;
             battleState.MarkReplayCompleteForClient(clientId);
-            _logger.LogInformation($"Client {clientId} completed battle replay for battle {battleState.BattleId}");
+            _logger.LogInformation($"Client {clientId} completed battle replay for battle {battleState.BattleId}. Waiting for {battleState.GetRemainingReplaysCount()} more clients to complete.");
 
             // Check if all clients have completed the replay
             if (battleState.AreAllReplaysCompleted())
@@ -287,10 +287,6 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                     _state.BattleStates.TryRemove(battleState.BattleId, out BattleState? _);
                     _logger.LogInformation($"Cleaned up battle state for {battleState.BattleId}");
                 });
-            }
-            else
-            {
-                _logger.LogInformation($"Client {clientId} completed battle replay for battle {battleState.BattleId}. Waiting for {battleState.GetRemainingReplaysCount()} more clients to complete.");
             }
 
             return true;
