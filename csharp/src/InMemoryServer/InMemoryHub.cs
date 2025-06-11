@@ -352,7 +352,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
             // Battle completed
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
-            _logger.LogInformation($"Battle {battleId} completed");
+            _logger.LogInformation($"Battle {battleId}: completed");
 
             // Note: battleId will be reset in BattleReplayCompleteAsync after all clients have finished watching
         });

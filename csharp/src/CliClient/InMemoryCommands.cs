@@ -13,9 +13,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 {
     private readonly InMemoryClient _client = client;
     private readonly MultiClientManager _multiClientManager = multiClientManager;
-    private readonly ILogger<InMemoryCommands> _logger = logger;
-
-    /// <summary>Start interactive mode</summary>
+    private readonly ILogger<InMemoryCommands> _logger = logger;    /// <summary>Start interactive mode</summary>
     [Command("")]
     public async Task InteractiveAsync()
     {
@@ -52,107 +50,26 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "connect":
                         var url = args.Length > 1 ? args[1] : "http://localhost:5000";
                         var group = args.Length > 2 ? args[2] : null;
-                        if (await _client.ConnectAsync(url, group))
-                        {
-                            Console.WriteLine($"Connected to server: {url}");
-                            if (!string.IsNullOrEmpty(group))
-                            {
-                                Console.WriteLine($"Joined group: {group}");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to connect to server: {url}");
-                        }
+                        await ConnectAsync(url, group);
                         break;
 
                     case "connect-battle":
                         var battleUrl = args.Length > 1 ? args[1] : "http://localhost:5000";
                         var battleGroup = args.Length > 2 ? args[2] : "battle-group";
                         var count = args.Length > 3 && int.TryParse(args[3], out var c) ? c : 5;
-
-                        Console.WriteLine($"Connecting {count} sessions to server: {battleUrl}");
-                        Console.WriteLine($"Group name: {battleGroup}");
-
-                        // 新しいMultiClientManagerを使用
-                        if (await _multiClientManager.ConnectMultipleClientsAsync(battleUrl, battleGroup, count))
-                        {
-                            Console.WriteLine($"Successfully connected {count} clients to group: {battleGroup}");
-                            Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
-
-                            // バトルの完了を待機
-                            var timeout = TimeSpan.FromSeconds(30);
-                            Console.WriteLine($"Waiting for battle to complete (timeout: {timeout})...");
-
-                            if (await _multiClientManager.WaitForBattleCompletionAsync(timeout))
-                            {
-                                Console.WriteLine("Battle completed successfully!");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Timed out or error occurred while waiting for battle completion");
-                            }
-
-                            // クリーンアップ
-                            await _multiClientManager.CleanupClientsAsync();
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to connect {count} clients to server");
-                        }
+                        await ConnectMultipleAsync(battleUrl, battleGroup, count);
                         break;
 
                     case "disconnect":
-                        await _client.DisconnectAsync();
-                        Console.WriteLine("Disconnected from server");
+                        await DisconnectAsync();
                         break;
 
                     case "status":
-                        Console.WriteLine($"Connection status: {(_client.IsConnected ? "Connected" : "Disconnected")}");
+                        Status();
                         break;
 
                     case "server-status":
-                        if (!_client.IsConnected)
-                        {
-                            Console.WriteLine("Not connected to server. Connect first.");
-                            break;
-                        }
-                        var serverStatus = await _client.GetServerStatusAsync();
-                        if (serverStatus != null)
-                        {
-                            Console.WriteLine("============ SERVER STATUS ============");
-                            Console.WriteLine($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
-                            Console.WriteLine($"Total Connections: {serverStatus.TotalConnections}");
-                            Console.WriteLine($"Group Count: {serverStatus.GroupCount}");
-                            Console.WriteLine($"Active Battle Count: {serverStatus.ActiveBattleCount}");
-                            if (serverStatus.Groups.Count > 0)
-                            {
-                                Console.WriteLine("\n---------- GROUPS ----------");
-                                foreach (var groupSummary in serverStatus.Groups)
-                                {
-                                    var battleStatusText = !string.IsNullOrEmpty(groupSummary.BattleId) ? "[Battle in progress]" : "";
-                                    Console.WriteLine($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatusText}");
-                                }
-                            }
-
-                            if (serverStatus.ActiveBattles.Count > 0)
-                            {
-                                Console.WriteLine("\n---------- ACTIVE BATTLES ----------");
-                                foreach (var battle in serverStatus.ActiveBattles)
-                                {
-                                    var duration = DateTime.UtcNow - battle.StartedAt;
-                                    Console.WriteLine($"Battle {battle.Id} (Group: {battle.GroupId})");
-                                    Console.WriteLine($"  Turn: {battle.CurrentTurn}, Players: {battle.PlayerCount}, Enemies: {battle.EnemyCount}");
-                                    Console.WriteLine($"  Duration: {duration:h\\h\\ m\\m\\ s\\s}");
-                                }
-                            }
-
-                            Console.WriteLine("=======================================");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Failed to get server status.");
-                        }
+                        await ServerStatusAsync();
                         break;
 
                     case "get":
@@ -161,15 +78,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             Console.WriteLine("Usage: get <key>");
                             break;
                         }
-                        var value = await _client.GetAsync(args[1]);
-                        if (value != null)
-                        {
-                            Console.WriteLine($"{args[1]} = {value}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Key not found: {args[1]}");
-                        }
+                        await GetAsync(args[1]);
                         break;
 
                     case "set":
@@ -179,14 +88,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             break;
                         }
                         var setValue = string.Join(' ', args.Skip(2));
-                        if (await _client.SetAsync(args[1], setValue))
-                        {
-                            Console.WriteLine($"Key {args[1]} set to: {setValue}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to set key: {args[1]}");
-                        }
+                        await SetAsync(args[1], setValue);
                         break;
 
                     case "delete":
@@ -195,24 +97,12 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             Console.WriteLine("Usage: delete <key>");
                             break;
                         }
-                        if (await _client.DeleteAsync(args[1]))
-                        {
-                            Console.WriteLine($"Key deleted: {args[1]}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to delete key: {args[1]}");
-                        }
+                        await DeleteAsync(args[1]);
                         break;
 
                     case "list":
                         var pattern = args.Length > 1 ? args[1] : "*";
-                        var keys = await _client.ListAsync(pattern);
-                        Console.WriteLine($"Keys matching pattern '{pattern}':");
-                        foreach (var key in keys)
-                        {
-                            Console.WriteLine($"  {key}");
-                        }
+                        await ListAsync(pattern);
                         break;
 
                     case "watch":
@@ -221,14 +111,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             Console.WriteLine("Usage: watch <key>");
                             break;
                         }
-                        if (await _client.WatchAsync(args[1]))
-                        {
-                            Console.WriteLine($"Watching key: {args[1]}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to watch key: {args[1]}");
-                        }
+                        await WatchAsync(args[1]);
                         break;
 
                     case "join":
@@ -237,14 +120,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             Console.WriteLine("Usage: join <group_name>");
                             break;
                         }
-                        if (await _client.JoinGroupAsync(args[1]))
-                        {
-                            Console.WriteLine($"Joined group: {args[1]}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to join group: {args[1]}");
-                        }
+                        await JoinAsync(args[1]);
                         break;
 
                     case "broadcast":
@@ -254,81 +130,19 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             break;
                         }
                         var message = string.Join(' ', args.Skip(1));
-                        if (await _client.BroadcastAsync(message))
-                        {
-                            Console.WriteLine($"Message broadcasted: {message}");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Failed to broadcast message");
-                        }
+                        await BroadcastAsync(message);
                         break;
 
                     case "groups":
-                        var groups = await _client.GetGroupsAsync();
-                        Console.WriteLine("Available groups:");
-                        foreach (var g in groups)
-                        {
-                            Console.WriteLine($"  {g}");
-                        }
+                        await GroupsAsync();
                         break;
 
                     case "mygroup":
-                        var currentGroup = await _client.GetMyGroupAsync();
-                        if (currentGroup != null)
-                        {
-                            Console.WriteLine($"Current group: {currentGroup}");
-                        }
-                        else
-                        {
-                            Console.WriteLine("Not in any group");
-                        }
+                        await MyGroupAsync();
                         break;
 
                     case "battle-status":
-                        var battleStatus = await _client.GetBattleStatusAsync();
-                        if (battleStatus != null)
-                        {
-                            if (battleStatus.IsInProgress)
-                            {
-                                Console.WriteLine($"[BATTLE] ========== Battle Status ==========");
-                                Console.WriteLine($"[BATTLE] Battle ID: {battleStatus.BattleId}");
-                                Console.WriteLine($"[BATTLE] Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
-
-                                // Display players
-                                var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
-                                Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Count}");
-                                foreach (var player in battleStatus.Players)
-                                {
-                                    var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
-                                    Console.WriteLine($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.PositionX},{player.PositionY})");
-                                }
-
-                                // Display enemies
-                                var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
-                                Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Count}");
-
-                                // Show recent logs
-                                if (battleStatus.RecentLogs.Count > 0)
-                                {
-                                    Console.WriteLine("[BATTLE] Recent actions:");
-                                    foreach (var log in battleStatus.RecentLogs.TakeLast(5))
-                                    {
-                                        Console.WriteLine($"[BATTLE] > {log}");
-                                    }
-                                }
-
-                                Console.WriteLine("[BATTLE] ===================================");
-                            }
-                            else
-                            {
-                                Console.WriteLine("No active battle in progress.");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("No active battle or not in a group.");
-                        }
+                        await BattleStatusAsync();
                         break;
 
                     case "battle-replay":
@@ -337,45 +151,11 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                             Console.WriteLine("Usage: battle-replay <battle_id>");
                             break;
                         }
-                        var replayData = await _client.GetBattleReplayAsync(args[1]);
-                        if (replayData != null)
-                        {
-                            Console.WriteLine($"Battle replay for battle {args[1]}:");
-                            Console.WriteLine("Showing first 10 turns of replay data:");
-                            var lines = replayData.Split('\n');
-                            foreach (var line in lines.Take(10))
-                            {
-                                if (!string.IsNullOrEmpty(line))
-                                {
-                                    Console.WriteLine($"  {line[..Math.Min(100, line.Length)]}...");
-                                }
-                            }
-                            Console.WriteLine($"Total turns in replay: {lines.Length}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Replay data not found for battle: {args[1]}");
-                        }
+                        await BattleReplayAsync(args[1]);
                         break;
 
                     case "battle-complete":
-                        try
-                        {
-                            if (await _client.BattleReplayCompleteAsync())
-                            {
-                                Console.WriteLine("Successfully notified server about battle replay completion");
-                            }
-                            else
-                            {
-                                Console.WriteLine("Failed to notify server about battle replay completion");
-                                Environment.ExitCode = 1;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Error: {ex.Message}");
-                            Environment.ExitCode = 1;
-                        }
+                        await BattleCompleteAsync();
                         break;
 
                     default:
@@ -781,15 +561,107 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
         }
     }
 
+    /// <summary>Disconnect from server</summary>
+    public async Task DisconnectAsync()
+    {
+        try
+        {
+            await _client.DisconnectAsync();
+            Console.WriteLine("Disconnected from server");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error disconnecting from server: {ex.Message}");
+            Environment.ExitCode = 1;
+        }
+    }
+
+    /// <summary>Get server status</summary>
+    [Command("server-status")]
+    public async Task ServerStatusAsync()
+    {
+        try
+        {
+            if (!_client.IsConnected)
+            {
+                Console.WriteLine("Not connected to server. Connect first.");
+                Environment.ExitCode = 1;
+                return;
+            }
+            var serverStatus = await _client.GetServerStatusAsync();
+            if (serverStatus != null)
+            {
+                Console.WriteLine("============ SERVER STATUS ============");
+                Console.WriteLine($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
+                Console.WriteLine($"Total Connections: {serverStatus.TotalConnections}");
+                Console.WriteLine($"Group Count: {serverStatus.GroupCount}");
+                Console.WriteLine($"Active Battle Count: {serverStatus.ActiveBattleCount}");
+                if (serverStatus.Groups.Count > 0)
+                {
+                    Console.WriteLine("\n---------- GROUPS ----------");
+                    foreach (var groupSummary in serverStatus.Groups)
+                    {
+                        var battleStatusText = !string.IsNullOrEmpty(groupSummary.BattleId) ? "[Battle in progress]" : "";
+                        Console.WriteLine($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatusText}");
+                    }
+                }
+
+                if (serverStatus.ActiveBattles.Count > 0)
+                {
+                    Console.WriteLine("\n---------- ACTIVE BATTLES ----------");
+                    foreach (var battle in serverStatus.ActiveBattles)
+                    {
+                        var duration = DateTime.UtcNow - battle.StartedAt;
+                        Console.WriteLine($"Battle {battle.Id} (Group: {battle.GroupId})");
+                        Console.WriteLine($"  Turn: {battle.CurrentTurn}, Players: {battle.PlayerCount}, Enemies: {battle.EnemyCount}");
+                        Console.WriteLine($"  Duration: {duration:h\\h\\ m\\m\\ s\\s}");
+                    }
+                }
+
+                Console.WriteLine("=======================================");
+            }
+            else
+            {
+                Console.WriteLine("Failed to get server status.");
+                Environment.ExitCode = 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Environment.ExitCode = 1;
+        }
+    }
+
+    /// <summary>Notify server that battle replay is complete</summary>
+    [Command("battle-complete")]
+    public async Task BattleCompleteAsync()
+    {
+        try
+        {
+            if (await _client.BattleReplayCompleteAsync())
+            {
+                Console.WriteLine("Successfully notified server about battle replay completion");
+            }
+            else
+            {
+                Console.WriteLine("Failed to notify server about battle replay completion");
+                Environment.ExitCode = 1;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Environment.ExitCode = 1;
+        }
+    }
+
     /// <summary>Connect multiple sessions to the server with the same group</summary>
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     [Command("connect-battle")]
-    public async Task ConnectMultipleAsync(
-        string url = "http://localhost:5000",
-        string group = "battle-group",
-        int count = 5)
+    public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5)
     {
         if (count <= 0)
         {

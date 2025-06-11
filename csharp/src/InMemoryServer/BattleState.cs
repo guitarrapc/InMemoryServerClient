@@ -22,7 +22,7 @@ public partial class BattleState
     private readonly ConcurrentDictionary<string, bool> _replayCompletedClients = new();
     private readonly ILogger<BattleState> _logger;
     private readonly ConcurrentDictionary<string, bool> _connectionReadyConfirmedClients = new(); // クライアントからの準備完了確認を記録
-    private readonly List<string> _groupClientIds = [];
+    private readonly ConcurrentBag<string> _groupClientIds = [];
 
     /// <summary>
     /// Gets the group ID associated with this battle
