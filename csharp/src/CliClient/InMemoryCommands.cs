@@ -426,21 +426,6 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
         }
     }
 
-    /// <summary>Disconnect from server</summary>
-    public async Task DisconnectAsync()
-    {
-        try
-        {
-            await _client.DisconnectAsync();
-            Console.WriteLine("Disconnected from server");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error disconnecting from server: {ex.Message}");
-            Environment.ExitCode = 1;
-        }
-    }
-
     /// <summary>Check connection status</summary>
     public void Status()
     {
@@ -794,10 +779,12 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
             Console.WriteLine($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
-    }    /// <summary>Connect multiple sessions to the server with the same group</summary>
-         /// <param name="url">-u, Server URL</param>
-         /// <param name="group">-g, Group name</param>
-         /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
+    }
+
+    /// <summary>Connect multiple sessions to the server with the same group</summary>
+    /// <param name="url">-u, Server URL</param>
+    /// <param name="group">-g, Group name</param>
+    /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     [Command("connect-battle")]
     public async Task ConnectMultipleAsync(
         string url = "http://localhost:5000",

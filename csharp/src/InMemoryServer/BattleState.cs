@@ -603,6 +603,15 @@ public partial class BattleState
     }
 
     /// <summary>
+    /// Get the number of clients that have not yet completed the battle replay
+    /// </summary>
+    public int GetRemainingReplaysCount()
+    {
+        // Count how many clients have not yet completed the replay
+        return _groupClientIds.Count(clientId => !_replayCompletedClients.ContainsKey(clientId));
+    }
+
+    /// <summary>
     /// Mark a client as having confirmed connection readiness
     /// </summary>
     public void MarkConnectionReadyConfirmed(string clientId)

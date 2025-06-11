@@ -199,7 +199,7 @@ public class InMemoryClient
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Client {_clientId}: Failed to notify server about replay completion: {ex.Message}");
+                        _logger.LogError($"Client {_clientId}: [BATTLE] Failed to notify server about replay completion: {ex.Message}");
                         _battleCompletionSource?.TrySetException(ex);
                     }
                 });
@@ -224,7 +224,7 @@ public class InMemoryClient
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Client {_clientId}: Error automatically disconnecting after battle: {ex.Message}");
+                    _logger.LogError($"Client {_clientId}: [BATTLE] Error automatically disconnecting after battle: {ex.Message}");
                 }
             });
 
@@ -265,19 +265,25 @@ public class InMemoryClient
                 _logger.LogError($"Client {_clientId}: Error disconnecting from server: {ex.Message}");
             }
         }
-    }        /// <summary>
-             /// Check if connected to server
-             /// </summary>
-    public bool IsConnected => _connection?.State == HubConnectionState.Connected;        /// <summary>
-                                                                                          /// Get value by key
-                                                                                          /// </summary>
+    }
+
+    /// <summary>
+    /// Check if connected to server
+    /// </summary>
+    public bool IsConnected => _connection?.State == HubConnectionState.Connected;
+
+    /// <summary>
+    /// Get value by key
+    /// </summary>
     public async Task<string?> GetAsync(string key)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<string?>("GetAsync", key);
-    }        /// <summary>
-             /// Set key-value pair
-             /// </summary>
+    }
+
+    /// <summary>
+    /// Set key-value pair
+    /// </summary>
     public async Task<bool> SetAsync(string key, string value)
     {
         EnsureConnected();
@@ -390,185 +396,6 @@ public class InMemoryClient
     }
 
     /// <summary>
-    /// Connect multiple sessions to server with the same group
-    /// </summary>
-    public async Task<bool> ConnectMultipleAsync(string serverUrl, string groupName, int count)
-    {
-        _logger.LogInformation($"Client {_clientId}: Connecting {count} sessions to group '{groupName}' on server '{serverUrl}'");
-
-        if (count <= 0)
-        {
-            _logger.LogWarning($"Client {_clientId}: Invalid session count: {count}, must be greater than 0");
-            return false;
-        }
-
-        // If already connected, disconnect first
-        if (_connection != null && _connection.State == HubConnectionState.Connected)
-        {
-            _logger.LogInformation($"Client {_clientId}: Already connected to server, disconnecting first");
-            await DisconnectAsync();
-        }
-
-        // Create main connection
-        bool success = await ConnectAsync(serverUrl, groupName);
-        if (!success)
-        {
-            return false;
-        }
-
-        // If count is 1, we're done (already connected with the main connection)
-        if (count <= 1)
-        {
-            return true;
-        }
-
-        // 完了通知を受け取るための TaskCompletionSource を作成
-        _battleCompletionSource = new TaskCompletionSource<bool>();
-
-        // メインコネクションに BattleCompleted イベントを追加
-        _connection!.On<BattleStatus>("BattleCompleted", (status) =>
-        {
-            // すでに BattleCompleted イベントハンドラがあるので、
-            // そちらで表示は行い、ここでは完了通知のみ行う
-            _battleCompletionSource?.TrySetResult(true);
-        });
-
-        // Create additional connections (count-1 because we already have one connection)
-        var additionalConnections = new List<HubConnection>();
-        for (int i = 1; i < count; i++)
-        {
-            try
-            {
-                var connection = new HubConnectionBuilder()
-                    .WithUrl(serverUrl + Constants.HubRoute)
-                    .WithAutomaticReconnect()
-                    .Build();
-                // 各接続に必要なイベントハンドラを設定
-                connection.On<string>("ConnectionsReady", async (battleId) =>
-                {
-                    try
-                    {
-                        await connection.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
-                        _logger.LogInformation($"Client {_clientId}: Additional connection confirmed ready for battle");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Client {_clientId}: Failed to confirm connection ready status: {ex.Message}");
-                    }
-                });
-
-                // バトル完了時に自動切断するようにイベントハンドラを設定
-                connection.On<string>("AllBattleReplaysCompleted", async (battleId) =>
-                {
-                    try
-                    {
-                        // 少し待機してから切断
-                        await Task.Delay(1000);
-                        await connection.StopAsync();
-                        await connection.DisposeAsync();
-                        _logger.LogInformation($"Client {_clientId}: Additional connection automatically disconnected after battle completion");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Client {_clientId}: Error automatically disconnecting additional connection: {ex.Message}");
-                    }
-                });
-
-                connection.On<BattleStatus>("BattleCompleted", async (status) =>
-                {
-                    // サブ接続でもリプレイ完了を通知する
-                    try
-                    {
-                        // タイムアウト付きで通知を送信
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                        await connection.InvokeAsync<bool>("BattleReplayCompleteAsync", cts.Token);
-                        _logger.LogInformation($"Client {_clientId}: Additional connection notified server about replay completion");
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _logger.LogWarning($"Client {_clientId}: Battle replay complete notification timed out");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError($"Client {_clientId}: Failed to notify server about replay completion from additional connection: {ex.Message}");
-                    }
-                });
-
-                // Start connection
-                await connection.StartAsync();
-
-                // Join the same group
-                await connection.InvokeAsync<string>("JoinGroupAsync", groupName);
-
-                // Add to list of connections to manage
-                additionalConnections.Add(connection);
-
-                _logger.LogInformation($"Client {_clientId}: Created additional connection {i} and joined group: {groupName}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Client {_clientId}: Failed to create additional connection {i}: {ex.Message}");
-
-                // Clean up already created connections
-                foreach (var conn in additionalConnections)
-                {
-                    try
-                    {
-                        await conn.StopAsync();
-                        await conn.DisposeAsync();
-                    }
-                    catch
-                    {
-                        // Ignore errors during cleanup
-                    }
-                }
-
-                return false;
-            }
-        }
-
-        _logger.LogInformation($"Client {_clientId}: Successfully connected {count} sessions to group: {groupName}");
-
-        try
-        {
-            // バトルが完了するまで待機（タイムアウト3分）
-            _logger.LogInformation($"Client {_clientId}: Waiting for battle to complete. This may take a minute...");
-            await Task.WhenAny(_battleCompletionSource.Task, Task.Delay(TimeSpan.FromMinutes(3)));
-
-            if (_battleCompletionSource.Task.IsCompleted)
-            {
-                _logger.LogInformation($"Client {_clientId}: Battle has completed successfully!");
-            }
-            else
-            {
-                _logger.LogWarning($"Client {_clientId}: Timed out waiting for battle to complete.");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Client {_clientId}: Error while waiting for battle completion: {ex.Message}");
-        }
-        finally
-        {
-            // クリーンアップ - 追加接続を閉じる
-            foreach (var conn in additionalConnections)
-            {
-                try
-                {
-                    await conn.StopAsync();
-                    await conn.DisposeAsync();
-                }
-                catch
-                {
-                    // Ignore errors during cleanup
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
     /// Set a callback to be triggered when a battle is completed
     /// </summary>
     public void SetBattleCompletedCallback(Action callback)
@@ -597,7 +424,7 @@ public class InMemoryClient
     /// <summary>
     /// Confirm that client has received the ConnectionsReady notification
     /// </summary>
-    public async Task<bool> ConfirmConnectionReadyAsync()
+    private async Task<bool> ConfirmConnectionReadyAsync()
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
