@@ -177,6 +177,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     /// <summary>Connect to InMemory server</summary>
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name (optional)</param>
+    [Command("connect")]
     public async Task ConnectAsync(
         string url = "http://localhost:5000",
         string? group = null)
@@ -205,6 +206,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     }
 
     /// <summary>Check connection status</summary>
+    [Command("status")]
     public void Status()
     {
         Console.WriteLine($"Connection status: {(_client.IsConnected ? "Connected" : "Disconnected")}");
@@ -212,6 +214,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     /// <summary>Get value by key</summary>
     /// <param name="key">The key to get</param>
+    [Command("get")]
     public async Task GetAsync(string key)
     {
         if (string.IsNullOrEmpty(key))
@@ -243,6 +246,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     /// <summary>Set key-value pair</summary>
     /// <param name="key">The key to set</param>
     /// <param name="value">The value to set</param>
+    [Command("set")]
     public async Task SetAsync(string key, string value)
     {
         if (string.IsNullOrEmpty(key))
@@ -280,6 +284,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     /// <summary>Delete key</summary>
     /// <param name="key">The key to delete</param>
+    [Command("delete")]
     public async Task DeleteAsync(string key)
     {
         if (string.IsNullOrEmpty(key))
@@ -310,6 +315,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     /// <summary>List keys matching pattern</summary>
     /// <param name="pattern">-p, The pattern to match</param>
+    [Command("list")]
     public async Task ListAsync(string pattern = "*")
     {
         try
@@ -330,6 +336,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     /// <summary>Watch key for changes</summary>
     /// <param name="key">The key to watch</param>
+    [Command("watch")]
     public async Task WatchAsync(string key)
     {
         if (string.IsNullOrEmpty(key))
@@ -360,6 +367,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     /// <summary>Join a group</summary>
     /// <param name="groupName">The group name to join</param>
+    [Command("join")]
     public async Task JoinAsync(string groupName)
     {
         if (string.IsNullOrEmpty(groupName))
@@ -390,6 +398,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     /// <summary>Broadcast message to current group</summary>
     /// <param name="message">The message to broadcast</param>
+    [Command("broadcast")]
     public async Task BroadcastAsync(string message)
     {
         if (string.IsNullOrEmpty(message))
@@ -419,6 +428,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     }
 
     /// <summary>Get list of available groups</summary>
+    [Command("group")]
     public async Task GroupsAsync()
     {
         try
@@ -560,6 +570,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     }
 
     /// <summary>Disconnect from server</summary>
+    [Command("disconnect")]
     public async Task DisconnectAsync()
     {
         try
