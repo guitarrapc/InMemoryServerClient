@@ -23,11 +23,12 @@ public partial class BattleState
     private readonly List<EntityInfo> _enemies = new(15); // Pre-allocate for max enemies
     private readonly List<string> _battleLogs = new(60); // Pre-allocate for battle logs with limit
     private readonly string?[,] _battleField;
+    private readonly ILogger<BattleState> _logger;
+    private readonly ConcurrentDictionary<string, State> _clients = new();
+
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
-    private readonly ILogger<BattleState> _logger;
-    private readonly ConcurrentDictionary<string, State> _clients = new();
     private int _connectedClientsCount = 0;
     private int _readyClientsCount = 0;
 
@@ -92,7 +93,7 @@ public partial class BattleState
 
         // Create enemies
         int enemyCount = _random.Next(Constants.MinEnemyCount, Constants.MaxEnemyCount);
-        string[] enemyTypes = Constants.EnemyHpByType.Keys.ToArray();
+        string[] enemyTypes = [.. Constants.EnemyHpByType.Keys];
 
         for (int i = 0; i < enemyCount; i++)
         {
@@ -175,7 +176,9 @@ _battleField[y, x] == null)
                 attempts++;
             }
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Run the battle simulation (pre-compute all turns)
     /// </summary>
     public async Task RunBattleAsync()
@@ -315,7 +318,9 @@ _battleField[y, x] == null)
                     DefendWithEntity(entity);
                     break;
             }
-        }        _battleLogs.Add($"Turn {_currentTurn} ends!");
+        }
+
+        _battleLogs.Add($"Turn {_currentTurn} ends!");
 
         // Limit battle log size and optimize memory usage
         while (_battleLogs.Count > 50)
@@ -469,8 +474,8 @@ _battleField[y, x] == null)
         else
         {
             // Try alternative directions if direct path is blocked
-            int[] dxOptions = { dx, 0, -dx };
-            int[] dyOptions = { dy, 0, -dy };
+            int[] dxOptions = [dx, 0, -dx];
+            int[] dyOptions = [dy, 0, -dy];
             bool moved = false;
 
             foreach (int altDx in dxOptions)

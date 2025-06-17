@@ -153,8 +153,8 @@ public class BattleStateTests
         Assert.Equal(group.ConnectionCount, status.Players.Length);
         Assert.True(status.Enemies.Length >= Constants.MinEnemyCount);
         Assert.True(status.Enemies.Length <= Constants.MaxEnemyCount);
-        Assert.Equal(Constants.BattleFieldWidth, status.Field.Width);
-        Assert.Equal(Constants.BattleFieldHeight, status.Field.Height);
+        Assert.Equal(Constants.BattleFieldWidth, status.FieldWidth);
+        Assert.Equal(Constants.BattleFieldHeight, status.FieldHeight);
     }
 
     [Fact]
