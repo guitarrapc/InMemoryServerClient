@@ -576,13 +576,39 @@ _battleField[y, x] == null)
         UpdateEntityHp(targetValue, newHp);
 
         // Log the attack
-        _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} for {damage} damage!" +
-                       (targetValue.IsDefending ? " (Reduced by defense)" : ""));
+        _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} for {damage} damage!" + (targetValue.IsDefending ? " (Reduced by defense)" : ""));
 
         if (newHp <= 0)
         {
             _battleLogs.Add($"{targetValue.Name} has been defeated!");
+
+            // Clear the defeated entity from the battle field
             _battleField[targetValue.PositionY, targetValue.PositionX] = null;
+
+            // Update the entity's position to invalid coordinates (-1, -1)
+            // This ensures the entity won't be considered in further position checks
+            if (targetValue.Type == "Player")
+            {
+                for (int i = 0; i < _players.Count; i++)
+                {
+                    if (_players[i].Id == targetValue.Id)
+                    {
+                        _players[i] = _players[i] with { PositionX = -1, PositionY = -1 };
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < _enemies.Count; i++)
+                {
+                    if (_enemies[i].Id == targetValue.Id)
+                    {
+                        _enemies[i] = _enemies[i] with { PositionX = -1, PositionY = -1 };
+                        break;
+                    }
+                }
+            }
         }
         else
         {
