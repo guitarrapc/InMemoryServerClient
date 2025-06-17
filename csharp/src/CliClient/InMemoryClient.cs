@@ -167,10 +167,7 @@ public class InMemoryClient
                             _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {_replayData.Count} turns");
 
                             // Start replay
-                            await PlayBattleReplayAsync();
-
-                            // Notify server that replay is complete
-                            await ReplayCompleteAsync();
+                            var success = await PlayBattleReplayAsync();
                         }
                     }
                 }
@@ -189,6 +186,11 @@ public class InMemoryClient
                 if (!_isReceivingReplayData)
                 {
                     _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Waiting for replay data...");
+                    _battleCompletionSource.SetResult(false);
+                }
+                else
+                {
+                    _battleCompletionSource.SetResult(true);
                 }
             });
 
@@ -399,7 +401,7 @@ public class InMemoryClient
     /// <summary>
     /// Play battle replay with 5fps speed
     /// </summary>
-    private async Task PlayBattleReplayAsync()
+    private async Task<bool> PlayBattleReplayAsync()
     {
         try
         {
@@ -473,50 +475,13 @@ public class InMemoryClient
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");
 
-            // Add small random delay to prevent all clients from calling server simultaneously
-            var random = new Random();
-            var delayMs = random.Next(50, 200); // Random delay between 50-200ms
-            await Task.Delay(delayMs);
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Waiting {delayMs}ms before server notification");
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Client {_clientIndex}: Error during battle replay");
             _battleCompletionSource.TrySetResult(false);
+            return false;
         }
-    }
-
-    private async Task ReplayCompleteAsync()
-    {
-        // Check connection state before attempting to notify server
-        if (!IsConnected)
-        {
-            _logger.LogWarning($"Client {_clientIndex}: Cannot notify server of replay completion - not connected");
-            _battleCompletionSource.TrySetResult(false);
-            return;
-        }
-
-        // Notify server that replay is complete
-        try
-        {
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Notifying server of replay completion...");
-
-            // Add timeout to prevent hanging
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await _connection!.InvokeAsync("BattleReplayCompletedAsync", cts.Token);
-
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Server notified of replay completion");
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogError($"Client {_clientIndex}: Timeout while notifying server of replay completion");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, $"Client {_clientIndex}: Failed to notify server of replay completion: {ex.Message}");
-        }
-
-        // Signal battle completion
-        _battleCompletionSource.TrySetResult(true);
     }
 }

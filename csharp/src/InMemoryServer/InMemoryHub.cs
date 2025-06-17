@@ -280,7 +280,6 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             {
                 var chunk = chunks[i];
                 var isLastChunk = i == chunks.Count - 1;
-
                 var replayData = new BattleReplayData
                 {
                     BattleId = battleId,
@@ -291,6 +290,9 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 };
 
                 await Clients.Group(group.Id).SendAsync("BattleReplayData", replayData);
+
+                // Clear chunk data immediately after sending to reduce memory pressure
+                replayData.TurnData.Clear();
 
                 // Small delay between chunks to avoid overwhelming clients
                 if (!isLastChunk)
@@ -421,55 +423,6 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
 
         return true;
-    }
-
-    /// <summary>
-    /// Handle client reporting that battle replay is completed
-    /// </summary>
-    public async Task BattleReplayCompletedAsync()
-    {
-        var clientId = Context.ConnectionId;
-        _logger.LogInformation($"Client {clientId} starting replay completion notification");
-
-        var groupId = _groupManager.GetGroupIdForConnection(clientId);
-        if (string.IsNullOrEmpty(groupId))
-        {
-            _logger.LogWarning($"Client {clientId} reported replay completion but is not in any group");
-            return;
-        }
-
-        var group = _groupManager.GetGroupInfo(groupId);
-        if (group is null || string.IsNullOrEmpty(group.BattleId))
-        {
-            _logger.LogWarning($"Client {clientId} reported replay completion but group {groupId} has no battle");
-            return;
-        }
-
-        if (_state.BattleStates.TryGetValue(group.BattleId, out var battle))
-        {
-            // Use synchronization to prevent race conditions
-            lock (battle)
-            {
-                battle.MarkReplayCompleteForClient(clientId);
-                _logger.LogInformation($"Client {clientId} completed battle replay for battle {group.BattleId}");
-
-                // Check if all clients have completed the replay
-                if (battle.AreAllReplaysCompleted())
-                {
-                    _logger.LogInformation($"Battle {group.BattleId}: All clients have completed replay, battle can be cleaned up");
-                    // Optionally clean up battle state here
-                }
-                else
-                {
-                    var remaining = battle.GetRemainingReplaysCount();
-                    _logger.LogInformation($"Battle {group.BattleId}: {remaining} clients still watching replay");
-                }
-            }
-        }
-        else
-        {
-            _logger.LogWarning($"Client {clientId} reported replay completion but battle state not found for battle {group.BattleId}");
-        }        _logger.LogInformation($"Client {clientId} replay completion notification processed successfully");
     }
 
     /// <summary>

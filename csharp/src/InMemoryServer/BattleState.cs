@@ -30,7 +30,6 @@ public partial class BattleState
     private readonly ConcurrentDictionary<string, State> _clients = new();
     private int _connectedClientsCount = 0;
     private int _readyClientsCount = 0;
-    private int _replaytCompletedClientsCount = 0;
 
     /// <summary>
     /// Gets the group ID associated with this battle
@@ -223,7 +222,9 @@ _battleField[y, x] == null)
             else
             {
                 _battleLogs.Add("Defeat! All players have been defeated!");
-            }            // Write final state
+            }
+
+            // Write final state
             await WriteReplayFrameAsync(replayFile);
             allTurnData.Add(GetStatusSnapshot()); // Store final state with deep copies
         }
@@ -245,7 +246,29 @@ _battleField[y, x] == null)
     /// </summary>
     public List<BattleStatus> GetAllTurnData()
     {
-        return _allTurnData.ToList();
+        return _allTurnData;
+    }
+
+    /// <summary>
+    /// Clear battle data to free memory after client transmission
+    /// </summary>
+    public void ClearBattleData()
+    {
+        _allTurnData.Clear();
+        _players.Clear();
+        _enemies.Clear();
+        _battleLogs.Clear();
+
+        // Clear battle field references
+        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        {
+            for (int x = 0; x < Constants.BattleFieldWidth; x++)
+            {
+                _battleField[y, x] = null;
+            }
+        }
+
+        _logger.LogInformation("Battle {BattleId}: Memory cleared for GC optimization", _battleId);
     }
 
     /// <summary>
@@ -292,14 +315,21 @@ _battleField[y, x] == null)
                     DefendWithEntity(entity);
                     break;
             }
-        }
+        }        _battleLogs.Add($"Turn {_currentTurn} ends!");
 
-        _battleLogs.Add($"Turn {_currentTurn} ends!");
-
-        // Limit battle log size
+        // Limit battle log size and optimize memory usage
         while (_battleLogs.Count > 50)
         {
             _battleLogs.RemoveAt(0);
+        }
+
+        // Clear battle logs during turn processing to reduce memory usage
+        if (_currentTurn % 25 == 0 && _battleLogs.Count > 25)
+        {
+            // Keep only the most recent 25 logs every 25 turns
+            var recentLogs = _battleLogs.TakeLast(25).ToList();
+            _battleLogs.Clear();
+            _battleLogs.AddRange(recentLogs);
         }
     }
 
@@ -713,33 +743,6 @@ _battleField[y, x] == null)
             },
             RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
-    }
-
-    /// <summary>
-    /// Mark a client as having completed the battle replay
-    /// </summary>
-    public void MarkReplayCompleteForClient(string clientId)
-    {
-        _clients.AddOrUpdate(clientId, State.Ready, (_, _) => State.ReplayCompleted);
-        Interlocked.Increment(ref _replaytCompletedClientsCount);
-    }
-
-    /// <summary>
-    /// Check if all clients in the group have completed the battle replay
-    /// </summary>
-    public bool AreAllReplaysCompleted()
-    {
-        // Check if all clients have completed the replay
-        return _replaytCompletedClientsCount == _connectedClientsCount;
-    }
-
-    /// <summary>
-    /// Get the number of clients that have not yet completed the battle replay
-    /// </summary>
-    public int GetRemainingReplaysCount()
-    {
-        // Count how many clients have not yet completed the replay
-        return _readyClientsCount - _replaytCompletedClientsCount;
     }
 
     /// <summary>
