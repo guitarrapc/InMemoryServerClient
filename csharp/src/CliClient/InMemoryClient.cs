@@ -188,7 +188,7 @@ public class InMemoryClient
 
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Total turns: {status.CurrentTurn}");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {status.BattleId} (replay available)");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Simulation complete! Notifying server...");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle complete! Notifying server...");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========================================");
 
                 _battleCompletionSource.TrySetResult(true);
