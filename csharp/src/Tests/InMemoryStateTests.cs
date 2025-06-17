@@ -177,15 +177,14 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.Equal(2, status.Players.Count);
-        foreach (var player in status.Players)
+        Assert.Equal(2, status.Players.Count);        foreach (var player in status.Players)
         {
             Assert.Equal("Player", player.Type);
-            Assert.Equal(Constants.PlayerHp, player.MaxHp);
-            Assert.Equal(Constants.PlayerHp, player.CurrentHp);
-            Assert.True(player.Attack >= Constants.MinAttackPower && player.Attack <= Constants.MaxAttackPower);
-            Assert.True(player.Defense >= Constants.MinDefensePower && player.Defense <= Constants.MaxDefensePower);
-            Assert.True(player.Speed >= Constants.MinMovementSpeed && player.Speed <= Constants.MaxMovementSpeed);
+            Assert.True(player.MaxHp >= Constants.PlayerHp - 70 && player.MaxHp <= Constants.PlayerHp + 70);
+            Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
+            Assert.True(player.Attack >= Constants.MinAttackPower && player.Attack <= Constants.MaxAttackPower + 6);
+            Assert.True(player.Defense >= Constants.MinDefensePower + 2 && player.Defense <= Constants.MaxDefensePower + 4);
+            Assert.True(player.Speed >= Constants.MinMovementSpeed && player.Speed <= Constants.MaxMovementSpeed + 1);
         }
     }
 
@@ -210,16 +209,15 @@ public class BattleStateTests
 
         // Assert
         Assert.True(status.Enemies.Count >= Constants.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);
-
-        foreach (var enemy in status.Enemies)
+        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);        foreach (var enemy in status.Enemies)
         {
             Assert.True(Constants.EnemyHpByType.ContainsKey(enemy.Type));
-            Assert.Equal(Constants.EnemyHpByType[enemy.Type], enemy.MaxHp);
-            Assert.Equal(Constants.EnemyHpByType[enemy.Type], enemy.CurrentHp);
-            Assert.True(enemy.Attack >= Constants.MinAttackPower && enemy.Attack <= Constants.MaxAttackPower);
-            Assert.True(enemy.Defense >= Constants.MinDefensePower && enemy.Defense <= Constants.MaxDefensePower);
-            Assert.True(enemy.Speed >= Constants.MinMovementSpeed && enemy.Speed <= Constants.MaxMovementSpeed);
+            var baseHp = Constants.EnemyHpByType[enemy.Type];
+            Assert.True(enemy.MaxHp >= baseHp && enemy.MaxHp <= baseHp + 50);
+            Assert.Equal(enemy.MaxHp, enemy.CurrentHp); // Should start at full health
+            Assert.True(enemy.Attack >= Constants.MinAttackPower - 5 && enemy.Attack <= Constants.MaxAttackPower - 3);
+            Assert.True(enemy.Defense >= Constants.MinDefensePower - 2 && enemy.Defense <= Constants.MaxDefensePower);
+            Assert.True(enemy.Speed >= Constants.MinMovementSpeed && enemy.Speed <= Constants.MaxMovementSpeed + 1);
         }
     }
 }

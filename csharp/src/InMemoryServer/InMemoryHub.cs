@@ -269,17 +269,46 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             _logger.LogInformation($"Battle {battleId}: All clients confirmed. Starting battle.");
             await Clients.Group(group.Id).SendAsync("BattleStarted", battleId);
 
-            // 4. Run pre-computation
+            // 4. Run pre-computation (完全にサーバーサイドで計算完了)
             _logger.LogInformation($"Battle {battleId}: Starting pre-computation of battle simulation");
-            await battle.RunBattleAsync(async (status) =>
-            {
-                // Send status updates to clients
-                await Clients.Group(group.Id).SendAsync("BattleStatusUpdated", status);
-            });
+            await battle.RunBattleAsync();
 
-            // 5. Battle completed
+            // 5. Send all battle data to clients for replay
+            _logger.LogInformation($"Battle {battleId}: Sending battle replay data to clients");
+            var allTurnData = battle.GetAllTurnData();
+
+            // Check if data is too large, split if necessary
+            const int maxTurnsPerChunk = 50; // Send in chunks of 50 turns
+            var chunks = allTurnData.Chunk(maxTurnsPerChunk).ToList();
+
+            _logger.LogInformation($"Battle {battleId}: Sending {allTurnData.Count} turns in {chunks.Count} chunk(s)");
+
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                var chunk = chunks[i];
+                var isLastChunk = i == chunks.Count - 1;
+
+                var replayData = new BattleReplayData
+                {
+                    BattleId = battleId,
+                    TurnData = chunk.ToList(),
+                    ChunkIndex = i,
+                    TotalChunks = chunks.Count,
+                    IsLastChunk = isLastChunk
+                };
+
+                await Clients.Group(group.Id).SendAsync("BattleReplayData", replayData);
+
+                // Small delay between chunks to avoid overwhelming clients
+                if (!isLastChunk)
+                {
+                    await Task.Delay(100);
+                }
+            }
+
+            // 6. Battle completed notification
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
-            _logger.LogInformation($"Battle {battleId}: completed");
+            _logger.LogInformation($"Battle {battleId}: All replay data sent, battle marked as completed");
         });
     }
 
@@ -399,5 +428,43 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
 
         return true;
+    }
+
+    /// <summary>
+    /// Handle client reporting that battle replay is completed
+    /// </summary>
+    public async Task BattleReplayCompletedAsync()
+    {
+        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        if (string.IsNullOrEmpty(groupId))
+        {
+            _logger.LogWarning($"Client {Context.ConnectionId} reported replay completion but is not in any group");
+            return;
+        }
+
+        var group = _groupManager.GetGroupInfo(groupId);
+        if (group == null || string.IsNullOrEmpty(group.BattleId))
+        {
+            _logger.LogWarning($"Client {Context.ConnectionId} reported replay completion but group {groupId} has no battle");
+            return;
+        }
+
+        if (_state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        {
+            battle.MarkReplayCompleteForClient(Context.ConnectionId);
+            _logger.LogInformation($"Client {Context.ConnectionId} completed battle replay for battle {group.BattleId}");
+
+            // Check if all clients have completed the replay
+            if (battle.AreAllReplaysCompleted())
+            {
+                _logger.LogInformation($"Battle {group.BattleId}: All clients have completed replay, battle can be cleaned up");
+                // Optionally clean up battle state here
+            }
+            else
+            {
+                var remaining = battle.GetRemainingReplaysCount();
+                _logger.LogInformation($"Battle {group.BattleId}: {remaining} clients still watching replay");
+            }
+        }
     }
 }

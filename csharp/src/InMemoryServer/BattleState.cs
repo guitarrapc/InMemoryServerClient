@@ -69,18 +69,18 @@ public partial class BattleState
     /// Initialize the battle state
     /// </summary>
     private void InitializeBattle()
-    {
-        // Create players (one for each connection)
+    {        // Create players (one for each connection)
         for (int i = 0; i < _group.ConnectionCount; i++)
         {
+            var maxHp = _random.Next(Constants.PlayerHp - 70, Constants.PlayerHp + 70);
             var player = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = $"Player{i + 1}",
                 Type = "Player",
-                CurrentHp = Constants.PlayerHp,
+                CurrentHp = maxHp, // Start at full health
+                MaxHp = maxHp,
                 // Players get slightly better stats than enemies for balance
-                MaxHp = _random.Next(Constants.PlayerHp - 70, Constants.PlayerHp + 70),
                 Attack = _random.Next(Constants.MinAttackPower, Constants.MaxAttackPower + 6),
                 Defense = _random.Next(Constants.MinDefensePower + 2, Constants.MaxDefensePower + 4),
                 Speed = _random.Next(Constants.MinMovementSpeed, Constants.MaxMovementSpeed + 1),
@@ -91,18 +91,18 @@ public partial class BattleState
 
         // Create enemies
         int enemyCount = _random.Next(Constants.MinEnemyCount, Constants.MaxEnemyCount);
-        string[] enemyTypes = Constants.EnemyHpByType.Keys.ToArray();
-        for (int i = 0; i < enemyCount; i++)
+        string[] enemyTypes = Constants.EnemyHpByType.Keys.ToArray();        for (int i = 0; i < enemyCount; i++)
         {
             var enemyType = enemyTypes[_random.Next(enemyTypes.Length)];
+            var maxHp = _random.Next(Constants.EnemyHpByType[enemyType], Constants.EnemyHpByType[enemyType] + 50);
             var enemy = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = $"{enemyType}Enemy{i + 1}",
                 Type = enemyType,
-                CurrentHp = Constants.EnemyHpByType[enemyType],
+                CurrentHp = maxHp, // Start at full health
+                MaxHp = maxHp,
                 // Enemies get slightly weaker stats for balance
-                MaxHp = _random.Next(Constants.EnemyHpByType[enemyType], Constants.EnemyHpByType[enemyType] + 50),
                 Attack = _random.Next(Constants.MinAttackPower - 5, Constants.MaxAttackPower - 3),
                 Defense = _random.Next(Constants.MinDefensePower - 2, Constants.MaxDefensePower),
                 Speed = _random.Next(Constants.MinMovementSpeed, Constants.MaxMovementSpeed + 1),
@@ -177,9 +177,9 @@ public partial class BattleState
     }
 
     /// <summary>
-    /// Run the battle simulation
+    /// Run the battle simulation (pre-compute all turns)
     /// </summary>
-    public async Task RunBattleAsync(Func<BattleStatus, Task> statusCallback)
+    public async Task RunBattleAsync()
     {
         _logger.LogInformation($"Battle {_battleId}: Starting pre-computation of battle simulation with {_players.Count} players and {_enemies.Count} enemies");
         var startTime = DateTime.UtcNow;
@@ -187,11 +187,15 @@ public partial class BattleState
         // Create directory for battle replays if it doesn't exist
         Directory.CreateDirectory(Constants.BattleReplayDirectory);
 
+        // Store all turn data for later transmission to clients
+        var allTurnData = new List<BattleStatus>();
+
         // Open file for battle replay
         using (var replayFile = File.CreateText(Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")))
         {
             // Write initial state
             await WriteReplayFrameAsync(replayFile);
+            allTurnData.Add(GetStatus()); // Store initial state
 
             // Process each turn
             while (_currentTurn < _totalTurns && !_isCompleted)
@@ -201,12 +205,7 @@ public partial class BattleState
 
                 // Write turn state to replay file
                 await WriteReplayFrameAsync(replayFile);
-
-                // Send status update to clients (every 5 turns to avoid flooding)
-                if (_currentTurn % 5 == 0 || _isCompleted)
-                {
-                    await statusCallback(GetStatus());
-                }
+                allTurnData.Add(GetStatus()); // Store turn data
 
                 // Check if battle is over
                 if (CheckBattleOver())
@@ -215,8 +214,8 @@ public partial class BattleState
                     break;
                 }
 
-                // Short delay between turns (for processing, not real-time)
-                await Task.Delay(10);
+                // Short delay between turns (for processing optimization)
+                await Task.Delay(5);
             }
 
             // Add final battle log
@@ -230,12 +229,28 @@ public partial class BattleState
             }
 
             // Write final state
-            await WriteReplayFrameAsync(replayFile); var endTime = DateTime.UtcNow;
-            var duration = endTime - startTime;
-            _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
-            _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
-            _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")}");
+            await WriteReplayFrameAsync(replayFile);
+            allTurnData.Add(GetStatus()); // Store final state
         }
+
+        var endTime = DateTime.UtcNow;
+        var duration = endTime - startTime;
+        _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
+        _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
+        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")}");
+
+        // Store all turn data for client transmission
+        _allTurnData = allTurnData;
+    }
+
+    private List<BattleStatus> _allTurnData = [];
+
+    /// <summary>
+    /// Get all battle turn data for client replay
+    /// </summary>
+    public List<BattleStatus> GetAllTurnData()
+    {
+        return _allTurnData.ToList();
     }
 
     /// <summary>

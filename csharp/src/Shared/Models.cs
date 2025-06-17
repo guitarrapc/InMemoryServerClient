@@ -269,3 +269,34 @@ public class BattleSummary
     /// </summary>
     public DateTime StartedAt { get; set; }
 }
+
+/// <summary>
+/// Battle replay data sent to clients
+/// </summary>
+public class BattleReplayData
+{
+    /// <summary>
+    /// Battle ID
+    /// </summary>
+    public required string BattleId { get; set; }
+
+    /// <summary>
+    /// Turn data for this chunk
+    /// </summary>
+    public required List<BattleStatus> TurnData { get; set; }
+
+    /// <summary>
+    /// Current chunk index (0-based)
+    /// </summary>
+    public int ChunkIndex { get; set; }
+
+    /// <summary>
+    /// Total number of chunks
+    /// </summary>
+    public int TotalChunks { get; set; }
+
+    /// <summary>
+    /// Whether this is the last chunk
+    /// </summary>
+    public bool IsLastChunk { get; set; }
+}

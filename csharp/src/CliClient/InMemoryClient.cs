@@ -13,11 +13,15 @@ public class InMemoryClient
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-    private readonly int _clientIndex;
-
-    // Battle replay settings
+    private readonly int _clientIndex;    // Battle replay settings
     private const int BattleReplayFps = 5; // 5fps for battle replay
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
+
+    // Battle replay data storage
+    private readonly List<BattleStatus> _replayData = [];
+    private readonly Dictionary<int, List<BattleStatus>> _replayChunks = [];
+    private int _expectedTotalChunks = 0;
+    private bool _isReceivingReplayData = false;
 
     // This is used to track if the battle has completed and to notify the client when it is done
     private readonly TaskCompletionSource<bool> _battleCompletionSource;
@@ -131,67 +135,59 @@ public class InMemoryClient
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ======================================");
             });
 
-            _connection.On<BattleStatus>("BattleStatusUpdated", async (status) =>
+            // Handle battle replay data chunks
+            _connection.On<BattleReplayData>("BattleReplayData", async (replayData) =>
             {
-                // Add delay for frame rate control (10fps)
-                await Task.Delay(BattleReplayFrameTimeMs);
-
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== Turn {status.CurrentTurn}/{status.TotalTurns} ==========");
-
-                // Display players info
-                var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Players alive: {alivePlayers}/{status.Players.Count}");
-                foreach (var player in status.Players)
+                try
                 {
-                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
+                    if (replayData != null)
+                    {
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Received replay chunk {replayData.ChunkIndex + 1}/{replayData.TotalChunks} with {replayData.TurnData.Count} turns");
+
+                        // Store the chunk
+                        _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
+                        _expectedTotalChunks = replayData.TotalChunks;
+                        _isReceivingReplayData = true;
+
+                        // Check if we have all chunks
+                        if (_replayChunks.Count == _expectedTotalChunks)
+                        {
+                            // Reconstruct complete replay data
+                            _replayData.Clear();
+                            for (int i = 0; i < _expectedTotalChunks; i++)
+                            {
+                                if (_replayChunks.TryGetValue(i, out var chunk))
+                                {
+                                    _replayData.AddRange(chunk);
+                                }
+                            }
+
+                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {_replayData.Count} turns");
+
+                            // Start replay
+                            await PlayBattleReplayAsync();
+
+                            // Replay is complete, notify server
+                            await ReplayCompleteAsync();
+                        }
+                    }
                 }
-
-                // Display enemies info
-                var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
-
-                // Display logs
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Recent actions:");
-                foreach (var log in status.RecentLogs)
+                catch (Exception ex)
                 {
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] > {log}");
+                    _logger.LogError(ex, $"Client {_clientIndex}: Failed to process battle replay data");
                 }
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ====================================");
             });
 
             _connection.On<BattleStatus>("BattleCompleted", async (status) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== Battle Completed! ==========");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {status.BattleId} - Server calculation finished");
 
-                var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-                var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-
-                // Display outcome
-                if (aliveEnemies == 0)
+                // If we haven't received replay data yet, wait for it
+                if (!_isReceivingReplayData)
                 {
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] 🎉 Victory! All enemies defeated! 🎉");
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Surviving players: {alivePlayers}/{status.Players.Count}");
-
-                    // Show surviving players stats
-                    foreach (var player in status.Players.Where(p => p.CurrentHp > 0))
-                    {
-                        var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
-                    }
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Waiting for replay data...");
                 }
-                else
-                {
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ❌ Defeat! All players defeated! ❌");
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Remaining enemies: {aliveEnemies}/{status.Enemies.Count}");
-                }
-
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Total turns: {status.CurrentTurn}");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {status.BattleId} (replay available)");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle complete! Notifying server...");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========================================");
-
-                _battleCompletionSource.TrySetResult(true);
             });
 
             await _connection.StartAsync();
@@ -394,5 +390,108 @@ public class InMemoryClient
         {
             throw new InvalidOperationException("Not connected to server. Call ConnectAsync first.");
         }
+    }
+
+    /// <summary>
+    /// Play battle replay with 5fps speed
+    /// </summary>
+    private async Task PlayBattleReplayAsync()
+    {
+        try
+        {
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Starting Battle Replay ==========");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Playing {_replayData.Count} turns at {BattleReplayFps} FPS");
+
+            for (int i = 0; i < _replayData.Count; i++)
+            {
+                var status = _replayData[i];
+
+                // Display turn information
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===== Turn {status.CurrentTurn}/{status.TotalTurns} =====");
+
+                // Display players info
+                var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Players alive: {alivePlayers}/{status.Players.Count}");
+                foreach (var player in status.Players)
+                {
+                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
+                }
+
+                // Display enemies info
+                var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
+
+                // Display recent logs
+                if (status.RecentLogs.Count > 0)
+                {
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Recent actions:");
+                    foreach (var log in status.RecentLogs)
+                    {
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] > {log}");
+                    }
+                }
+
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========================================");
+
+                // Wait for next frame (5fps = 200ms per frame)
+                if (i < _replayData.Count - 1) // Don't delay after the last frame
+                {
+                    await Task.Delay(BattleReplayFrameTimeMs);
+                }
+            }
+
+            // Display final results
+            var finalStatus = _replayData.Last();
+            var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
+            var finalAliveEnemies = finalStatus.Enemies.Count(e => e.CurrentHp > 0);
+
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Battle Replay Completed! ==========");
+
+            if (finalAliveEnemies == 0)
+            {
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Count}");
+
+                // Show surviving players stats
+                foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
+                {
+                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                }
+            }
+            else
+            {
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
+            }
+
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Client {_clientIndex}: Error during battle replay");
+            _battleCompletionSource.TrySetResult(false);
+        }
+    }
+
+    private async Task ReplayCompleteAsync()
+    {
+        // Notify server that replay is complete
+        try
+        {
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Notifying server of replay completion...");
+            await _connection!.InvokeAsync("BattleReplayCompletedAsync");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Notified server of replay completion");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Client {_clientIndex}: Failed to notify server of replay completion");
+        }
+
+        // Signal battle completion
+        _battleCompletionSource.TrySetResult(true);
     }
 }
