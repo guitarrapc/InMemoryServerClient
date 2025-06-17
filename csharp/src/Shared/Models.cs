@@ -43,7 +43,7 @@ public class GroupInfo
     /// Client IDs in this group (not sent to clients)
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public List<string> ClientIds { get; set; } = [];
+    public List<string> ClientIds { get; set; } = new(5); // Pre-allocate for max connections
 }
 
 /// <summary>
@@ -89,7 +89,7 @@ public class BattleStatus
     /// <summary>
     /// Recent battle logs
     /// </summary>
-    public List<string> RecentLogs { get; set; } = [];
+    public List<string> RecentLogs { get; set; } = new(10); // Pre-allocate for recent logs
 }
 
 /// <summary>
@@ -156,22 +156,22 @@ public readonly record struct EntityInfo
 /// <summary>
 /// Battle field information
 /// </summary>
-public class BattleFieldInfo
+public readonly struct BattleFieldInfo
 {
     /// <summary>
     /// Field width
     /// </summary>
-    public int Width { get; set; }
+    public int Width { get; init; }
 
     /// <summary>
     /// Field height
     /// </summary>
-    public int Height { get; set; }
+    public int Height { get; init; }
 
     /// <summary>
     /// Field cells
     /// </summary>
-    public List<List<string>> Cells { get; set; } = [];
+    public ReadOnlyMemory<ReadOnlyMemory<string?>> Cells { get; init; }
 }
 
 /// <summary>
@@ -202,74 +202,74 @@ public class ServerStatus
     /// <summary>
     /// List of group summaries
     /// </summary>
-    public List<GroupSummary> Groups { get; set; } = [];
+    public List<GroupSummary> Groups { get; set; } = new(10); // Pre-allocate for typical group count
 
     /// <summary>
     /// List of active battle summaries
     /// </summary>
-    public List<BattleSummary> ActiveBattles { get; set; } = [];
+    public List<BattleSummary> ActiveBattles { get; set; } = new(5); // Pre-allocate for typical battle count
 }
 
 /// <summary>
 /// Group summary information
 /// </summary>
-public class GroupSummary
+public readonly struct GroupSummary
 {
     /// <summary>
     /// Group ID
     /// </summary>
-    public required string Id { get; set; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Group name
     /// </summary>
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
     /// <summary>
     /// Current connection count
     /// </summary>
-    public int ConnectionCount { get; set; }
+    public int ConnectionCount { get; init; }
 
     /// <summary>
     /// Battle ID if battle is in progress
     /// </summary>
-    public string? BattleId { get; set; }
+    public string? BattleId { get; init; }
 }
 
 /// <summary>
 /// Battle summary information
 /// </summary>
-public class BattleSummary
+public readonly struct BattleSummary
 {
     /// <summary>
     /// Battle ID
     /// </summary>
-    public required string Id { get; set; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Associated group ID
     /// </summary>
-    public required string GroupId { get; set; }
+    public required string GroupId { get; init; }
 
     /// <summary>
     /// Current turn
     /// </summary>
-    public int CurrentTurn { get; set; }
+    public int CurrentTurn { get; init; }
 
     /// <summary>
     /// Number of players
     /// </summary>
-    public int PlayerCount { get; set; }
+    public int PlayerCount { get; init; }
 
     /// <summary>
     /// Number of enemies
     /// </summary>
-    public int EnemyCount { get; set; }
+    public int EnemyCount { get; init; }
 
     /// <summary>
     /// Battle started time
     /// </summary>
-    public DateTime StartedAt { get; set; }
+    public DateTime StartedAt { get; init; }
 }
 
 /// <summary>
@@ -285,7 +285,7 @@ public class BattleReplayData
     /// <summary>
     /// Turn data for this chunk
     /// </summary>
-    public required List<BattleStatus> TurnData { get; set; }
+    public required List<BattleStatus> TurnData { get; set; } = new(50); // Pre-allocate for chunk size
 
     /// <summary>
     /// Current chunk index (0-based)

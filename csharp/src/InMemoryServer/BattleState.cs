@@ -19,15 +19,15 @@ public partial class BattleState
     private readonly string _battleId;
     private readonly GroupInfo _group;
     private readonly Random _random = new Random();
-    private readonly List<EntityInfo> _players = [];
-    private readonly List<EntityInfo> _enemies = [];
-    private readonly List<string> _battleLogs = [];
+    private readonly List<EntityInfo> _players = new(5); // Pre-allocate for max players
+    private readonly List<EntityInfo> _enemies = new(15); // Pre-allocate for max enemies
+    private readonly List<string> _battleLogs = new(60); // Pre-allocate for battle logs with limit
     private readonly string?[,] _battleField;
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
     private readonly ILogger<BattleState> _logger;
-    private readonly ConcurrentDictionary<string, State> _clients = [];
+    private readonly ConcurrentDictionary<string, State> _clients = new();
     private int _connectedClientsCount = 0;
     private int _readyClientsCount = 0;
     private int _replaytCompletedClientsCount = 0;
@@ -176,21 +176,21 @@ _battleField[y, x] == null)
                 attempts++;
             }
         }
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Run the battle simulation (pre-compute all turns)
     /// </summary>
     public async Task RunBattleAsync()
     {
-        _logger.LogInformation($"Battle {_battleId}: Starting pre-computation of battle simulation with {_players.Count} players and {_enemies.Count} enemies");
+        _logger.LogInformation("Battle {BattleId}: Starting pre-computation of battle simulation with {PlayerCount} players and {EnemyCount} enemies", _battleId, _players.Count, _enemies.Count);
         var startTime = DateTime.UtcNow;
 
         // Create directory for battle replays if it doesn't exist
         Directory.CreateDirectory(Constants.BattleReplayDirectory);
 
-        // Store all turn data for later transmission to clients
-        var allTurnData = new List<BattleStatus>();        // Open file for battle replay
+        // Store all turn data for later transmission to clients (pre-allocate estimated size)
+        var allTurnData = new List<BattleStatus>(_totalTurns + 1);
+
+        // Open file for battle replay
         using (var replayFile = File.CreateText(Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")))
         {
             // Write initial state
@@ -648,19 +648,25 @@ _battleField[y, x] == null)
     /// <summary>
     /// Get a snapshot of the battle field
     /// </summary>
-    private List<List<string>> GetBattleFieldSnapshot()
+    private ReadOnlyMemory<ReadOnlyMemory<string?>> GetBattleFieldSnapshot()
     {
-        var snapshot = new List<List<string>>();
+        var cells = new string?[Constants.BattleFieldHeight][];
         for (int y = 0; y < Constants.BattleFieldHeight; y++)
         {
-            var row = new List<string>();
+            cells[y] = new string?[Constants.BattleFieldWidth];
             for (int x = 0; x < Constants.BattleFieldWidth; x++)
             {
-                row.Add(_battleField[y, x] ?? string.Empty);
+                cells[y][x] = _battleField[y, x];
             }
-            snapshot.Add(row);
         }
-        return snapshot;
+
+        var rowMemories = new ReadOnlyMemory<string?>[Constants.BattleFieldHeight];
+        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        {
+            rowMemories[y] = cells[y].AsMemory();
+        }
+
+        return rowMemories.AsMemory();
     }
 
     /// <summary>

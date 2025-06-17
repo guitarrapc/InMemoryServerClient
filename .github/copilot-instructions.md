@@ -211,6 +211,42 @@ C#の基礎的なルールは次の通り
 - 後々のgRPC対応にMagicOnionを検討します。
 - ユニットテストに`xunit.v3`(xUnitのバージョン3)、モックに`NSubstirute`を用います。xunit.v3の使い方は[こちら](https://xunit.net/docs/getting-started/v3/whats-new)を参照します。
 
+### メモリ効率最適化ルール（標準適用）
+
+GCのインパクトを最小化し、メモリ効率を向上させるため、以下のルールを常に適用する：
+
+#### 1. 構造体の活用
+- 短寿命・値型セマンティクスに適したオブジェクトは`readonly struct`または`readonly record struct`を使用する
+- 特に、座標、状態情報、サマリー情報などは構造体にする
+- 不変性を保つため、可能な限り`readonly`修飾子を使用する
+
+#### 2. コレクションの最適化
+- コレクションは可能な限り初期容量を指定する
+- `List<T>`：`new(expectedSize)`
+- `ConcurrentDictionary<K,V>`：`new(concurrencyLevel, initialCapacity)`
+- `HashSet<T>`：`new(initialCapacity)`
+
+#### 3. メモリ効率的なデータ構造
+- 大きなデータ配列は`ReadOnlyMemory<T>`、`Span<T>`、`Memory<T>`を活用する
+- 特にバイト配列や文字列配列では積極的に使用する
+- 2次元配列の場合、`List<List<T>>`ではなく`T[,]`や`ReadOnlyMemory<ReadOnlyMemory<T>>`を使用する
+
+#### 4. 文字列操作の最適化
+- 頻繁な文字列結合は`StringBuilder`を使用する
+- ログ出力では構造化ログ（`_logger.LogInformation("Message {Param}", param)`）を使用し、文字列補間を避ける
+- 一時的な文字列生成を最小化する
+
+#### 5. オブジェクトプールとリサイクル
+- 大量に生成される一時オブジェクトは`ArrayPool<T>`などのプールを検討する
+- 長時間保持されるコレクションは定期的なクリーンアップを実装する
+
+#### 6. 参照の最小化
+- 不必要な参照を保持しない
+- イベントハンドラーの適切な解除
+- `IDisposable`の適切な実装
+
+これらのルールは新規コード作成時と既存コードのリファクタリング時に常に適用し、メモリ効率とGCの負荷軽減を図る。
+
 ### Go実装（将来）
 - Go 1.21以上
 - CLIパーシング用のCobra

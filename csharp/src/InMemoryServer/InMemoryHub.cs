@@ -178,15 +178,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             _logger.LogWarning($"Group {groupId} does not have an active battle");
+
             return new BattleStatus
             {
                 IsInProgress = false,
-                Field = new BattleFieldInfo
-                {
-                    Width = Constants.BattleFieldWidth,
-                    Height = Constants.BattleFieldHeight,
-                    Cells = []
-                }
+                Field = CreateEmptyBattleField()
             };
         }
 
@@ -195,12 +191,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             : new BattleStatus
             {
                 IsInProgress = false,
-                Field = new BattleFieldInfo
-                {
-                    Width = Constants.BattleFieldWidth,
-                    Height = Constants.BattleFieldHeight,
-                    Cells = []
-                }
+                Field = CreateEmptyBattleField()
             };
     }
 
@@ -478,8 +469,31 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         else
         {
             _logger.LogWarning($"Client {clientId} reported replay completion but battle state not found for battle {group.BattleId}");
+        }        _logger.LogInformation($"Client {clientId} replay completion notification processed successfully");
+    }
+
+    /// <summary>
+    /// Create an empty battle field for initialization
+    /// </summary>
+    private static BattleFieldInfo CreateEmptyBattleField()
+    {
+        var emptyCells = new string?[Constants.BattleFieldHeight][];
+        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        {
+            emptyCells[y] = new string?[Constants.BattleFieldWidth];
         }
 
-        _logger.LogInformation($"Client {clientId} replay completion notification processed successfully");
+        var rowMemories = new ReadOnlyMemory<string?>[Constants.BattleFieldHeight];
+        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        {
+            rowMemories[y] = emptyCells[y].AsMemory();
+        }
+
+        return new BattleFieldInfo
+        {
+            Width = Constants.BattleFieldWidth,
+            Height = Constants.BattleFieldHeight,
+            Cells = rowMemories.AsMemory()
+        };
     }
 }
