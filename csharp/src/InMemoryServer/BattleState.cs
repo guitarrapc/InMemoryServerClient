@@ -299,10 +299,6 @@ public partial class BattleState
                     DefendWithEntity(entity);
                     break;
             }
-
-            // Record state after each entity action for better replay granularity
-            await WriteReplayFrameAsync(replayFile);
-            allTurnData.Add(GetStatus());
         }
 
         _battleLogs.Add($"Turn {_currentTurn} ends!");
