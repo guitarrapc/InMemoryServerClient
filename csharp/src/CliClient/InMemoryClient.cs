@@ -413,12 +413,15 @@ public class InMemoryClient
                 var status = _replayData[i];
 
                 // Display only every 5th turn, plus the first and last turns
-                bool shouldDisplay = i == 0 || i == _replayData.Count - 1 || status.CurrentTurn % 5 == 0;
-
+                bool shouldDisplay = i == 0 || i == _replayData.Count - 1 || status.CurrentTurn % 5 == 0;                
+                
                 if (shouldDisplay)
                 {
                     // Display turn information
                     _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===== Turn {status.CurrentTurn}/{status.TotalTurns} =====");
+
+                    // Display visual battle field first for better overview
+                    RenderBattleField(status);
 
                     // Display players info
                     var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
@@ -451,14 +454,18 @@ public class InMemoryClient
                 {
                     await Task.Delay(BattleReplayFrameTimeMs);
                 }
-            }
-
+            }            
+            
             // Display final results
             var finalStatus = _replayData.Last();
             var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
             var finalAliveEnemies = finalStatus.Enemies.Count(e => e.CurrentHp > 0);
 
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Battle Replay Completed! ==========");
+
+            // Display final battle field state
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Final Battle Field State:");
+            RenderBattleField(finalStatus);
 
             if (finalAliveEnemies == 0)
             {
@@ -521,5 +528,90 @@ public class InMemoryClient
         }
 
         return field;
+    }
+
+    /// <summary>
+    /// Renders a visual representation of the battle field using box-drawing characters
+    /// </summary>
+    private void RenderBattleField(BattleStatus status)
+    {        
+        // First build the field with entity positions
+        var field = BuildBattleField(status);
+
+        // Calculate correct border width (each cell is 2 chars wide + separators)
+        // For a 20x20 field with 2 chars per cell and a space between: 20*2 + 19 = 59 chars total width
+        int borderWidth = status.FieldWidth * 2 + (status.FieldWidth - 1);
+
+        // Draw top border
+        _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] ┌{new string('─', borderWidth)}┐");
+
+        // Draw field rows
+        for (int y = 0; y < status.FieldHeight; y++)
+        {
+            var line = new System.Text.StringBuilder("│");
+
+            for (int x = 0; x < status.FieldWidth; x++)
+            {
+                var cellContent = field[y, x];
+
+                if (cellContent == null)
+                {
+                    // Empty cell
+                    line.Append("  ");
+                }
+                else
+                {
+                    // Determine if this is a player or enemy
+                    bool isPlayer = status.Players.Any(p => p.Id == cellContent);
+
+                    if (isPlayer)
+                    {
+                        // Player: P1, P2, etc.
+                        int playerIdx = Array.FindIndex(status.Players, p => p.Id == cellContent) + 1;
+                        line.Append($"P{playerIdx}");
+                    }
+                    else
+                    {
+                        // Enemy: E1, E2, etc.
+                        int enemyIdx = Array.FindIndex(status.Enemies, e => e.Id == cellContent) + 1;
+                        line.Append($"E{enemyIdx}");
+                    }
+                }
+
+                // Add separator except for the last column
+                if (x < status.FieldWidth - 1)
+                {
+                    line.Append(" ");
+                }
+            }
+
+            line.Append("│");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] {line}");        }
+
+        // Draw bottom border with the same width as the top border
+        _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] └{new string('─', borderWidth)}┘");
+
+        // Add a legend for easier identification
+        var playerLegend = new System.Text.StringBuilder("Players: ");
+        for (int i = 0; i < status.Players.Length; i++)
+        {
+            var player = status.Players[i];
+            if (player.CurrentHp > 0)
+            {
+                playerLegend.Append($"P{i+1}={player.Name}({player.CurrentHp}/{player.MaxHp}) ");
+            }
+        }
+        _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] {playerLegend}");
+
+        var enemyLegend = new System.Text.StringBuilder("Enemies: ");
+        for (int i = 0; i < status.Enemies.Length; i++)
+        {
+            var enemy = status.Enemies[i];
+            if (enemy.CurrentHp > 0)
+            {
+                enemyLegend.Append($"E{i+1}={enemy.Name}({enemy.CurrentHp}/{enemy.MaxHp}) ");
+            }
+        }
+        _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] {enemyLegend}");
     }
 }
