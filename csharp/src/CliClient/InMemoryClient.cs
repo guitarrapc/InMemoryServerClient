@@ -421,7 +421,7 @@ public class InMemoryClient
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed}");
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.PositionX},{player.PositionY})");
                 }
 
                 // Display enemies info
@@ -483,5 +483,37 @@ public class InMemoryClient
             _battleCompletionSource.TrySetResult(false);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Builds a 2D field array from player and enemy positions
+    /// </summary>
+    private string?[,] BuildBattleField(BattleStatus status)
+    {
+        var field = new string?[status.FieldHeight, status.FieldWidth];
+
+        // Place players on field
+        foreach (var player in status.Players)
+        {
+            if (player.CurrentHp > 0 &&
+                player.PositionX >= 0 && player.PositionX < status.FieldWidth &&
+                player.PositionY >= 0 && player.PositionY < status.FieldHeight)
+            {
+                field[player.PositionY, player.PositionX] = player.Id;
+            }
+        }
+
+        // Place enemies on field
+        foreach (var enemy in status.Enemies)
+        {
+            if (enemy.CurrentHp > 0 &&
+                enemy.PositionX >= 0 && enemy.PositionX < status.FieldWidth &&
+                enemy.PositionY >= 0 && enemy.PositionY < status.FieldHeight)
+            {
+                field[enemy.PositionY, enemy.PositionX] = enemy.Id;
+            }
+        }
+
+        return field;
     }
 }

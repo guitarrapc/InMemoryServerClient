@@ -667,7 +667,6 @@ _battleField[y, x] == null)
             TurnNumber = _currentTurn,
             Players = _players,
             Enemies = _enemies,
-            Field = GetBattleFieldSnapshot(),
             Logs = _battleLogs.TakeLast(10).ToList()
         };
 
@@ -712,12 +711,8 @@ _battleField[y, x] == null)
             TotalTurns = _totalTurns,
             Players = _players.ToArray(),
             Enemies = _enemies.ToArray(),
-            Field = new BattleFieldInfo
-            {
-                Width = Constants.BattleFieldWidth,
-                Height = Constants.BattleFieldHeight,
-                Cells = GetBattleFieldSnapshot()
-            },
+            FieldWidth = Constants.BattleFieldWidth,
+            FieldHeight = Constants.BattleFieldHeight,
             RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
     }
@@ -735,12 +730,8 @@ _battleField[y, x] == null)
             TotalTurns = _totalTurns,
             Players = _players.ToArray(), // structs automatically create copies
             Enemies = _enemies.ToArray(), // structs automatically create copies
-            Field = new BattleFieldInfo
-            {
-                Width = Constants.BattleFieldWidth,
-                Height = Constants.BattleFieldHeight,
-                Cells = GetBattleFieldSnapshot()
-            },
+            FieldWidth = Constants.BattleFieldWidth,
+            FieldHeight = Constants.BattleFieldHeight,
             RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
     }

@@ -82,9 +82,14 @@ public class BattleStatus
     public EntityInfo[] Enemies { get; set; } = [];
 
     /// <summary>
-    /// Battle field information
+    /// Field dimensions (for client-side rendering)
     /// </summary>
-    public required BattleFieldInfo Field { get; set; }
+    public int FieldWidth { get; set; } = Constants.BattleFieldWidth;
+
+    /// <summary>
+    /// Field dimensions (for client-side rendering)
+    /// </summary>
+    public int FieldHeight { get; set; } = Constants.BattleFieldHeight;
 
     /// <summary>
     /// Recent battle logs

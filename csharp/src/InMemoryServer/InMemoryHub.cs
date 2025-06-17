@@ -182,7 +182,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             return new BattleStatus
             {
                 IsInProgress = false,
-                Field = CreateEmptyBattleField()
+                FieldWidth = Constants.BattleFieldWidth,
+                FieldHeight = Constants.BattleFieldHeight
             };
         }
 
@@ -191,7 +192,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             : new BattleStatus
             {
                 IsInProgress = false,
-                Field = CreateEmptyBattleField()
+                FieldWidth = Constants.BattleFieldWidth,
+                FieldHeight = Constants.BattleFieldHeight
             };
     }
 
@@ -423,30 +425,5 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
 
         return true;
-    }
-
-    /// <summary>
-    /// Create an empty battle field for initialization
-    /// </summary>
-    private static BattleFieldInfo CreateEmptyBattleField()
-    {
-        var emptyCells = new string?[Constants.BattleFieldHeight][];
-        for (int y = 0; y < Constants.BattleFieldHeight; y++)
-        {
-            emptyCells[y] = new string?[Constants.BattleFieldWidth];
-        }
-
-        var rowMemories = new ReadOnlyMemory<string?>[Constants.BattleFieldHeight];
-        for (int y = 0; y < Constants.BattleFieldHeight; y++)
-        {
-            rowMemories[y] = emptyCells[y].AsMemory();
-        }
-
-        return new BattleFieldInfo
-        {
-            Width = Constants.BattleFieldWidth,
-            Height = Constants.BattleFieldHeight,
-            Cells = rowMemories.AsMemory()
-        };
     }
 }
