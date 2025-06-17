@@ -11,18 +11,13 @@ namespace CliClient;
 /// </summary>
 public class InMemoryCommands(InMemoryClient client, MultiClientManager multiClientManager, ILogger<InMemoryCommands> logger)
 {
-    private readonly InMemoryClient _client = client;
-    private readonly MultiClientManager _multiClientManager = multiClientManager;
-    private readonly ILogger<InMemoryCommands> _logger = logger;
-
     /// <summary>Start interactive mode</summary>
     [Command("")]
     public async Task InteractiveAsync()
     {
-        Console.WriteLine("InMemory CLI Client - Interactive Mode");
-        Console.WriteLine("=====================================");
-        Console.WriteLine("Type 'help' for a list of commands, 'exit' to quit.");
-        Console.WriteLine();
+        logger.LogInformation("InMemory CLI Client - Interactive Mode");
+        logger.LogInformation("=====================================");
+        logger.LogInformation("Type 'help' for a list of commands, 'exit' to quit.");
 
         bool exit = false;
         while (!exit)
@@ -77,7 +72,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "get":
                         if (args.Length < 2)
                         {
-                            Console.WriteLine("Usage: get <key>");
+                            logger.LogInformation("Usage: get <key>");
                             break;
                         }
                         await GetAsync(args[1]);
@@ -86,7 +81,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "set":
                         if (args.Length < 3)
                         {
-                            Console.WriteLine("Usage: set <key> <value>");
+                            logger.LogInformation("Usage: set <key> <value>");
                             break;
                         }
                         var setValue = string.Join(' ', args.Skip(2));
@@ -96,7 +91,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "delete":
                         if (args.Length < 2)
                         {
-                            Console.WriteLine("Usage: delete <key>");
+                            logger.LogInformation("Usage: delete <key>");
                             break;
                         }
                         await DeleteAsync(args[1]);
@@ -110,7 +105,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "watch":
                         if (args.Length < 2)
                         {
-                            Console.WriteLine("Usage: watch <key>");
+                            logger.LogInformation("Usage: watch <key>");
                             break;
                         }
                         await WatchAsync(args[1]);
@@ -119,7 +114,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "join":
                         if (args.Length < 2)
                         {
-                            Console.WriteLine("Usage: join <group_name>");
+                            logger.LogInformation("Usage: join <group_name>");
                             break;
                         }
                         await JoinAsync(args[1]);
@@ -128,7 +123,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "broadcast":
                         if (args.Length < 2)
                         {
-                            Console.WriteLine("Usage: broadcast <message>");
+                            logger.LogInformation("Usage: broadcast <message>");
                             break;
                         }
                         var message = string.Join(' ', args.Skip(1));
@@ -150,27 +145,27 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     case "battle-replay":
                         if (args.Length < 2)
                         {
-                            Console.WriteLine("Usage: battle-replay <battle_id>");
+                            logger.LogInformation("Usage: battle-replay <battle_id>");
                             break;
                         }
                         await BattleReplayAsync(args[1]);
                         break;
 
                     default:
-                        Console.WriteLine($"Unknown command: {command}");
+                        logger.LogInformation($"Unknown command: {command}");
                         break;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex.Message}");
+                logger.LogInformation($"Error: {ex.Message}");
             }
         }
 
         // Ensure disconnection on exit
-        if (_client.IsConnected)
+        if (client.IsConnected)
         {
-            await _client.DisconnectAsync();
+            await client.DisconnectAsync();
         }
     }
 
@@ -184,23 +179,23 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            if (await _client.ConnectAsync(url, group))
+            if (await client.ConnectAsync(url, group))
             {
-                Console.WriteLine($"Connected to server: {url}");
+                logger.LogInformation($"Connected to server: {url}");
                 if (!string.IsNullOrEmpty(group))
                 {
-                    Console.WriteLine($"Joined group: {group}");
+                    logger.LogInformation($"Joined group: {group}");
                 }
             }
             else
             {
-                Console.WriteLine($"Failed to connect to server: {url}");
+                logger.LogInformation($"Failed to connect to server: {url}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error connecting to server: {ex.Message}");
+            logger.LogInformation($"Error connecting to server: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -209,7 +204,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     [Command("status")]
     public void Status()
     {
-        Console.WriteLine($"Connection status: {(_client.IsConnected ? "Connected" : "Disconnected")}");
+        logger.LogInformation($"Connection status: {(client.IsConnected ? "Connected" : "Disconnected")}");
     }
 
     /// <summary>Get value by key</summary>
@@ -219,26 +214,26 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(key))
         {
-            Console.WriteLine("Error: Key is required");
+            logger.LogInformation("Error: Key is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            var value = await _client.GetAsync(key);
+            var value = await client.GetAsync(key);
             if (value != null)
             {
-                Console.WriteLine($"{key} = {value}");
+                logger.LogInformation($"{key} = {value}");
             }
             else
             {
-                Console.WriteLine($"Key not found: {key}");
+                logger.LogInformation($"Key not found: {key}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -251,33 +246,33 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(key))
         {
-            Console.WriteLine("Error: Key is required");
+            logger.LogInformation("Error: Key is required");
             Environment.ExitCode = 1;
             return;
         }
 
         if (string.IsNullOrEmpty(value))
         {
-            Console.WriteLine("Error: Value is required");
+            logger.LogInformation("Error: Value is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            if (await _client.SetAsync(key, value))
+            if (await client.SetAsync(key, value))
             {
-                Console.WriteLine($"Key {key} set to: {value}");
+                logger.LogInformation($"Key {key} set to: {value}");
             }
             else
             {
-                Console.WriteLine($"Failed to set key: {key}");
+                logger.LogInformation($"Failed to set key: {key}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -289,26 +284,26 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(key))
         {
-            Console.WriteLine("Error: Key is required");
+            logger.LogInformation("Error: Key is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            if (await _client.DeleteAsync(key))
+            if (await client.DeleteAsync(key))
             {
-                Console.WriteLine($"Key deleted: {key}");
+                logger.LogInformation($"Key deleted: {key}");
             }
             else
             {
-                Console.WriteLine($"Failed to delete key: {key}");
+                logger.LogInformation($"Failed to delete key: {key}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -320,16 +315,16 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            var keys = await _client.ListAsync(pattern);
-            Console.WriteLine($"Keys matching pattern '{pattern}':");
+            var keys = await client.ListAsync(pattern);
+            logger.LogInformation($"Keys matching pattern '{pattern}':");
             foreach (var key in keys)
             {
-                Console.WriteLine($"  {key}");
+                logger.LogInformation($"  {key}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -341,26 +336,26 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(key))
         {
-            Console.WriteLine("Error: Key is required");
+            logger.LogInformation("Error: Key is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            if (await _client.WatchAsync(key))
+            if (await client.WatchAsync(key))
             {
-                Console.WriteLine($"Watching key: {key}");
+                logger.LogInformation($"Watching key: {key}");
             }
             else
             {
-                Console.WriteLine($"Failed to watch key: {key}");
+                logger.LogInformation($"Failed to watch key: {key}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -372,26 +367,26 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(groupName))
         {
-            Console.WriteLine("Error: Group name is required");
+            logger.LogInformation("Error: Group name is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            if (await _client.JoinGroupAsync(groupName))
+            if (await client.JoinGroupAsync(groupName))
             {
-                Console.WriteLine($"Joined group: {groupName}");
+                logger.LogInformation($"Joined group: {groupName}");
             }
             else
             {
-                Console.WriteLine($"Failed to join group: {groupName}");
+                logger.LogInformation($"Failed to join group: {groupName}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -403,26 +398,26 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(message))
         {
-            Console.WriteLine("Error: Message is required");
+            logger.LogInformation("Error: Message is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            if (await _client.BroadcastAsync(message))
+            if (await client.BroadcastAsync(message))
             {
-                Console.WriteLine($"Message broadcasted: {message}");
+                logger.LogInformation($"Message broadcasted: {message}");
             }
             else
             {
-                Console.WriteLine("Failed to broadcast message");
+                logger.LogInformation("Failed to broadcast message");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -433,16 +428,16 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            var groups = await _client.GetGroupsAsync();
-            Console.WriteLine("Available groups:");
+            var groups = await client.GetGroupsAsync();
+            logger.LogInformation("Available groups:");
             foreach (var group in groups)
             {
-                Console.WriteLine($"  {group}");
+                logger.LogInformation($"  {group}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -453,19 +448,19 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            var currentGroup = await _client.GetMyGroupAsync();
+            var currentGroup = await client.GetMyGroupAsync();
             if (currentGroup != null)
             {
-                Console.WriteLine($"Current group: {currentGroup}");
+                logger.LogInformation($"Current group: {currentGroup}");
             }
             else
             {
-                Console.WriteLine("Not in any group");
+                logger.LogInformation("Not in any group");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -476,53 +471,53 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            var battleStatus = await _client.GetBattleStatusAsync();
+            var battleStatus = await client.GetBattleStatusAsync();
             if (battleStatus != null)
             {
                 if (battleStatus.IsInProgress)
                 {
-                    Console.WriteLine($"[BATTLE] ========== Battle Status ==========");
-                    Console.WriteLine($"[BATTLE] Battle ID: {battleStatus.BattleId}");
-                    Console.WriteLine($"[BATTLE] Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
+                    logger.LogInformation($"[BATTLE] ========== Battle Status ==========");
+                    logger.LogInformation($"[BATTLE] Battle ID: {battleStatus.BattleId}");
+                    logger.LogInformation($"[BATTLE] Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
 
                     // Display players
                     var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
-                    Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Length}");
+                    logger.LogInformation($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Length}");
                     foreach (var player in battleStatus.Players)
                     {
                         var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
-                        Console.WriteLine($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.PositionX},{player.PositionY})");
+                        logger.LogInformation($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.PositionX},{player.PositionY})");
                     }
 
                     // Display enemies
                     var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
-                    Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Length}");
+                    logger.LogInformation($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Length}");
 
                     // Show recent logs
                     if (battleStatus.RecentLogs.Count > 0)
                     {
-                        Console.WriteLine("[BATTLE] Recent actions:");
+                        logger.LogInformation("[BATTLE] Recent actions:");
                         foreach (var log in battleStatus.RecentLogs.TakeLast(5))
                         {
-                            Console.WriteLine($"[BATTLE] > {log}");
+                            logger.LogInformation($"[BATTLE] > {log}");
                         }
                     }
 
-                    Console.WriteLine("[BATTLE] ===================================");
+                    logger.LogInformation("[BATTLE] ===================================");
                 }
                 else
                 {
-                    Console.WriteLine("No active battle in progress.");
+                    logger.LogInformation("No active battle in progress.");
                 }
             }
             else
             {
-                Console.WriteLine("No active battle or not in a group.");
+                logger.LogInformation("No active battle or not in a group.");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -534,37 +529,37 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (string.IsNullOrEmpty(battleId))
         {
-            Console.WriteLine("Error: Battle ID is required");
+            logger.LogInformation("Error: Battle ID is required");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            var replayData = await _client.GetBattleReplayAsync(battleId);
+            var replayData = await client.GetBattleReplayAsync(battleId);
             if (replayData != null)
             {
-                Console.WriteLine($"Battle replay for battle {battleId}:");
-                Console.WriteLine("Showing first 10 turns of replay data:");
+                logger.LogInformation($"Battle replay for battle {battleId}:");
+                logger.LogInformation("Showing first 10 turns of replay data:");
                 var lines = replayData.Split('\n');
                 foreach (var line in lines.Take(10))
                 {
                     if (!string.IsNullOrEmpty(line))
                     {
-                        Console.WriteLine($"  {line[..Math.Min(100, line.Length)]}...");
+                        logger.LogInformation($"  {line[..Math.Min(100, line.Length)]}...");
                     }
                 }
-                Console.WriteLine($"Total turns in replay: {lines.Length}");
+                logger.LogInformation($"Total turns in replay: {lines.Length}");
             }
             else
             {
-                Console.WriteLine($"Replay data not found for battle: {battleId}");
+                logger.LogInformation($"Replay data not found for battle: {battleId}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -575,12 +570,12 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            await _client.DisconnectAsync();
-            Console.WriteLine("Disconnected from server");
+            await client.DisconnectAsync();
+            logger.LogInformation("Disconnected from server");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error disconnecting from server: {ex.Message}");
+            logger.LogInformation($"Error disconnecting from server: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -591,53 +586,53 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         try
         {
-            if (!_client.IsConnected)
+            if (!client.IsConnected)
             {
-                Console.WriteLine("Not connected to server. Connect first.");
+                logger.LogInformation("Not connected to server. Connect first.");
                 Environment.ExitCode = 1;
                 return;
             }
-            var serverStatus = await _client.GetServerStatusAsync();
+            var serverStatus = await client.GetServerStatusAsync();
             if (serverStatus != null)
             {
-                Console.WriteLine("============ SERVER STATUS ============");
-                Console.WriteLine($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
-                Console.WriteLine($"Total Connections: {serverStatus.TotalConnections}");
-                Console.WriteLine($"Group Count: {serverStatus.GroupCount}");
-                Console.WriteLine($"Active Battle Count: {serverStatus.ActiveBattleCount}");
+                logger.LogInformation("============ SERVER STATUS ============");
+                logger.LogInformation($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
+                logger.LogInformation($"Total Connections: {serverStatus.TotalConnections}");
+                logger.LogInformation($"Group Count: {serverStatus.GroupCount}");
+                logger.LogInformation($"Active Battle Count: {serverStatus.ActiveBattleCount}");
                 if (serverStatus.Groups.Count > 0)
                 {
-                    Console.WriteLine("\n---------- GROUPS ----------");
+                    logger.LogInformation("\n---------- GROUPS ----------");
                     foreach (var groupSummary in serverStatus.Groups)
                     {
                         var battleStatusText = !string.IsNullOrEmpty(groupSummary.BattleId) ? "[Battle in progress]" : "";
-                        Console.WriteLine($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatusText}");
+                        logger.LogInformation($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatusText}");
                     }
                 }
 
                 if (serverStatus.ActiveBattles.Count > 0)
                 {
-                    Console.WriteLine("\n---------- ACTIVE BATTLES ----------");
+                    logger.LogInformation("\n---------- ACTIVE BATTLES ----------");
                     foreach (var battle in serverStatus.ActiveBattles)
                     {
                         var duration = DateTime.UtcNow - battle.StartedAt;
-                        Console.WriteLine($"Battle {battle.Id} (Group: {battle.GroupId})");
-                        Console.WriteLine($"  Turn: {battle.CurrentTurn}, Players: {battle.PlayerCount}, Enemies: {battle.EnemyCount}");
-                        Console.WriteLine($"  Duration: {duration:h\\h\\ m\\m\\ s\\s}");
+                        logger.LogInformation($"Battle {battle.Id} (Group: {battle.GroupId})");
+                        logger.LogInformation($"  Turn: {battle.CurrentTurn}, Players: {battle.PlayerCount}, Enemies: {battle.EnemyCount}");
+                        logger.LogInformation($"  Duration: {duration:h\\h\\ m\\m\\ s\\s}");
                     }
                 }
 
-                Console.WriteLine("=======================================");
+                logger.LogInformation("=======================================");
             }
             else
             {
-                Console.WriteLine("Failed to get server status.");
+                logger.LogInformation("Failed to get server status.");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogInformation($"Error: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -651,51 +646,51 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     {
         if (count <= 0)
         {
-            Console.WriteLine("Error: Count must be greater than 0");
+            logger.LogInformation("Error: Count must be greater than 0");
             Environment.ExitCode = 1;
             return;
         }
 
         if (string.IsNullOrEmpty(group))
         {
-            Console.WriteLine("Error: Group name is required for multiple connections");
+            logger.LogInformation("Error: Group name is required for multiple connections");
             Environment.ExitCode = 1;
             return;
         }
 
         try
         {
-            Console.WriteLine($"Connecting {count} sessions to server: {url}");
-            Console.WriteLine($"Group name: {group}");
+            logger.LogInformation($"Connecting {count} sessions to server: {url}");
+            logger.LogInformation($"Group name: {group}");
 
             // 新しいMultiClientManagerを使用
-            if (await _multiClientManager.ConnectMultipleClientsAsync(url, group, count))
+            if (await multiClientManager.ConnectMultipleClientsAsync(url, group, count))
             {
-                Console.WriteLine($"Successfully connected {count} clients to group: {group}");
-                Console.WriteLine($"If this completes the group (5 sessions), a battle should start automatically!");
+                logger.LogInformation($"Successfully connected {count} clients to group: {group}");
+                logger.LogInformation($"If this completes the group (5 sessions), a battle should start automatically!");
 
                 // バトルの完了を待機
                 var timeout = TimeSpan.FromMinutes(5);
-                Console.WriteLine($"Waiting for battle to complete (timeout: {timeout})...");
+                logger.LogInformation($"Waiting for battle to complete (timeout: {timeout})...");
 
-                if (await _multiClientManager.WaitForBattleCompletionAsync(timeout))
+                if (await multiClientManager.WaitForBattleCompletionAsync(timeout))
                 {
-                    Console.WriteLine("Battle completed successfully!");
+                    logger.LogInformation("Battle completed successfully!");
                 }
                 else
                 {
-                    Console.WriteLine("Timed out or error occurred while waiting for battle completion");
+                    logger.LogInformation("Timed out or error occurred while waiting for battle completion");
                 }
             }
             else
             {
-                Console.WriteLine($"Failed to connect {count} clients to server");
+                logger.LogInformation($"Failed to connect {count} clients to server");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error connecting multiple clients: {ex.Message}");
+            logger.LogInformation($"Error connecting multiple clients: {ex.Message}");
             Environment.ExitCode = 1;
         }
         finally
@@ -703,11 +698,11 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
             // 最後に必ずクリーンアップを実行
             try
             {
-                await _multiClientManager.CleanupClientsAsync();
+                await multiClientManager.CleanupClientsAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during cleanup: {ex.Message}");
+                logger.LogInformation($"Error during cleanup: {ex.Message}");
             }
         }
     }
