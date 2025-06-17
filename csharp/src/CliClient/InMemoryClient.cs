@@ -13,7 +13,9 @@ public class InMemoryClient
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-    private readonly int _clientIndex;    // Battle replay settings
+    private readonly int _clientIndex;
+
+    // Battle replay settings
     private const int BattleReplayFps = 5; // 5fps for battle replay
     private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
@@ -162,12 +164,9 @@ public class InMemoryClient
                                 }
                             }
 
-                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {_replayData.Count} turns");
-
-                            // Start replay
+                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {_replayData.Count} turns");                            // Start replay
                             await PlayBattleReplayAsync();
 
-                            // Replay is complete, notify server
                             await ReplayCompleteAsync();
                         }
                     }
@@ -464,11 +463,15 @@ public class InMemoryClient
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
-            }
-
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
+            }            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");
+
+            // Add small random delay to prevent all clients from calling server simultaneously
+            var random = new Random();
+            var delayMs = random.Next(50, 200); // Random delay between 50-200ms
+            await Task.Delay(delayMs);
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Waiting {delayMs}ms before server notification");
         }
         catch (Exception ex)
         {
@@ -479,16 +482,32 @@ public class InMemoryClient
 
     private async Task ReplayCompleteAsync()
     {
+        // Check connection state before attempting to notify server
+        if (!IsConnected)
+        {
+            _logger.LogWarning($"Client {_clientIndex}: Cannot notify server of replay completion - not connected");
+            _battleCompletionSource.TrySetResult(false);
+            return;
+        }
+
         // Notify server that replay is complete
         try
         {
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Notifying server of replay completion...");
-            await _connection!.InvokeAsync("BattleReplayCompletedAsync");
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Notified server of replay completion");
+
+            // Add timeout to prevent hanging
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await _connection!.InvokeAsync("BattleReplayCompletedAsync", cts.Token);
+
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Server notified of replay completion");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogError($"Client {_clientIndex}: Timeout while notifying server of replay completion");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Client {_clientIndex}: Failed to notify server of replay completion");
+            _logger.LogError(ex, $"Client {_clientIndex}: Failed to notify server of replay completion: {ex.Message}");
         }
 
         // Signal battle completion
