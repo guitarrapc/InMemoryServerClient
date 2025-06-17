@@ -412,35 +412,41 @@ public class InMemoryClient
             {
                 var status = _replayData[i];
 
-                // Display turn information
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===== Turn {status.CurrentTurn}/{status.TotalTurns} =====");
+                // Display only every 5th turn, plus the first and last turns
+                bool shouldDisplay = i == 0 || i == _replayData.Count - 1 || status.CurrentTurn % 5 == 0;
 
-                // Display players info
-                var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Players alive: {alivePlayers}/{status.Players.Length}");
-                foreach (var player in status.Players)
+                if (shouldDisplay)
                 {
-                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.PositionX},{player.PositionY})");
-                }
+                    // Display turn information
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===== Turn {status.CurrentTurn}/{status.TotalTurns} =====");
 
-                // Display enemies info
-                var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Length}");
-
-                // Display recent logs
-                if (status.RecentLogs.Count > 0)
-                {
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Recent actions:");
-                    foreach (var log in status.RecentLogs)
+                    // Display players info
+                    var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Players alive: {alivePlayers}/{status.Players.Length}");
+                    foreach (var player in status.Players)
                     {
-                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] > {log}");
+                        var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.PositionX},{player.PositionY})");
                     }
+
+                    // Display enemies info
+                    var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Length}");
+
+                    // Display recent logs
+                    if (status.RecentLogs.Count > 0)
+                    {
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Recent actions:");
+                        foreach (var log in status.RecentLogs)
+                        {
+                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] > {log}");
+                        }
+                    }
+
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========================================");
                 }
 
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========================================");
-
-                // Wait for next frame (5fps = 200ms per frame)
+                // Wait for next frame (5fps = 200ms per frame) - maintain timing even when not displaying
                 if (i < _replayData.Count - 1) // Don't delay after the last frame
                 {
                     await Task.Delay(BattleReplayFrameTimeMs);
