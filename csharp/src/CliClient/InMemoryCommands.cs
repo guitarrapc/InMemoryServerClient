@@ -709,25 +709,27 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
     private static void ShowInteractiveHelp()
     {
-        Console.WriteLine("Available commands:");
-        Console.WriteLine("  connect [url] [group]  - Connect to server (default: http://localhost:5000)");
-        Console.WriteLine("  connect-battle [url] [group] [count] - Connect multiple sessions (default: 5) to start a battle");
-        Console.WriteLine("  disconnect             - Disconnect from server");
-        Console.WriteLine("  status                 - Show connection status");
-        Console.WriteLine("  server-status          - Show detailed server status");
-        Console.WriteLine("  get <key>              - Get value by key");
-        Console.WriteLine("  set <key> <value>      - Set key-value pair");
-        Console.WriteLine("  delete <key>           - Delete key");
-        Console.WriteLine("  list [pattern]         - List keys matching pattern (default: *)");
-        Console.WriteLine("  watch <key>            - Watch key for changes");
-        Console.WriteLine("  join <group_name>      - Join a group");
-        Console.WriteLine("  broadcast <message>    - Broadcast message to current group");
-        Console.WriteLine("  groups                 - List available groups");
-        Console.WriteLine("  mygroup                - Show current group information");
-        Console.WriteLine("  battle-status          - Show battle status");
-        Console.WriteLine("  battle-replay <id>     - Show replay data for a battle");
-        Console.WriteLine("  battle-complete        - Notify server that battle replay is complete");
-        Console.WriteLine("  exit, quit             - Exit the program");
-        Console.WriteLine("  help                   - Show this help");
+        Console.WriteLine("""
+        Available commands:            
+          connect [url] [group]  - Connect to server (default: http://localhost:5000)
+          connect-battle [url] [group] [count] - Connect multiple sessions (default: 5) to start a battle
+          disconnect             - Disconnect from server
+          status                 - Show connection status
+          server-status          - Show detailed server status
+          get <key>              - Get value by key
+          set <key> <value>      - Set key-value pair
+          delete <key>           - Delete key
+          list [pattern]         - List keys matching pattern (default: *)
+          watch <key>            - Watch key for changes
+          join <group_name>      - Join a group
+          broadcast <message>    - Broadcast message to current group
+          groups                 - List available groups
+          mygroup                - Show current group information
+          battle-status          - Show battle status
+          battle-replay <id>     - Show replay data for a battle
+          battle-complete        - Notify server that battle replay is complete
+          exit, quit             - Exit the program
+          help                   - Show this help
+        """);
     }
 }
