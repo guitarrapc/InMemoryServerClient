@@ -150,9 +150,9 @@ public class BattleStateTests
         // Assert
         Assert.NotNull(status);
         Assert.Equal(battleId, status.BattleId);
-        Assert.Equal(group.ConnectionCount, status.Players.Count);
-        Assert.True(status.Enemies.Count >= Constants.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);
+        Assert.Equal(group.ConnectionCount, status.Players.Length);
+        Assert.True(status.Enemies.Length >= Constants.MinEnemyCount);
+        Assert.True(status.Enemies.Length <= Constants.MaxEnemyCount);
         Assert.Equal(Constants.BattleFieldWidth, status.Field.Width);
         Assert.Equal(Constants.BattleFieldHeight, status.Field.Height);
     }
@@ -177,7 +177,7 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.Equal(2, status.Players.Count);
+        Assert.Equal(2, status.Players.Length);
 
         foreach (var player in status.Players)
         {
@@ -210,8 +210,8 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.True(status.Enemies.Count >= Constants.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);
+        Assert.True(status.Enemies.Length >= Constants.MinEnemyCount);
+        Assert.True(status.Enemies.Length <= Constants.MaxEnemyCount);
 
         foreach (var enemy in status.Enemies)
         {

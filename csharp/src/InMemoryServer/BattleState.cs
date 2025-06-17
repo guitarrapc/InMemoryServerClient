@@ -69,7 +69,9 @@ public partial class BattleState
     /// Initialize the battle state
     /// </summary>
     private void InitializeBattle()
-    {        // Create players (one for each connection)
+    {
+
+        // Create players (one for each connection)
         for (int i = 0; i < _group.ConnectionCount; i++)
         {
             var maxHp = _random.Next(Constants.PlayerHp - 70, Constants.PlayerHp + 70);
@@ -203,7 +205,7 @@ public partial class BattleState
             while (_currentTurn < _totalTurns && !_isCompleted)
             {
                 _currentTurn++;
-                await ProcessTurnAsync(replayFile, allTurnData);
+                await ProcessTurnAsync();
 
                 // Write turn state to replay file
                 await WriteReplayFrameAsync(replayFile);
@@ -215,9 +217,6 @@ public partial class BattleState
                     _isCompleted = true;
                     break;
                 }
-
-                // Short delay between turns (for processing optimization)
-                await Task.Delay(5);
             }
 
             // Add final battle log
@@ -258,7 +257,7 @@ public partial class BattleState
     /// <summary>
     /// Process a single turn of battle
     /// </summary>
-    private async Task ProcessTurnAsync(StreamWriter replayFile, List<BattleStatus> allTurnData)
+    private async Task ProcessTurnAsync()
     {
         _battleLogs.Add($"Turn {_currentTurn} begins!");
 
@@ -597,8 +596,8 @@ public partial class BattleState
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,
-            Players = _players.ToList(),
-            Enemies = _enemies.ToList(),
+            Players = _players.ToArray(),
+            Enemies = _enemies.ToArray(),
             Field = new BattleFieldInfo
             {
                 Width = Constants.BattleFieldWidth,

@@ -487,7 +487,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
                     // Display players
                     var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
-                    Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Count}");
+                    Console.WriteLine($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Length}");
                     foreach (var player in battleStatus.Players)
                     {
                         var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
@@ -496,7 +496,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
                     // Display enemies
                     var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
-                    Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Count}");
+                    Console.WriteLine($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Length}");
 
                     // Show recent logs
                     if (battleStatus.RecentLogs.Count > 0)

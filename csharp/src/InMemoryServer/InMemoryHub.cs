@@ -389,8 +389,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 Id = battleEntry.Key,
                 GroupId = battleState.GroupId,
                 CurrentTurn = battleStatus.CurrentTurn,
-                PlayerCount = battleStatus.Players.Count,
-                EnemyCount = battleStatus.Enemies.Count,
+                PlayerCount = battleStatus.Players.Length,
+                EnemyCount = battleStatus.Enemies.Length,
                 StartedAt = battleState.StartTime
             });
         }
