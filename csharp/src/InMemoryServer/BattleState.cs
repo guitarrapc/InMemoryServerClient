@@ -123,7 +123,9 @@ public partial class BattleState
 
         // Add initial battle log
         _battleLogs.Add($"Battle started with {_players.Count} players and {_enemies.Count} enemies!");
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Initialize battle field and place entities
     /// </summary>
     private void InitializeBattleField()
@@ -146,10 +148,10 @@ public partial class BattleState
                 int x = _random.Next(Constants.BattleFieldWidth);
                 int y = Constants.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
                 if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth &&
-                    _battleField[y, x] == null)
+_battleField[y, x] == null)
                 {
                     _battleField[y, x] = _players[i].Id;
-                    _players[i] = _players[i].With(positionX: x, positionY: y);
+                    _players[i] = _players[i] with { PositionX = x, PositionY = y };
                     break;
                 }
                 attempts++;
@@ -165,10 +167,10 @@ public partial class BattleState
                 int x = _random.Next(Constants.BattleFieldWidth);
                 int y = _random.Next(0, 7); // Top 7 rows
                 if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth &&
-                    _battleField[y, x] == null)
+_battleField[y, x] == null)
                 {
                     _battleField[y, x] = _enemies[i].Id;
-                    _enemies[i] = _enemies[i].With(positionX: x, positionY: y);
+                    _enemies[i] = _enemies[i] with { PositionX = x, PositionY = y };
                     break;
                 }
                 attempts++;
@@ -244,7 +246,9 @@ public partial class BattleState
     public List<BattleStatus> GetAllTurnData()
     {
         return _allTurnData.ToList();
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Process a single turn of battle
     /// </summary>
     private async Task ProcessTurnAsync()
@@ -254,12 +258,12 @@ public partial class BattleState
         // Reset defending status for all entities
         for (int i = 0; i < _players.Count; i++)
         {
-            _players[i] = _players[i].With(isDefending: false);
+            _players[i] = _players[i] with { IsDefending = false };
         }
 
         for (int i = 0; i < _enemies.Count; i++)
         {
-            _enemies[i] = _enemies[i].With(isDefending: false);
+            _enemies[i] = _enemies[i] with { IsDefending = false };
         }
 
         // Get all entities ordered by speed (descending) for turn order
@@ -379,7 +383,9 @@ public partial class BattleState
         }
 
         return null;
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Move entity towards the nearest enemy
     /// </summary>
     private void MoveEntity(EntityInfo entity)
@@ -486,7 +492,7 @@ public partial class BattleState
             {
                 if (_players[i].Id == entity.Id)
                 {
-                    _players[i] = _players[i].With(positionX: newX, positionY: newY);
+                    _players[i] = _players[i] with { PositionX = newX, PositionY = newY };
                     break;
                 }
             }
@@ -497,12 +503,14 @@ public partial class BattleState
             {
                 if (_enemies[i].Id == entity.Id)
                 {
-                    _enemies[i] = _enemies[i].With(positionX: newX, positionY: newY);
+                    _enemies[i] = _enemies[i] with { PositionX = newX, PositionY = newY };
                     break;
                 }
             }
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Attack with entity
     /// </summary>
     private void AttackWithEntity(EntityInfo entity)
@@ -558,7 +566,7 @@ public partial class BattleState
             {
                 if (_players[i].Id == entity.Id)
                 {
-                    _players[i] = _players[i].With(currentHp: newHp);
+                    _players[i] = _players[i] with { CurrentHp = newHp };
                     break;
                 }
             }
@@ -569,12 +577,14 @@ public partial class BattleState
             {
                 if (_enemies[i].Id == entity.Id)
                 {
-                    _enemies[i] = _enemies[i].With(currentHp: newHp);
+                    _enemies[i] = _enemies[i] with { CurrentHp = newHp };
                     break;
                 }
             }
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Defend with entity
     /// </summary>
     private void DefendWithEntity(EntityInfo entity)
@@ -586,7 +596,7 @@ public partial class BattleState
             {
                 if (_players[i].Id == entity.Id)
                 {
-                    _players[i] = _players[i].With(isDefending: true);
+                    _players[i] = _players[i] with { IsDefending = true };
                     break;
                 }
             }
@@ -597,7 +607,7 @@ public partial class BattleState
             {
                 if (_enemies[i].Id == entity.Id)
                 {
-                    _enemies[i] = _enemies[i].With(isDefending: true);
+                    _enemies[i] = _enemies[i] with { IsDefending = true };
                     break;
                 }
             }
@@ -651,7 +661,9 @@ public partial class BattleState
             snapshot.Add(row);
         }
         return snapshot;
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Get current battle status
     /// </summary>
     public BattleStatus GetStatus()
@@ -672,7 +684,9 @@ public partial class BattleState
             },
             RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Get current battle status with deep copies for turn data storage
     /// </summary>
     private BattleStatus GetStatusSnapshot()

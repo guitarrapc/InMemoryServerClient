@@ -95,7 +95,7 @@ public class BattleStatus
 /// <summary>
 /// Entity information (player or enemy)
 /// </summary>
-public readonly struct EntityInfo
+public readonly record struct EntityInfo
 {
     /// <summary>
     /// Entity unique identifier
@@ -151,35 +151,6 @@ public readonly struct EntityInfo
     /// Is defending (damage reduction)
     /// </summary>
     public bool IsDefending { get; init; }
-
-    /// <summary>
-    /// Create a copy of this EntityInfo with updated values
-    /// </summary>
-    public EntityInfo With(
-        int? currentHp = null,
-        int? maxHp = null,
-        int? attack = null,
-        int? defense = null,
-        int? speed = null,
-        int? positionX = null,
-        int? positionY = null,
-        bool? isDefending = null)
-    {
-        return new EntityInfo
-        {
-            Id = Id,
-            Name = Name,
-            Type = Type,
-            CurrentHp = currentHp ?? CurrentHp,
-            MaxHp = maxHp ?? MaxHp,
-            Attack = attack ?? Attack,
-            Defense = defense ?? Defense,
-            Speed = speed ?? Speed,
-            PositionX = positionX ?? PositionX,
-            PositionY = positionY ?? PositionY,
-            IsDefending = isDefending ?? IsDefending
-        };
-    }
 }
 
 /// <summary>
