@@ -175,7 +175,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         }
 
         var group = _groupManager.GetGroupInfo(groupId);
-        if (group == null || string.IsNullOrEmpty(group.BattleId))
+        if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             _logger.LogWarning($"Group {groupId} does not have an active battle");
             return new BattleStatus
@@ -409,7 +409,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         }
 
         var group = _groupManager.GetGroupInfo(groupId);
-        if (group == null || string.IsNullOrEmpty(group.BattleId))
+        if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             _logger.LogWarning($"Group {groupId} does not have an active battle for connection ready confirmation");
             return false;
@@ -435,57 +435,49 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task BattleReplayCompletedAsync()
     {
-        try
+        var clientId = Context.ConnectionId;
+        _logger.LogInformation($"Client {clientId} starting replay completion notification");
+
+        var groupId = _groupManager.GetGroupIdForConnection(clientId);
+        if (string.IsNullOrEmpty(groupId))
         {
-            var clientId = Context.ConnectionId;
-            _logger.LogInformation($"Client {clientId} starting replay completion notification");
+            _logger.LogWarning($"Client {clientId} reported replay completion but is not in any group");
+            return;
+        }
 
-            var groupId = _groupManager.GetGroupIdForConnection(clientId);
-            if (string.IsNullOrEmpty(groupId))
-            {
-                _logger.LogWarning($"Client {clientId} reported replay completion but is not in any group");
-                return;
-            }
+        var group = _groupManager.GetGroupInfo(groupId);
+        if (group is null || string.IsNullOrEmpty(group.BattleId))
+        {
+            _logger.LogWarning($"Client {clientId} reported replay completion but group {groupId} has no battle");
+            return;
+        }
 
-            var group = _groupManager.GetGroupInfo(groupId);
-            if (group == null || string.IsNullOrEmpty(group.BattleId))
+        if (_state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        {
+            // Use synchronization to prevent race conditions
+            lock (battle)
             {
-                _logger.LogWarning($"Client {clientId} reported replay completion but group {groupId} has no battle");
-                return;
-            }
+                battle.MarkReplayCompleteForClient(clientId);
+                _logger.LogInformation($"Client {clientId} completed battle replay for battle {group.BattleId}");
 
-            if (_state.BattleStates.TryGetValue(group.BattleId, out var battle))
-            {
-                // Use synchronization to prevent race conditions
-                lock (battle)
+                // Check if all clients have completed the replay
+                if (battle.AreAllReplaysCompleted())
                 {
-                    battle.MarkReplayCompleteForClient(clientId);
-                    _logger.LogInformation($"Client {clientId} completed battle replay for battle {group.BattleId}");
-
-                    // Check if all clients have completed the replay
-                    if (battle.AreAllReplaysCompleted())
-                    {
-                        _logger.LogInformation($"Battle {group.BattleId}: All clients have completed replay, battle can be cleaned up");
-                        // Optionally clean up battle state here
-                    }
-                    else
-                    {
-                        var remaining = battle.GetRemainingReplaysCount();
-                        _logger.LogInformation($"Battle {group.BattleId}: {remaining} clients still watching replay");
-                    }
+                    _logger.LogInformation($"Battle {group.BattleId}: All clients have completed replay, battle can be cleaned up");
+                    // Optionally clean up battle state here
+                }
+                else
+                {
+                    var remaining = battle.GetRemainingReplaysCount();
+                    _logger.LogInformation($"Battle {group.BattleId}: {remaining} clients still watching replay");
                 }
             }
-            else
-            {
-                _logger.LogWarning($"Client {clientId} reported replay completion but battle state not found for battle {group.BattleId}");
-            }
-
-            _logger.LogInformation($"Client {clientId} replay completion notification processed successfully");
         }
-        catch (Exception ex)
+        else
         {
-            _logger.LogError(ex, $"Error processing replay completion for client {Context.ConnectionId}: {ex.Message}");
-            throw; // Re-throw to ensure client gets proper error response
+            _logger.LogWarning($"Client {clientId} reported replay completion but battle state not found for battle {group.BattleId}");
         }
+
+        _logger.LogInformation($"Client {clientId} replay completion notification processed successfully");
     }
 }

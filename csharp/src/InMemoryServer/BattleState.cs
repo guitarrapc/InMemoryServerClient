@@ -334,7 +334,7 @@ public partial class BattleState
         }
 
         // If no adjacent enemies or didn't choose to attack/defend, move
-        if (adjacentTarget == null)
+        if (adjacentTarget is null)
         {
             return "move";
         }
@@ -414,7 +414,7 @@ public partial class BattleState
             }
         }
 
-        if (nearestTarget == null)
+        if (nearestTarget is null)
         {
             _battleLogs.Add($"{entity.Name} has no targets to move towards.");
             return;
@@ -494,7 +494,7 @@ public partial class BattleState
     private void AttackWithEntity(EntityInfo entity)
     {
         var target = FindAdjacentTarget(entity);
-        if (target == null)
+        if (target is null)
         {
             _battleLogs.Add($"{entity.Name} tries to attack but there are no adjacent targets.");
             return;
