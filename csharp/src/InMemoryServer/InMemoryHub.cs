@@ -213,9 +213,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // This method is included for future expansion
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle action {actionType}, but battles are currently automated");
         return false;
-    }    /// <summary>
-         /// Get battle replay data
-         /// </summary>
+    }
+
+    /// <summary>
+    /// Get battle replay data
+    /// </summary>
     public async Task<string?> GetBattleReplayAsync(string battleId)
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");

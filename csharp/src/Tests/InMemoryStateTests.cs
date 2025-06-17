@@ -177,7 +177,9 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.Equal(2, status.Players.Count);        foreach (var player in status.Players)
+        Assert.Equal(2, status.Players.Count);
+
+        foreach (var player in status.Players)
         {
             Assert.Equal("Player", player.Type);
             Assert.True(player.MaxHp >= Constants.PlayerHp - 70 && player.MaxHp <= Constants.PlayerHp + 70);
@@ -209,7 +211,9 @@ public class BattleStateTests
 
         // Assert
         Assert.True(status.Enemies.Count >= Constants.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);        foreach (var enemy in status.Enemies)
+        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);
+
+        foreach (var enemy in status.Enemies)
         {
             Assert.True(Constants.EnemyHpByType.ContainsKey(enemy.Type));
             var baseHp = Constants.EnemyHpByType[enemy.Type];

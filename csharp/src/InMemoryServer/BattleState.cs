@@ -91,7 +91,9 @@ public partial class BattleState
 
         // Create enemies
         int enemyCount = _random.Next(Constants.MinEnemyCount, Constants.MaxEnemyCount);
-        string[] enemyTypes = Constants.EnemyHpByType.Keys.ToArray();        for (int i = 0; i < enemyCount; i++)
+        string[] enemyTypes = Constants.EnemyHpByType.Keys.ToArray();
+
+        for (int i = 0; i < enemyCount; i++)
         {
             var enemyType = enemyTypes[_random.Next(enemyTypes.Length)];
             var maxHp = _random.Next(Constants.EnemyHpByType[enemyType], Constants.EnemyHpByType[enemyType] + 50);
@@ -201,7 +203,7 @@ public partial class BattleState
             while (_currentTurn < _totalTurns && !_isCompleted)
             {
                 _currentTurn++;
-                ProcessTurn();
+                await ProcessTurnAsync(replayFile, allTurnData);
 
                 // Write turn state to replay file
                 await WriteReplayFrameAsync(replayFile);
@@ -256,7 +258,7 @@ public partial class BattleState
     /// <summary>
     /// Process a single turn of battle
     /// </summary>
-    private void ProcessTurn()
+    private async Task ProcessTurnAsync(StreamWriter replayFile, List<BattleStatus> allTurnData)
     {
         _battleLogs.Add($"Turn {_currentTurn} begins!");
 
@@ -297,6 +299,10 @@ public partial class BattleState
                     DefendWithEntity(entity);
                     break;
             }
+
+            // Record state after each entity action for better replay granularity
+            await WriteReplayFrameAsync(replayFile);
+            allTurnData.Add(GetStatus());
         }
 
         _battleLogs.Add($"Turn {_currentTurn} ends!");

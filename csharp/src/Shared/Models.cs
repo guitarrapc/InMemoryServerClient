@@ -90,7 +90,9 @@ public class BattleStatus
     /// Recent battle logs
     /// </summary>
     public List<string> RecentLogs { get; set; } = [];
-}    /// <summary>
+}
+
+/// <summary>
 /// Entity information (player or enemy)
 /// </summary>
 public class EntityInfo

@@ -164,9 +164,12 @@ public class InMemoryClient
                                 }
                             }
 
-                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {_replayData.Count} turns");                            // Start replay
+                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {_replayData.Count} turns");
+
+                            // Start replay
                             await PlayBattleReplayAsync();
 
+                            // Notify server that replay is complete
                             await ReplayCompleteAsync();
                         }
                     }
@@ -180,7 +183,7 @@ public class InMemoryClient
             _connection.On<BattleStatus>("BattleCompleted", async (status) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== Battle Completed! ==========");
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {status.BattleId} - Server calculation finished");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Battle ID: {status.BattleId} - Battle finished");
 
                 // If we haven't received replay data yet, wait for it
                 if (!_isReceivingReplayData)
@@ -316,9 +319,11 @@ public class InMemoryClient
         EnsureConnected();
         var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
         return groups.Select(g => g.Id);
-    }    /// <summary>
-         /// Get current group info
-         /// </summary>
+    }
+
+    /// <summary>
+    /// Get current group info
+    /// </summary>
     public async Task<string?> GetMyGroupAsync()
     {
         EnsureConnected();
@@ -380,7 +385,7 @@ public class InMemoryClient
         return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
     }
 
-        /// <summary>
+    /// <summary>
     /// Ensure client is connected to server
     /// </summary>
     private void EnsureConnected()
@@ -463,7 +468,8 @@ public class InMemoryClient
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
-            }            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
+            }
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");
 

@@ -123,9 +123,11 @@ public class GroupManager
     public IEnumerable<GroupInfo> GetAllGroups()
     {
         return _groups.Values;
-    }        /// <summary>
-             /// Get group info by ID
-             /// </summary>
+    }
+
+    /// <summary>
+    /// Get group info by ID
+    /// </summary>
     public GroupInfo? GetGroupInfo(string groupId)
     {
         return _groups.TryGetValue(groupId, out var group) ? group : null;
