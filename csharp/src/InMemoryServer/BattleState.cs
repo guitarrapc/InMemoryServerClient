@@ -123,9 +123,7 @@ public partial class BattleState
 
         // Add initial battle log
         _battleLogs.Add($"Battle started with {_players.Count} players and {_enemies.Count} enemies!");
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Initialize battle field and place entities
     /// </summary>
     private void InitializeBattleField()
@@ -151,8 +149,7 @@ public partial class BattleState
                     _battleField[y, x] == null)
                 {
                     _battleField[y, x] = _players[i].Id;
-                    _players[i].PositionX = x;
-                    _players[i].PositionY = y;
+                    _players[i] = _players[i].With(positionX: x, positionY: y);
                     break;
                 }
                 attempts++;
@@ -171,8 +168,7 @@ public partial class BattleState
                     _battleField[y, x] == null)
                 {
                     _battleField[y, x] = _enemies[i].Id;
-                    _enemies[i].PositionX = x;
-                    _enemies[i].PositionY = y;
+                    _enemies[i] = _enemies[i].With(positionX: x, positionY: y);
                     break;
                 }
                 attempts++;
@@ -192,14 +188,12 @@ public partial class BattleState
         Directory.CreateDirectory(Constants.BattleReplayDirectory);
 
         // Store all turn data for later transmission to clients
-        var allTurnData = new List<BattleStatus>();
-
-        // Open file for battle replay
+        var allTurnData = new List<BattleStatus>();        // Open file for battle replay
         using (var replayFile = File.CreateText(Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")))
         {
             // Write initial state
             await WriteReplayFrameAsync(replayFile);
-            allTurnData.Add(GetStatus()); // Store initial state
+            allTurnData.Add(GetStatusSnapshot()); // Store initial state with deep copies
 
             // Process each turn
             while (_currentTurn < _totalTurns && !_isCompleted)
@@ -209,7 +203,7 @@ public partial class BattleState
 
                 // Write turn state to replay file
                 await WriteReplayFrameAsync(replayFile);
-                allTurnData.Add(GetStatus()); // Store turn data
+                allTurnData.Add(GetStatusSnapshot()); // Store turn data with deep copies
 
                 // Check if battle is over
                 if (CheckBattleOver())
@@ -227,11 +221,9 @@ public partial class BattleState
             else
             {
                 _battleLogs.Add("Defeat! All players have been defeated!");
-            }
-
-            // Write final state
+            }            // Write final state
             await WriteReplayFrameAsync(replayFile);
-            allTurnData.Add(GetStatus()); // Store final state
+            allTurnData.Add(GetStatusSnapshot()); // Store final state with deep copies
         }
 
         var endTime = DateTime.UtcNow;
@@ -252,9 +244,7 @@ public partial class BattleState
     public List<BattleStatus> GetAllTurnData()
     {
         return _allTurnData.ToList();
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Process a single turn of battle
     /// </summary>
     private async Task ProcessTurnAsync()
@@ -262,14 +252,14 @@ public partial class BattleState
         _battleLogs.Add($"Turn {_currentTurn} begins!");
 
         // Reset defending status for all entities
-        foreach (var player in _players)
+        for (int i = 0; i < _players.Count; i++)
         {
-            player.IsDefending = false;
+            _players[i] = _players[i].With(isDefending: false);
         }
 
-        foreach (var enemy in _enemies)
+        for (int i = 0; i < _enemies.Count; i++)
         {
-            enemy.IsDefending = false;
+            _enemies[i] = _enemies[i].With(isDefending: false);
         }
 
         // Get all entities ordered by speed (descending) for turn order
@@ -389,9 +379,7 @@ public partial class BattleState
         }
 
         return null;
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Move entity towards the nearest enemy
     /// </summary>
     private void MoveEntity(EntityInfo entity)
@@ -422,8 +410,8 @@ public partial class BattleState
         }
 
         // Determine movement direction towards target
-        int dx = Math.Sign(nearestTarget.PositionX - entity.PositionX);
-        int dy = Math.Sign(nearestTarget.PositionY - entity.PositionY);
+        int dx = Math.Sign(nearestTarget.Value.PositionX - entity.PositionX);
+        int dy = Math.Sign(nearestTarget.Value.PositionY - entity.PositionY);
 
         // Try to move in that direction
         int newX = entity.PositionX + dx;
@@ -438,10 +426,9 @@ public partial class BattleState
             _battleField[entity.PositionY, entity.PositionX] = null;
             _battleField[newY, newX] = entity.Id;
 
-            // Update entity position
+            // Update entity position in the appropriate list
+            UpdateEntityPosition(entity, newX, newY);
             _battleLogs.Add($"{entity.Name} moves from ({entity.PositionX},{entity.PositionY}) to ({newX},{newY})");
-            entity.PositionX = newX;
-            entity.PositionY = newY;
         }
         else
         {
@@ -471,10 +458,9 @@ public partial class BattleState
                         _battleField[entity.PositionY, entity.PositionX] = null;
                         _battleField[altY, altX] = entity.Id;
 
-                        // Update entity position
+                        // Update entity position in the appropriate list
+                        UpdateEntityPosition(entity, altX, altY);
                         _battleLogs.Add($"{entity.Name} moves from ({entity.PositionX},{entity.PositionY}) to ({altX},{altY})");
-                        entity.PositionX = altX;
-                        entity.PositionY = altY;
                         moved = true;
                         break;
                     }
@@ -490,6 +476,33 @@ public partial class BattleState
     }
 
     /// <summary>
+    /// Update entity position in the appropriate list
+    /// </summary>
+    private void UpdateEntityPosition(EntityInfo entity, int newX, int newY)
+    {
+        if (entity.Type == "Player")
+        {
+            for (int i = 0; i < _players.Count; i++)
+            {
+                if (_players[i].Id == entity.Id)
+                {
+                    _players[i] = _players[i].With(positionX: newX, positionY: newY);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i].Id == entity.Id)
+                {
+                    _enemies[i] = _enemies[i].With(positionX: newX, positionY: newY);
+                    break;
+                }
+            }
+        }
+    }    /// <summary>
     /// Attack with entity
     /// </summary>
     private void AttackWithEntity(EntityInfo entity)
@@ -501,40 +514,95 @@ public partial class BattleState
             return;
         }
 
+        var targetValue = target.Value;
+
         // Calculate damage
-        int damage = Math.Max(1, entity.Attack - (target.IsDefending ? target.Defense * 2 : target.Defense) / 2);
+        int damage = Math.Max(1, entity.Attack - (targetValue.IsDefending ? targetValue.Defense * 2 : targetValue.Defense) / 2);
 
         // Apply damage reduction if target is defending
-        if (target.IsDefending)
+        if (targetValue.IsDefending)
         {
             damage = damage * (100 - Constants.DefenseDamageReductionPercent) / 100;
             damage = Math.Max(1, damage); // Minimum 1 damage
         }
 
         // Apply damage
-        target.CurrentHp = Math.Max(0, target.CurrentHp - damage);
+        int newHp = Math.Max(0, targetValue.CurrentHp - damage);
+
+        // Update target's HP in the appropriate list
+        UpdateEntityHp(targetValue, newHp);
 
         // Log the attack
-        _battleLogs.Add($"{entity.Name} attacks {target.Name} for {damage} damage!" +
-                       (target.IsDefending ? " (Reduced by defense)" : ""));
+        _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} for {damage} damage!" +
+                       (targetValue.IsDefending ? " (Reduced by defense)" : ""));
 
-        if (target.CurrentHp <= 0)
+        if (newHp <= 0)
         {
-            _battleLogs.Add($"{target.Name} has been defeated!");
-            _battleField[target.PositionY, target.PositionX] = null;
+            _battleLogs.Add($"{targetValue.Name} has been defeated!");
+            _battleField[targetValue.PositionY, targetValue.PositionX] = null;
         }
         else
         {
-            _battleLogs.Add($"{target.Name} has {target.CurrentHp}/{target.MaxHp} HP remaining.");
+            _battleLogs.Add($"{targetValue.Name} has {newHp}/{targetValue.MaxHp} HP remaining.");
         }
     }
 
     /// <summary>
+    /// Update entity HP in the appropriate list
+    /// </summary>
+    private void UpdateEntityHp(EntityInfo entity, int newHp)
+    {
+        if (entity.Type == "Player")
+        {
+            for (int i = 0; i < _players.Count; i++)
+            {
+                if (_players[i].Id == entity.Id)
+                {
+                    _players[i] = _players[i].With(currentHp: newHp);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i].Id == entity.Id)
+                {
+                    _enemies[i] = _enemies[i].With(currentHp: newHp);
+                    break;
+                }
+            }
+        }
+    }    /// <summary>
     /// Defend with entity
     /// </summary>
     private void DefendWithEntity(EntityInfo entity)
     {
-        entity.IsDefending = true;
+        // Update defending status in the appropriate list
+        if (entity.Type == "Player")
+        {
+            for (int i = 0; i < _players.Count; i++)
+            {
+                if (_players[i].Id == entity.Id)
+                {
+                    _players[i] = _players[i].With(isDefending: true);
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i].Id == entity.Id)
+                {
+                    _enemies[i] = _enemies[i].With(isDefending: true);
+                    break;
+                }
+            }
+        }
+
         _battleLogs.Add($"{entity.Name} takes a defensive stance, reducing incoming damage by {Constants.DefenseDamageReductionPercent}%.");
     }
 
@@ -583,9 +651,7 @@ public partial class BattleState
             snapshot.Add(row);
         }
         return snapshot;
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Get current battle status
     /// </summary>
     public BattleStatus GetStatus()
@@ -598,6 +664,27 @@ public partial class BattleState
             TotalTurns = _totalTurns,
             Players = _players.ToArray(),
             Enemies = _enemies.ToArray(),
+            Field = new BattleFieldInfo
+            {
+                Width = Constants.BattleFieldWidth,
+                Height = Constants.BattleFieldHeight,
+                Cells = GetBattleFieldSnapshot()
+            },
+            RecentLogs = _battleLogs.TakeLast(10).ToList()
+        };
+    }    /// <summary>
+    /// Get current battle status with deep copies for turn data storage
+    /// </summary>
+    private BattleStatus GetStatusSnapshot()
+    {
+        return new BattleStatus
+        {
+            BattleId = _battleId,
+            IsInProgress = !_isCompleted,
+            CurrentTurn = _currentTurn,
+            TotalTurns = _totalTurns,
+            Players = _players.ToArray(), // structs automatically create copies
+            Enemies = _enemies.ToArray(), // structs automatically create copies
             Field = new BattleFieldInfo
             {
                 Width = Constants.BattleFieldWidth,

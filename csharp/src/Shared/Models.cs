@@ -95,62 +95,91 @@ public class BattleStatus
 /// <summary>
 /// Entity information (player or enemy)
 /// </summary>
-public class EntityInfo
+public readonly struct EntityInfo
 {
     /// <summary>
     /// Entity unique identifier
     /// </summary>
-    public required string Id { get; set; }
+    public required string Id { get; init; }
 
     /// <summary>
     /// Entity name
     /// </summary>
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
     /// <summary>
     /// Entity type (player or enemy)
     /// </summary>
-    public required string Type { get; set; }
+    public required string Type { get; init; }
 
     /// <summary>
     /// Current HP
     /// </summary>
-    public int CurrentHp { get; set; }
+    public int CurrentHp { get; init; }
 
     /// <summary>
     /// Maximum HP
     /// </summary>
-    public int MaxHp { get; set; }
+    public int MaxHp { get; init; }
 
     /// <summary>
     /// Attack power
     /// </summary>
-    public int Attack { get; set; }
+    public int Attack { get; init; }
 
     /// <summary>
     /// Defense power
     /// </summary>
-    public int Defense { get; set; }
+    public int Defense { get; init; }
 
     /// <summary>
     /// Movement speed
     /// </summary>
-    public int Speed { get; set; }
+    public int Speed { get; init; }
 
     /// <summary>
     /// Position X
     /// </summary>
-    public int PositionX { get; set; }
+    public int PositionX { get; init; }
 
     /// <summary>
     /// Position Y
     /// </summary>
-    public int PositionY { get; set; }
+    public int PositionY { get; init; }
 
     /// <summary>
     /// Is defending (damage reduction)
     /// </summary>
-    public bool IsDefending { get; set; }
+    public bool IsDefending { get; init; }
+
+    /// <summary>
+    /// Create a copy of this EntityInfo with updated values
+    /// </summary>
+    public EntityInfo With(
+        int? currentHp = null,
+        int? maxHp = null,
+        int? attack = null,
+        int? defense = null,
+        int? speed = null,
+        int? positionX = null,
+        int? positionY = null,
+        bool? isDefending = null)
+    {
+        return new EntityInfo
+        {
+            Id = Id,
+            Name = Name,
+            Type = Type,
+            CurrentHp = currentHp ?? CurrentHp,
+            MaxHp = maxHp ?? MaxHp,
+            Attack = attack ?? Attack,
+            Defense = defense ?? Defense,
+            Speed = speed ?? Speed,
+            PositionX = positionX ?? PositionX,
+            PositionY = positionY ?? PositionY,
+            IsDefending = isDefending ?? IsDefending
+        };
+    }
 }
 
 /// <summary>
