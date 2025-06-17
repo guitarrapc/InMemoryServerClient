@@ -19,7 +19,7 @@ jobs:
       with:
         dotnet-version: '9.0.x'
     - name: Build
-      run: dotnet build csharp/InMemoryServerClient.slnx -c Release --no-restore
+      run: dotnet build csharp/InMemoryServerClient.slnx -c Release
     - name: Test
       run: dotnet test csharp/InMemoryServerClient.slnx -c Release --no-build
 
