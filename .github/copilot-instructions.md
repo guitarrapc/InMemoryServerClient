@@ -113,8 +113,8 @@ AIとのすべてのやり取りは日本語で行います。説明、コメン
             - 全ターンデータは`List<BattleStatus>`として`_allTurnData`に保存し、`GetAllTurnData()`で取得可能にする
             - 大きなデータは50ターンずつのチャンクに分割して`BattleReplayData`モデルで送信する
             - クライアントは`BattleReplayData`メッセージを受信し、全チャンクを受信してから5fps（200ms間隔）で再生開始
-            - リプレイ完了後、クライアントは`BattleReplayCompleted`メッセージでサーバーに通知
-            - サーバーは`BattleReplayCompleted`ハンドラーでクライアントの再生完了状況を追跡
+            - リプレイ完了後、クライアントは`BattleReplayCompletedAsync`メッセージでサーバーに通知
+            - サーバーは`BattleReplayCompletedAsync`ハンドラーでクライアントの再生完了状況を追跡
         - 1セッション = 1プレイヤーのマッピング
         - バトル結果のJSON LINE形式でのローカル保存（./battle_replay/）
 
