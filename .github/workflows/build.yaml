@@ -32,8 +32,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - tag: inmemoryserver-csharp
+          - tag: server-csharp
             dockerfile: csharp/src/InMemoryServer/Dockerfile
+            context: ./csharp
+          - tag: client-csharp
+            dockerfile: csharp/src/CliClient/Dockerfile
             context: ./csharp
     permissions:
       contents: read
@@ -59,11 +62,21 @@ jobs:
         uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@18ce135bb5112fa8ce4ed6c17ab05699d7f3a5e0 # v3.11.0
-      - name: Build and push (latest)
+      - name: Build and push (sha)
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' }}
           file: "${{ matrix.dockerfile }}"
-          tags: "${{ steps.lower.outputs.repository }}:latest-${{ matrix.tag }}-${{ steps.lower.outputs.value }}"
+          tags: "${{ steps.lower.outputs.repository }}:${{ steps.sha.outputs.sha-short }}-${{ matrix.tag }}"
           context: "${{ matrix.context }}"
+
+  build_complete:
+    needs: [csharp, docker]
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Build Complete
+        run: exit 0

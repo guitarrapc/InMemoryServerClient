@@ -27,8 +27,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - tag: inmemoryserver-csharp
+          - tag: server-csharp
             dockerfile: csharp/src/InMemoryServer/Dockerfile
+            context: ./csharp
+          - tag: client-csharp
+            dockerfile: csharp/src/CliClient/Dockerfile
             context: ./csharp
     permissions:
       contents: read
@@ -59,5 +62,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           file: "${{ matrix.dockerfile }}"
-          tags: "${{ steps.lower.outputs.repository }}:${{ steps.sha.outputs.sha-short }}-${{ matrix.tag }}-${{ steps.lower.outputs.value }}"
+          tags: "${{ steps.lower.outputs.repository }}:${{ steps.sha.outputs.sha-short }}-${{ matrix.tag }}"
+          context: "${{ matrix.context }}"
+      - name: Build and push (latest)
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          platforms: linux/amd64,linux/arm64
+          push: true
+          file: "${{ matrix.dockerfile }}"
+          tags: "${{ steps.lower.outputs.repository }}:latest-${{ matrix.tag }}"
           context: "${{ matrix.context }}"
