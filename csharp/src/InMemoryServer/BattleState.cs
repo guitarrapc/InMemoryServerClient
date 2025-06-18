@@ -1,4 +1,4 @@
-using Shared;
+﻿using Shared;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -10,13 +10,13 @@ namespace InMemoryServer;
 public partial class BattleState
 {
     // 行動選択に関する定数
-    private const float ATTACK_ADJACENT_REWARD = 10.0f;
-    private const float ATTACK_LOW_HP_BONUS = 3.0f;
-    private const float DEFEND_LOW_HP_REWARD = 8.0f;
-    private const float DEFEND_ENEMIES_NEARBY_REWARD = 5.0f;
-    private const float MOVE_TO_NEAREST_REWARD = 3.0f;
-    private const float MOVE_TO_LOWEST_HP_REWARD = 2.5f;
-    private const float MOVE_TO_SURROUND_REWARD = 4.0f;
+    private const float ATTACK_ADJACENT_REWARD = 30.0f; // 攻撃の報酬をさらに増加
+    private const float ATTACK_LOW_HP_BONUS = 8.0f; // HPが低い敵への攻撃ボーナスも増加
+    private const float DEFEND_LOW_HP_REWARD = 2.0f; // 防御の報酬を大幅に減少
+    private const float DEFEND_ENEMIES_NEARBY_REWARD = 1.5f; // 敵が近くにいる場合の防御ボーナスも大幅に減少
+    private const float MOVE_TO_NEAREST_REWARD = 15.0f; // 移動の報酬を大幅に増加
+    private const float MOVE_TO_LOWEST_HP_REWARD = 12.0f; // HPが低い敵への移動報酬も大幅に増加
+    private const float MOVE_TO_SURROUND_REWARD = 6.0f; // 囲み報酬も増加
     private const int NEARBY_DISTANCE_THRESHOLD = 2; // 敵が近くにいると判断する距離の閾値
 
     /// <summary>
@@ -424,31 +424,75 @@ _battleField[y, x] == null)
     {
         if (adjacentTarget != null)
         {
-            // Base reward
-            float reward = ATTACK_ADJACENT_REWARD;
-
-            // Bonus for attacking low HP targets
+            // 基本攻撃報酬 - 最優先
+            float reward = ATTACK_ADJACENT_REWARD;            // HPが低い敵に対するボーナス
             float hpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
+
+            // HPが30%未満の敵は優先的に攻撃（とどめを刺す）
+            if (hpRatio < 0.3f)
+            {
+                reward *= 2.0f;  // 大幅にボーナスを増加
+            }
+
             reward += (1 - hpRatio) * ATTACK_LOW_HP_BONUS;
+
+            // 敵のタイプに基づいた優先度
+            // Typeがnullでないことを確認
+            if (!string.IsNullOrEmpty(adjacentTarget.Value.Type))
+            {
+                // 小さい敵は倒しやすいので優先
+                if (adjacentTarget.Value.Type.StartsWith("Small"))
+                {
+                    reward *= 1.5f;  // ボーナスを増加
+                }
+                // 大きい敵は脅威が大きいので優先
+                else if (adjacentTarget.Value.Type.StartsWith("Large"))
+                {
+                    reward *= 1.3f;  // ボーナスを増加
+                }
+            }
+
+            // 攻撃が敵を倒せる可能性がある場合は報酬を大幅に増加
+            int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
+            if (adjacentTarget.Value.IsDefending)
+            {
+                estimatedDamage = estimatedDamage * (100 - Constants.DefenseDamageReductionPercent) / 100;
+                estimatedDamage = Math.Max(1, estimatedDamage);
+            }
+
+            if (estimatedDamage >= adjacentTarget.Value.CurrentHp)
+            {
+                // 一撃で倒せる場合は最高優先度
+                reward *= 3.0f;  // 倍率を増加
+            }
+
+            // エンティティタイプによる攻撃性調整
+            if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
+            {
+                // 敵は特に攻撃的に
+                reward *= 1.5f;
+            }
 
             actions.Add(new ActionReward("attack", reward, adjacentTarget));
         }
         else
         {
-            // Remove attack action if no adjacent target
+            // 隣接する敵がいない場合は攻撃不可
             actions.Add(new ActionReward("attack", -100f));
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// 防御行動の評価
     /// </summary>
     private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions)
     {
         // Base reward for defending - starting with a very low base value
-        float reward = 0.5f;
+        float reward = 0.1f;  // 防御の基本報酬をさらに低く
 
-        // Increase reward if entity's HP is critically low (only when below 25%)
+        // Increase reward if entity's HP is critically low (only when below 20%)
         float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
-        if (hpRatio < 0.25f) // HP閾値を下げる（40%→25%）
+        if (hpRatio < 0.2f)  // HP閾値をさらに下げる（25%→20%）
         {
             reward += (1 - hpRatio) * DEFEND_LOW_HP_REWARD;
         }
@@ -461,26 +505,34 @@ _battleField[y, x] == null)
             var adjacentTarget = FindAdjacentTarget(entity);
             if (adjacentTarget != null)
             {
-                reward += DEFEND_ENEMIES_NEARBY_REWARD;
+                // 敵が隣接していても、HPが50%以上残っている場合は攻撃を優先
+                if (hpRatio > 0.5f)
+                {
+                    reward *= 0.2f;  // 防御報酬を大幅に下げる
+                }
+                else
+                {
+                    reward += DEFEND_ENEMIES_NEARBY_REWARD;
+                }
             }
             else
             {
                 // 敵が近くにいるが隣接していない場合、防御よりも移動を優先
-                reward *= 0.3f;
+                reward *= 0.2f;
             }
         }
         else
         {
             // 敵が近くにいない場合は防御の意味がほとんどない
-            reward *= 0.1f;
+            reward *= 0.05f;  // 防御報酬をさらに下げる
         }
 
         // エンティティタイプに基づいて防御の確率を調整
         // プレイヤーは防御を多少利用し、敵は攻撃的に
-        if (entity.Type != "Player")
+        if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
         {
-            // 敵は攻撃的な行動を優先
-            reward *= 0.5f;
+            // 敵は攻撃的な行動を優先するためさらに報酬を下げる
+            reward *= 0.3f;
         }
 
         actions.Add(new ActionReward("defend", reward));
@@ -493,8 +545,21 @@ _battleField[y, x] == null)
     {
         if (adjacentTarget != null)
         {
-            // Move action is less valuable if adjacent target exists
-            actions.Add(new ActionReward("move", 1.0f));
+            // 隣接する敵がいる場合は、移動よりも攻撃を優先させるため移動の価値を下げる
+            // ただし、完全に除外はしない（状況によっては移動が有効な場合もある）
+            // 敵が隣接していても、敵のHPが高くて自分のHPが低い場合は逃げる選択肢も考慮
+            float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
+            float enemyHpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
+
+            if (hpRatio < 0.3f && enemyHpRatio > 0.7f)
+            {
+                // HPが危険な状態で敵が健在なら逃げることを考慮
+                actions.Add(new ActionReward("move", 3.0f));
+            }
+            else
+            {
+                actions.Add(new ActionReward("move", 0.5f));
+            }
             return;
         }
 
@@ -504,33 +569,85 @@ _battleField[y, x] == null)
         // Find the lowest HP target for evaluation
         var lowestHpTarget = FindLowestHpTarget(entity);
 
+        // HPが低い敵の方が優先度が高い場合がある
+        // 距離とHPの両方を考慮した戦略的な選択
         if (nearestTarget != null)
         {
+            // 基本報酬値
             float reward = MOVE_TO_NEAREST_REWARD;
 
-            // Check if the entity can surround the nearest enemy
+            // 最も近い敵までの距離
+            int distanceToNearest = CalculateManhattanDistance(entity.Position, nearestTarget.Value.Position);
+
+            // 距離が1または2の場合（次の移動で攻撃可能または近づける）は報酬を増加
+            if (distanceToNearest == 2)
+            {
+                reward *= 2.0f; // 次のターンで攻撃できる位置に移動する場合、報酬を大幅に増加
+            }
+            else if (distanceToNearest == 3)
+            {
+                reward *= 1.7f; // 2ターン後に攻撃できる位置にも報酬を増加
+            }
+
+            // 敵のHPが低い場合のボーナス
+            float hpRatio = (float)nearestTarget.Value.CurrentHp / nearestTarget.Value.MaxHp;
+            if (hpRatio < 0.5f)
+            {
+                reward *= (1.0f + (1.0f - hpRatio)); // HPが低いほど報酬が高くなる
+            }
+
+            // 敵を囲む戦略（協調行動）のボーナス
             if (CanSurroundEnemy(entity, nearestTarget.Value))
             {
                 reward += MOVE_TO_SURROUND_REWARD;
             }
 
+            // エンティティタイプによる攻撃性調整
+            if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
+            {
+                // 敵は特に移動攻撃的に
+                reward *= 1.3f;
+            }
+
             actions.Add(new ActionReward("move", reward, nearestTarget));
         }
 
-        // Lowest HP target evaluation (for future extensibility)
+        // 最もHPの低い敵に対する評価
         if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.Id != nearestTarget.Value.Id))
         {
             float reward = MOVE_TO_LOWEST_HP_REWARD;
             float hpRatio = (float)lowestHpTarget.Value.CurrentHp / lowestHpTarget.Value.MaxHp;
-            reward += (1 - hpRatio) * 2.0f;
+
+            // HPが非常に低い敵（20%未満）への移動は高い優先度
+            if (hpRatio < 0.2f)
+            {
+                reward *= 3.0f; // 大幅に増加
+            }
+            else
+            {
+                reward += (1 - hpRatio) * 4.0f; // ボーナスを増加
+            }
+
+            // 距離を考慮
+            int distanceToLowest = CalculateManhattanDistance(entity.Position, lowestHpTarget.Value.Position);
+            if (distanceToLowest <= 3) // 近い敵は優先
+            {
+                reward *= (5.0f / (distanceToLowest + 1)); // 距離が近いほど報酬が高くなる
+            }
+
+            // エンティティタイプによる攻撃性調整
+            if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
+            {
+                reward *= 1.3f;
+            }
 
             actions.Add(new ActionReward("move", reward, lowestHpTarget));
         }
 
-        // Random move action to ensure entity can always act
+        // ランダムな移動（他に良い選択肢がない場合のフォールバック）
         if (nearestTarget == null && lowestHpTarget == null)
         {
-            actions.Add(new ActionReward("move", 1.0f));
+            actions.Add(new ActionReward("move", 3.0f)); // 何もしないよりは移動した方がいい
         }
     }
 
@@ -556,12 +673,11 @@ _battleField[y, x] == null)
                 if (checkX >= 0 && checkX < Constants.BattleFieldWidth &&
                     checkY >= 0 && checkY < Constants.BattleFieldHeight &&
                     _battleField[checkY, checkX] != null)
-                {
-                    string targetId = _battleField[checkY, checkX]!;
+                {                    string targetId = _battleField[checkY, checkX]!;
                     EntityInfo? target = null;
 
                     // Find entity with matching ID
-                    if (entity.Type == "Player")
+                    if (!string.IsNullOrEmpty(entity.Type) && entity.Type == "Player")
                     {
                         target = _enemies.FirstOrDefault(e => e.Id == targetId && e.CurrentHp > 0);
                     }
