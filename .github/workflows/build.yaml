@@ -70,3 +70,13 @@ jobs:
           file: "${{ matrix.dockerfile }}"
           tags: "${{ steps.lower.outputs.repository }}:${{ steps.sha.outputs.sha-short }}-${{ matrix.tag }}"
           context: "${{ matrix.context }}"
+
+  build_complete:
+    needs: [csharp, docker]
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Build Complete
+        run: exit 0
