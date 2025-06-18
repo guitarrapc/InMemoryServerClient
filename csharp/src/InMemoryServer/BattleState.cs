@@ -10,7 +10,7 @@ namespace InMemoryServer;
 public partial class BattleState
 {
     /// <summary>
-    /// 行動の報酬を格納する内部構造体
+    /// Internal structure to store action rewards
     /// </summary>
     private readonly struct ActionReward
     {
@@ -47,7 +47,7 @@ public partial class BattleState
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
-    private bool _playerVictory = false; // プレイヤー勝利フラグ
+    private bool _playerVictory = false; // Player victory flag
     private int _connectedClientsCount = 0;
     private int _readyClientsCount = 0;
 
@@ -231,8 +231,7 @@ _battleField[y, x] == null)
                 if (isOver)
                 {
                     _isCompleted = true;
-
-                    // 勝敗結果を保存（最終ログ表示用）
+                    // Store the battle result (for final log display)
                     _playerVictory = isPlayerVictory;
                     break;
                 }
@@ -382,10 +381,10 @@ _battleField[y, x] == null)
     /// </summary>
     private string DecideAction(EntityInfo entity, EntityInfo? adjacentTarget)
     {
-        // 各行動の報酬を計算
+        // Calculate rewards for each possible action
         var possibleActions = EvaluateAllActions(entity, adjacentTarget);
 
-        // 最も報酬の高い行動を選択
+        // Select the action with the highest reward
         var bestAction = possibleActions.OrderByDescending(a => a.Reward).First();
 
         _logger.LogDebug("Entity {EntityName} chose {Action} with reward {Reward}", entity.Name, bestAction.Action, bestAction.Reward);
@@ -394,7 +393,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 全ての可能な行動を評価し、それぞれの報酬を計算する
+    /// Evaluate all possible actions and calculate their rewards
     /// </summary>
     private List<ActionReward> EvaluateAllActions(EntityInfo entity, EntityInfo? adjacentTarget)
     {
@@ -413,71 +412,71 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 攻撃行動の評価
+    /// Evaluate attack action
     /// </summary>
     private void EvaluateAttackAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
     {
-        // 生存している敵がいるか確認
+        // Check if there are any surviving enemies
         var targets = entity.Type == "Player" ?
             _enemies.Where(e => e.CurrentHp > 0) :
             _players.Where(p => p.CurrentHp > 0);
 
         if (!targets.Any())
         {
-            // 敵が全滅している場合は攻撃不可
+            // No attack possible if all enemies are defeated
             actions.Add(new ActionReward("attack", -100f));
             return;
         }
 
         if (adjacentTarget != null)
         {
-            // 基本攻撃報酬 - 最優先
+            // Base attack reward - highest priority
             float reward = BattleAIDefines.AttackAdjacentReward;
 
-            // 敵が残り一体の場合、攻撃報酬を大幅に増加
+            // Significantly increase attack reward if only one enemy remains
             if (targets.Count() == 1)
             {
-                reward *= 3.0f; // 敵が残り一体なら攻撃を最優先
+                reward *= 3.0f; // Prioritize attack when only one enemy remains
             }
 
-            // 味方が自分しかいない場合、攻撃報酬を増加
+            // Increase attack reward if this entity is the only survivor on its side
             var allies = entity.Type == "Player" ?
                 _players.Where(p => p.CurrentHp > 0) :
                 _enemies.Where(e => e.CurrentHp > 0);
 
-            if (allies.Count() == 1) // 自分しか生き残っていない
+            if (allies.Count() == 1) // Only this entity remains
             {
-                reward *= 2.5f; // 自分しか生き残っていない場合は攻撃を優先
+                reward *= 2.5f; // Prioritize attack when last survivor
             }
 
-            // HPが低い敵に対するボーナス
+            // Bonus for low HP enemies
             float hpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
-            // HPが30%未満の敵は優先的に攻撃（とどめを刺す）
+            // Prioritize attacking enemies with less than 30% HP (finishing blow)
             if (hpRatio < BattleAIDefines.LowHpRatio)
             {
-                reward *= 2.0f;  // 大幅にボーナスを増加
+                reward *= 2.0f;  // Significant bonus increase
             }
 
             reward += (1 - hpRatio) * BattleAIDefines.AttackLowHpBonus;
 
-            // 敵のタイプに基づいた優先度
-            // Typeがnullでないことを確認
+            // Priority based on enemy type
+            // Ensure Type is not null
             if (!string.IsNullOrEmpty(adjacentTarget.Value.Type))
             {
-                // 小さい敵は倒しやすいので優先
+                // Prioritize small enemies as they are easier to defeat
                 if (adjacentTarget.Value.Type.StartsWith("Small"))
                 {
                     reward *= BattleAIDefines.SmallEnemyAttackMultiplier;
                 }
-                // 大きい敵は脅威が大きいので優先
+                // Prioritize large enemies as they pose greater threat
                 else if (adjacentTarget.Value.Type.StartsWith("Large"))
                 {
                     reward *= BattleAIDefines.LargeEnemyAttackMultiplier;
                 }
             }
 
-            // 攻撃が敵を倒せる可能性がある場合は報酬を大幅に増加
+            // Significantly increase reward if attack can potentially defeat the enemy
             int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
             if (adjacentTarget.Value.IsDefending)
             {
@@ -487,14 +486,14 @@ _battleField[y, x] == null)
 
             if (estimatedDamage >= adjacentTarget.Value.CurrentHp)
             {
-                // 一撃で倒せる場合は最高優先度
+                // Highest priority if can defeat in one hit
                 reward *= BattleAIDefines.OneHitKillMultiplier;
             }
 
-            // エンティティタイプによる攻撃性調整
+            // Adjust aggressiveness based on entity type
             if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
             {
-                // 敵は特に攻撃的に
+                // Non-player entities are more aggressive
                 reward *= BattleAIDefines.NonPlayerAttackMultiplier;
             }
 
@@ -502,47 +501,47 @@ _battleField[y, x] == null)
         }
         else
         {
-            // 隣接する敵がいない場合は攻撃不可
+            // Attack not possible if no adjacent enemy
             actions.Add(new ActionReward("attack", -100f));
         }
     }
 
     /// <summary>
-    /// 防御行動の評価
+    /// Evaluate defend action
     /// </summary>
     private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions)
     {
-        // すべての敵が倒されている場合、防御する意味はない
+        // No point in defending if all enemies are defeated
         var targets = entity.Type == "Player" ?
             _enemies.Where(e => e.CurrentHp > 0) :
             _players.Where(p => p.CurrentHp > 0);
 
         if (!targets.Any())
         {
-            actions.Add(new ActionReward("defend", -100f)); // 敵がいない場合は防御を選ばない
+            actions.Add(new ActionReward("defend", -100f)); // Don't defend if no enemies
             return;
         }
 
-        // 敵が残り一体の場合は、攻撃を優先するために防御の報酬値を大幅に下げる
+        // When only one enemy remains, prioritize attack over defense
         if (targets.Count() == 1)
         {
-            actions.Add(new ActionReward("defend", -50f)); // 敵が残り一体の場合は攻撃を優先
+            actions.Add(new ActionReward("defend", -50f)); // Prioritize attack when only one enemy remains
             return;
         }
 
-        // 味方が自分しかいない場合は、攻撃を優先するために防御の報酬値を大幅に下げる
+        // When this entity is the only survivor on its side, prioritize attack over defense
         var allies = entity.Type == "Player" ?
             _players.Where(p => p.CurrentHp > 0) :
             _enemies.Where(e => e.CurrentHp > 0);
 
-        if (allies.Count() == 1) // 自分しか生き残っていない
+        if (allies.Count() == 1) // Only this entity remains
         {
-            actions.Add(new ActionReward("defend", -50f)); // 自分しか生き残っていない場合は攻撃を優先
+            actions.Add(new ActionReward("defend", -50f)); // Prioritize attack when last survivor
             return;
         }
 
         // Base reward for defending - starting with a very low base value
-        float reward = 0.1f;  // 防御の基本報酬をさらに低く
+        float reward = 0.1f;  // Very low base reward for defense
 
         // Increase reward if entity's HP is critically low (only when below 20%)
         float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
@@ -555,37 +554,38 @@ _battleField[y, x] == null)
         bool enemiesNearby = AreEnemiesNearby(entity, BattleAIDefines.NearbyDistanceThreshold);
         if (enemiesNearby)
         {
-            // 敵が隣接している場合にのみ防御を検討
+            // Check if enemy is adjacent
             var adjacentTarget = FindAdjacentTarget(entity);
             if (adjacentTarget != null)
             {
-                // 敵が隣接していても、HPが50%以上残っている場合は攻撃を優先
+                // If HP is above 50%, prioritize attack over defense
                 if (hpRatio > BattleAIDefines.SufficientHpRatio)
                 {
-                    reward *= 0.2f;  // 防御報酬を大幅に下げる
+                    reward *= 0.2f; // Significantly reduce defense reward
                 }
                 else
                 {
+                    // Enemy is adjacent, consider defense only if HP is critically low
                     reward += BattleAIDefines.DefendEnemiesNearbyReward;
                 }
             }
             else
             {
-                // 敵が近くにいるが隣接していない場合、防御よりも移動を優先
+                // Enemy is nearby but not adjacent, prioritize movement over defense
                 reward *= 0.2f;
             }
         }
         else
         {
-            // 敵が近くにいない場合は防御の意味がほとんどない
-            reward *= 0.05f;  // 防御報酬をさらに下げる
+            // No enemies nearby, defense is mostly pointless
+            reward *= 0.05f;  // Further reduce defense reward
         }
 
-        // エンティティタイプに基づいて防御の確率を調整
-        // プレイヤーは防御を多少利用し、敵は攻撃的に
+        // Adjust defense probability based on entity type
+        // Players use defense occasionally, enemies are more aggressive
         if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
         {
-            // 敵は攻撃的な行動を優先するためさらに報酬を下げる
+            // Non-player entities prioritize aggressive actions
             reward *= BattleAIDefines.NonPlayerDefendMultiplier;
         }
 
@@ -593,47 +593,47 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 移動行動の評価
+    /// Evaluate move action
     /// </summary>
     private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
     {
-        // 生存している敵がいるか確認
+        // Check if there are any surviving enemies
         var targets = entity.Type == "Player" ?
             _enemies.Where(e => e.CurrentHp > 0) :
             _players.Where(p => p.CurrentHp > 0);
 
         if (!targets.Any())
         {
-            // 敵が全滅している場合、移動は最低優先度にする
+            // If all enemies are defeated, assign lowest priority to movement
             actions.Add(new ActionReward("move", 0.1f));
             return;
         }
 
-        // 敵が残り一体の場合、その敵に攻撃するために優先的に移動する
+        // If only one enemy remains, prioritize movement to attack that enemy
         bool isLastEnemy = targets.Count() == 1;
 
-        // 味方が自分しかいない場合
+        // Check if this entity is the last surviving ally
         var allies = entity.Type == "Player" ?
             _players.Where(p => p.CurrentHp > 0) :
             _enemies.Where(e => e.CurrentHp > 0);
-        bool isLastAlly = allies.Count() == 1; // 自分しか生き残っていない
+        bool isLastAlly = allies.Count() == 1; // Only this entity is surviving
 
         if (adjacentTarget != null)
         {
-            // 隣接する敵がいる場合は、移動よりも攻撃を優先させるため移動の価値を下げる
-            // ただし、完全に除外はしない（状況によっては移動が有効な場合もある）
-            // 敵が隣接していても、敵のHPが高くて自分のHPが低い場合は逃げる選択肢も考慮
+            // If there's an adjacent enemy, lower movement priority to favor attack
+            // However, don't completely exclude it (movement might be useful in some situations)
+            // Consider fleeing if enemy HP is high and own HP is low
             float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
             float enemyHpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
-            // 敵が残り一体または自分しか生き残っていない場合は逃げない
+            // Don't flee if this is the last enemy or the entity is the last survivor
             if (isLastEnemy || isLastAlly)
             {
-                actions.Add(new ActionReward("move", 0.1f)); // 攻撃を優先するため移動の報酬を大幅に下げる
+                actions.Add(new ActionReward("move", 0.1f)); // Significantly reduce movement reward to prioritize attack
             }
             else if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
             {
-                // HPが危険な状態で敵が健在なら逃げることを考慮
+                // Consider fleeing if HP is in danger and enemy is healthy
                 actions.Add(new ActionReward("move", 3.0f));
             }
             else
@@ -760,7 +760,8 @@ _battleField[y, x] == null)
                 if (checkX >= 0 && checkX < BattleBasicDefines.BattleFieldWidth &&
                     checkY >= 0 && checkY < BattleBasicDefines.BattleFieldHeight &&
                     _battleField[checkY, checkX] != null)
-                {                    string targetId = _battleField[checkY, checkX]!;
+                {
+                    string targetId = _battleField[checkY, checkX]!;
                     EntityInfo? target = null;
 
                     // Find entity with matching ID
@@ -828,58 +829,58 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 移動方向のリストを取得
+    /// Get movement directions list
     /// </summary>
     private List<(int dx, int dy, int priority)> GetMovementDirections(EntityInfo entity, EntityInfo? targetEntity)
     {
         var directions = new List<(int dx, int dy, int priority)>();
 
-        // ターゲットがない場合は完全にランダムな方向を返す
+        // If there's no target, return completely random directions
         if (targetEntity is null)
         {
-            // ランダムな8方向を生成し、すべて同じ優先度で返す
+            // Generate random 8 directions, all with the same priority
             int[] randomDirs = [-1, 0, 1];
             for (int randDx = -1; randDx <= 1; randDx++)
             {
                 for (int randDy = -1; randDy <= 1; randDy++)
                 {
-                    if (randDx == 0 && randDy == 0) continue; // 自分自身はスキップ
-                    directions.Add((randDx, randDy, 1)); // すべて同じ優先度
+                    if (randDx == 0 && randDy == 0) continue; // Skip self
+                    directions.Add((randDx, randDy, 1)); // All same priority
                 }
             }
 
-            // ランダムに並べ替えて返す
+            // Return randomly shuffled
             return directions.OrderBy(_ => _random.Next()).ToList();
         }
 
-        // ターゲットが存在する場合、ターゲットへの方向を計算
+        // If a target exists, calculate direction towards target
         int dx = Math.Sign(targetEntity.Value.Position.X - entity.Position.X);
         int dy = Math.Sign(targetEntity.Value.Position.Y - entity.Position.Y);
 
-        // 敵との距離を計算
+        // Calculate distance to enemy
         int xDistance = Math.Abs(targetEntity.Value.Position.X - entity.Position.X);
         int yDistance = Math.Abs(targetEntity.Value.Position.Y - entity.Position.Y);
 
-        // 両方の距離が0の場合（同じ位置にいる場合）、ランダムな方向を選択
+        // If both distances are 0 (at the same position), choose random direction
         if (xDistance == 0 && yDistance == 0)
         {
-            // ランダムな方向を選択
+            // Choose random direction
             int[] randomDirs = [-1, 0, 1];
             int randDx = randomDirs[_random.Next(randomDirs.Length)];
             int randDy = randomDirs[_random.Next(randomDirs.Length)];
 
-            // (0,0)は避ける
+            // Avoid (0,0)
             if (randDx == 0 && randDy == 0) randDx = 1;
 
             directions.Add((randDx, randDy, 1));
-            directions.Add((randDy, randDx, 2)); // 90度回転
-            directions.Add((-randDx, randDy, 3)); // 別方向も試す
+            directions.Add((randDy, randDx, 2)); // Rotated 90 degrees
+            directions.Add((-randDx, randDy, 3)); // Try other directions too
             directions.Add((randDx, -randDy, 4));
         }
         else if (xDistance > yDistance)
         {
-            // X方向の距離が大きい場合、横方向の移動を優先
-            // dxが0の場合は1か-1を選択
+            // If X distance is greater, prioritize horizontal movement
+            // If dx is 0, choose 1 or -1
             if (dx == 0) dx = xDistance == 0 ? (_random.Next(2) == 0 ? 1 : -1) : Math.Sign(xDistance);
 
             directions.Add((dx, 0, 1));
@@ -888,8 +889,8 @@ _battleField[y, x] == null)
         }
         else
         {
-            // Y方向の距離が大きい場合、縦方向の移動を優先
-            // dyが0の場合は1か-1を選択
+            // If Y distance is greater, prioritize vertical movement
+            // If dy is 0, choose 1 or -1
             if (dy == 0) dy = yDistance == 0 ? (_random.Next(2) == 0 ? 1 : -1) : Math.Sign(yDistance);
 
             directions.Add((0, dy, 1));
@@ -897,7 +898,7 @@ _battleField[y, x] == null)
             directions.Add((dx, 0, 3));
         }
 
-        // ダイアゴナル方向や逆方向も選択肢として追加（ただし優先度は低い）
+        // Add diagonal and opposite directions as lower priority options
         if (dx != 0 && dy != 0)
         {
             directions.Add((dx, -dy, 4));
@@ -911,7 +912,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// ランダムな方向を生成
+    /// Generate random directions
     /// </summary>
     private List<(int dx, int dy)> GenerateRandomDirections()
     {
@@ -920,17 +921,17 @@ _battleField[y, x] == null)
         {
             for (int dy = -1; dy <= 1; dy++)
             {
-                if (dx == 0 && dy == 0) continue; // 自分自身はスキップ
+                if (dx == 0 && dy == 0) continue; // Skip self
                 randomDirections.Add((dx, dy));
             }
         }
 
-        // ランダムに並べ替え
+        // Shuffle randomly
         return randomDirections.OrderBy(_ => _random.Next()).ToList();
     }
 
     /// <summary>
-    /// 指定された方向のリストに従って移動を試みる
+    /// Try to move in the specified directions list
     /// </summary>
     private bool TryMoveInDirections(EntityInfo entity, List<(int dx, int dy, int priority)> directions, EntityInfo? targetEntity)
     {
@@ -939,10 +940,10 @@ _battleField[y, x] == null)
             int newX = entity.Position.X + direction.dx;
             int newY = entity.Position.Y + direction.dy;
 
-            // 新しい位置が有効で空いているかチェック
+            // Check if the new position is valid and empty
             if (IsValidEmptyPosition(newX, newY))
             {
-                // エンティティの位置を更新
+                // Update entity position
                 UpdateEntityPosition(entity, newX, newY);
 
                 if (targetEntity != null)
@@ -962,7 +963,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// ランダムな方向のリストに従って移動を試みる
+    /// Try to move in random directions
     /// </summary>
     private bool TryMoveInRandomDirections(EntityInfo entity, List<(int dx, int dy)> randomDirections)
     {
@@ -971,10 +972,10 @@ _battleField[y, x] == null)
             int newX = entity.Position.X + dx;
             int newY = entity.Position.Y + dy;
 
-            // 新しい位置が有効で空いているかチェック
+            // Check if the new position is valid and empty
             if (IsValidEmptyPosition(newX, newY))
             {
-                // エンティティの位置を更新
+                // Update entity position
                 UpdateEntityPosition(entity, newX, newY);
                 _battleLogs.Add($"{entity.Name} randomly moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY}).");
                 return true;
@@ -985,7 +986,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 指定された位置が有効で空いているかチェック
+    /// Check if the specified position is valid and empty
     /// </summary>
     private bool IsValidEmptyPosition(int x, int y)
     {
@@ -1170,21 +1171,21 @@ _battleField[y, x] == null)
         bool allPlayersDead = _players.All(p => p.CurrentHp <= 0);
         bool allEnemiesDead = _enemies.All(e => e.CurrentHp <= 0);
 
-        // 両方全滅した場合は引き分けとしてプレイヤー敗北とする
+        // In case both sides are defeated, consider it a draw and treat as player defeat
         if (allPlayersDead && allEnemiesDead)
         {
-            return (true, false); // バトル終了、プレイヤー敗北
+            return (true, false); // Battle over, player defeat
         }
         else if (allPlayersDead)
         {
-            return (true, false); // バトル終了、プレイヤー敗北
+            return (true, false); // Battle over, player defeat
         }
         else if (allEnemiesDead)
         {
-            return (true, true); // バトル終了、プレイヤー勝利
+            return (true, true); // Battle over, player victory
         }
 
-        return (false, false); // バトル継続中
+        return (false, false); // Battle continues
     }
 
     /// <summary>
@@ -1290,7 +1291,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 最も近い敵を見つける
+    /// Find the nearest target
     /// </summary>
     private EntityInfo? FindNearestTarget(EntityInfo entity)
     {
@@ -1315,7 +1316,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 最もHPが低い敵を見つける
+    /// Find the target with lowest HP
     /// </summary>
     private EntityInfo? FindLowestHpTarget(EntityInfo entity)
     {
@@ -1339,7 +1340,7 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 指定した距離内に敵がいるかをチェック
+    /// Check if there are enemies within the specified distance threshold
     /// </summary>
     private bool AreEnemiesNearby(EntityInfo entity, int distanceThreshold)
     {
@@ -1360,31 +1361,31 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// 敵を囲むように移動できるかをチェック
+    /// Check if the entity can surround an enemy
     /// </summary>
     private bool CanSurroundEnemy(EntityInfo entity, EntityInfo target)
     {
-        // 味方の位置を取得
+        // Get allied positions
         var allies = entity.Type == "Player" ?
             _players.Where(p => p.Id != entity.Id && p.CurrentHp > 0) :
             _enemies.Where(e => e.Id != entity.Id && e.CurrentHp > 0);
 
-        // 敵の周りの位置をチェック
+        // Check positions around the enemy
         int surroundCount = 0;
         for (int dy = -1; dy <= 1; dy++)
         {
             for (int dx = -1; dx <= 1; dx++)
             {
-                if (dx == 0 && dy == 0) continue; // 敵自身の位置はスキップ
+                if (dx == 0 && dy == 0) continue; // Skip enemy's own position
 
                 int checkX = target.Position.X + dx;
                 int checkY = target.Position.Y + dy;
 
-                // 位置が有効かチェック
+                // Check if position is valid
                 if (checkX >= 0 && checkX < BattleBasicDefines.BattleFieldWidth &&
                     checkY >= 0 && checkY < BattleBasicDefines.BattleFieldHeight)
                 {
-                    // 味方がその位置にいるかチェック
+                    // Check if an ally is at that position
                     foreach (var ally in allies)
                     {
                         if (ally.Position.X == checkX && ally.Position.Y == checkY)
@@ -1397,12 +1398,12 @@ _battleField[y, x] == null)
             }
         }
 
-        // 敵を半分以上囲んでいるか、または囲める可能性があるかを判断
+        // Determine if the enemy is surrounded by at least half or if surrounding is possible
         return surroundCount >= 3;
     }
 
     /// <summary>
-    /// マンハッタン距離を計算
+    /// Calculate Manhattan distance
     /// </summary>
     private int CalculateManhattanDistance(Vector2 a, Vector2 b)
     {
