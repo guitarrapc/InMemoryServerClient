@@ -38,7 +38,7 @@ public static class Constants
     /// <summary>
     /// Player HP
     /// </summary>
-    public const int PlayerHp = 300;
+    public const int PlayerHp = 200;
 
     /// <summary>
     /// Enemy types and their HP
