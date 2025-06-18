@@ -406,8 +406,8 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 var status = _replayData[i];
 
                 // Display only every 5th turn, plus the first and last turns
-                bool shouldDisplay = i == 0 || i == _replayData.Count - 1 || status.CurrentTurn % 5 == 0;                
-                
+                bool shouldDisplay = i == 0 || i == _replayData.Count - 1 || status.CurrentTurn % 5 == 0;
+
                 if (shouldDisplay)
                 {
                     // Display turn information
@@ -447,8 +447,8 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 {
                     await Task.Delay(BattleReplayFrameTimeMs);
                 }
-            }            
-            
+            }
+
             // Display final results
             var finalStatus = _replayData.Last();
             var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
@@ -492,6 +492,105 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
     }
 
     /// <summary>
+    /// Play saved battle replay with 5fps speed
+    /// </summary>
+    public async Task<bool> PlaySavedBattleReplayAsync(List<BattleStatus> replayData)
+    {
+        try
+        {
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Starting Saved Battle Replay ==========");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Playing {replayData.Count} turns at {BattleReplayFps} FPS");
+
+            for (int i = 0; i < replayData.Count; i++)
+            {
+                var status = replayData[i];
+
+                // Display only every 5th turn, plus the first and last turns
+                bool shouldDisplay = i == 0 || i == replayData.Count - 1 || status.CurrentTurn % 5 == 0;
+
+                if (shouldDisplay)
+                {
+                    // Display turn information
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===== Turn {status.CurrentTurn}/{status.TotalTurns} =====");
+
+                    // Display visual battle field first for better overview
+                    RenderBattleField(status);
+
+                    // Display players info
+                    var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Players alive: {alivePlayers}/{status.Players.Length}");
+                    foreach (var player in status.Players)
+                    {
+                        var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.PositionX},{player.PositionY})");
+                    }
+
+                    // Display enemies info
+                    var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Length}");
+
+                    // Display recent logs
+                    if (status.RecentLogs.Count > 0)
+                    {
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Recent actions:");
+                        foreach (var log in status.RecentLogs)
+                        {
+                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] > {log}");
+                        }
+                    }
+
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========================================");
+                }
+
+                // Wait for next frame (5fps = 200ms per frame) - maintain timing even when not displaying
+                if (i < replayData.Count - 1) // Don't delay after the last frame
+                {
+                    await Task.Delay(BattleReplayFrameTimeMs);
+                }
+            }
+
+            // Display final results
+            var finalStatus = replayData.Last();
+            var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
+            var finalAliveEnemies = finalStatus.Enemies.Count(e => e.CurrentHp > 0);
+
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Saved Battle Replay Completed! ==========");
+
+            // Display final battle field state
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Final Battle Field State:");
+            RenderBattleField(finalStatus);
+
+            if (finalAliveEnemies == 0)
+            {
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Length}");
+
+                // Show surviving players stats
+                foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
+                {
+                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                }
+            }
+            else
+            {
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Length}");
+            }
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Client {_clientIndex}: Error during saved battle replay");
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Builds a 2D field array from player and enemy positions
     /// </summary>
     private string?[,] BuildBattleField(BattleStatus status)
@@ -527,7 +626,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
     /// Renders a visual representation of the battle field using box-drawing characters
     /// </summary>
     private void RenderBattleField(BattleStatus status)
-    {        
+    {
         // First build the field with entity positions
         var field = BuildBattleField(status);
 

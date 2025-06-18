@@ -523,20 +523,48 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
         try
         {
+            logger.LogInformation($"Requesting battle replay for battle {battleId}...");
             var replayData = await client.GetBattleReplayAsync(battleId);
             if (replayData != null)
             {
-                logger.LogInformation($"Battle replay for battle {battleId}:");
-                logger.LogInformation("Showing first 10 turns of replay data:");
-                var lines = replayData.Split('\n');
-                foreach (var line in lines.Take(10))
+                logger.LogInformation($"Replay data received for battle {battleId}");
+                logger.LogInformation("Processing battle replay data...");
+
+                // Parse the JSONL file into BattleStatus objects
+                var battleStatuses = new List<BattleStatus>();
+                var lines = replayData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+                foreach (var line in lines)
                 {
                     if (!string.IsNullOrEmpty(line))
                     {
-                        logger.LogInformation($"  {line[..Math.Min(100, line.Length)]}...");
+                        try
+                        {
+                            var status = System.Text.Json.JsonSerializer.Deserialize<BattleStatus>(line);
+                            if (status != null)
+                            {
+                                battleStatuses.Add(status);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogInformation($"Error parsing battle status: {ex.Message}");
+                        }
                     }
                 }
-                logger.LogInformation($"Total turns in replay: {lines.Length}");
+
+                logger.LogInformation($"Found {battleStatuses.Count} turns in replay data");
+
+                if (battleStatuses.Count > 0)
+                {
+                    // Play the battle replay using InMemoryClient's replay functionality
+                    await client.PlaySavedBattleReplayAsync(battleStatuses);
+                }
+                else
+                {
+                    logger.LogInformation("No valid battle data found in the replay");
+                    Environment.ExitCode = 1;
+                }
             }
             else
             {
@@ -695,7 +723,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     private static void ShowInteractiveHelp()
     {
         Console.WriteLine("""
-        Available commands:            
+        Available commands:
           connect [url] [group]  - Connect to server (default: http://localhost:5000)
           connect-battle [url] [group] [count] - Connect multiple sessions (default: 5) to start a battle
           disconnect             - Disconnect from server
@@ -709,9 +737,8 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
           join <group_name>      - Join a group
           broadcast <message>    - Broadcast message to current group
           groups                 - List available groups
-          mygroup                - Show current group information
-          battle-status          - Show battle status
-          battle-replay <id>     - Show replay data for a battle
+          mygroup                - Show current group information          battle-status          - Show battle status
+          battle-replay <id>     - Play battle replay at 5fps speed
           battle-complete        - Notify server that battle replay is complete
           exit, quit             - Exit the program
           help                   - Show this help

@@ -218,10 +218,25 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         var replayPath = Path.Combine(Constants.BattleReplayDirectory, $"{battleId}.jsonl");
         if (File.Exists(replayPath))
         {
-            return await File.ReadAllTextAsync(replayPath);
-        }
+            // Ensure directory exists for battle replays
+            Directory.CreateDirectory(Constants.BattleReplayDirectory);
 
-        return null;
+            try
+            {
+                // Use memory-efficient file reading
+                return await File.ReadAllTextAsync(replayPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error reading battle replay file: {replayPath}");
+                return null;
+            }
+        }
+        else
+        {
+            _logger.LogWarning($"Battle replay file not found: {replayPath}");
+            return null;
+        }
     }
 
     /// <summary>
