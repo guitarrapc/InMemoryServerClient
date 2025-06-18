@@ -5,7 +5,7 @@
 
 *[English version](README.md)*
 
-C#で実装されたインメモリステートフルサーバーとCLIクライアントのプロジェクトです。サーバーはメモリ内に状態を保持し、クライアントがこの状態と対話するためのインターフェースを提供します。
+C#で実装されたインメモリステートフルサーバーとCLIクライアントのプロジェクトです。サーバーはメモリ内に状態を保持し、クライアントがこの状態と対話するためのインターフェースを提供します。このシステムはリアルタイム通信、グループ管理、リプレイ機能を備えた自動バトルシステムをサポートしています。
 
 ## 機能
 
@@ -15,27 +15,34 @@ C#で実装されたインメモリステートフルサーバーとCLIクライ
   - キーの変更監視機能
 - **グループ管理**
   - UUIDv4で識別されるグループの作成と管理
+  - クライアント指定または自動割り当てのグループ名
   - グループごとの最大接続数制限（最大5セッション）
   - グループの自動有効期限管理（10分）
 - **バトルシステム**
   - グループが満員（5セッション）になった時の自動バトル開始
   - 20x20サイズの疑似フィールドでのターン制RPG風バトル
-  - 完全オートバトルシステム
+  - 効率的な処理のための事前計算バトルシミュレーション
+  - バトル行動：移動、攻撃、防御
+  - 勝利条件：すべての敵を倒す
   - バトルリプレイのJSON LINE形式での保存
+  - チャンクデータ送信によるメモリ最適化実装
 
 ### クライアント機能
-- **インタラクティブモード**：対話型コマンドライン
-- **バッチモード**：単発コマンド実行
-- **グループ操作**：グループへの参加、メッセージ送信
-- **バトル監視**：リアルタイムバトル状況表示
+- **インタラクティブモード**：リアルタイム応答を備えた対話型コマンドライン
+- **バッチモード**：自動化のための単発コマンド実行
+- **接続管理**：バトルテスト用の複数セッション接続
+- **グループ操作**：グループへの参加、メッセージ送信、グループ状態確認
+- **バトル視覚化**：バトル状況表示と5fpsでのバトルリプレイ
+- **サーバーステータス**：サーバー統計とリソース使用状況の監視
 
 ## アーキテクチャ
 
 ### 技術スタック
-- **.NET 9**: 最新の.NET Runtime
-- **SignalR**: リアルタイム通信
-- **xUnit + NSubstitute**: テストフレームワーク
-- **ConsoleAppFramework**: CLIフレームワーク
+- **.NET 9**: 最新のC#機能を活用した.NET Runtime
+- **SignalR**: 双方向リアルタイム通信
+- **Minimal API**: 軽量サーバー実装
+- **xUnit + NSubstitute**: 包括的テストフレームワーク
+- **ConsoleAppFramework**: クライアントコマンド用の強力なCLIフレームワーク
 
 ### プロジェクト構造
 ```
@@ -90,6 +97,14 @@ cd csharp/src/CliClient
 dotnet run
 ```
 
+#### マルチクライアントバトルテスト
+単一コマンドで複数クライアントを使用してバトルをテストするには：
+```bash
+cd csharp/src/CliClient
+dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+```
+これにより、自動バトルを開始するために同じグループに5つのクライアント接続が作成されます。
+
 #### 単発コマンド例
 ```bash
 # サーバーに接続
@@ -110,29 +125,33 @@ dotnet run -- broadcast "Hello everyone!"
 dotnet run -- groups
 dotnet run -- my-group
 
-# バトル機能
+# バトル操作
 dotnet run -- battle-status
 dotnet run -- battle-replay <battle_id>
+dotnet run -- battle-complete # リプレイ視聴完了を通知
 ```
 
 #### インタラクティブモードコマンド
 ```
-connect [url] [group]  - サーバーに接続
-disconnect             - サーバーから切断
-status                 - 接続状態表示
-get <key>              - キー取得
-set <key> <value>      - キー設定
-delete <key>           - キー削除
-list [pattern]         - キー一覧（パターン指定可能）
-watch <key>            - キー変更監視
-join <group_name>      - グループ参加
-broadcast <message>    - グループ内メッセージ送信
-groups                 - グループ一覧
-mygroup                - 現在のグループ情報
-battle-status          - バトル状況確認
-battle-replay <id>     - バトルリプレイデータ表示
-exit, quit             - 終了
-help                   - ヘルプ表示
+connect [url] [group]                - Connect to server
+connect-battle [url] [group] [count] - Connect multiple clients for battle testing
+disconnect                           - Disconnect from server
+status                               - Show connection status
+get <key>                            - Get key
+set <key> <value>                    - Set key
+delete <key>                         - Delete key
+list [pattern]                       - List keys (pattern optional)
+watch <key>                          - Watch key changes
+join <group_name>                    - Join group
+broadcast <message>                  - Send message to group
+groups                               - List groups
+mygroup                              - Current group info
+battle-status                        - Check battle status
+battle-replay <id>                   - Show replay data for a battle
+battle-complete                      - Signal replay viewing completion
+server-status                        - Show server statistics
+exit, quit                           - Exit
+help                                 - Show help
 ```
 
 #### 例：グループセッションワークフロー
@@ -184,23 +203,81 @@ help                   - ヘルプ表示
    [GROUP] Message from a4b5c6d7-e8f9-0a1b-2c3d-4e5f6a7b8c9d: 準備OK！
    ```
 
-8. **グループが5人に達すると、バトルが自動的に開始する**
-
-9. **バトル中に現在のバトル状態を確認する：**
+8. **グループが5人に達すると、バトルが自動的に開始する：**
    ```
-   > battle-status
-   [BATTLE] ========== Battle Status ==========
+   [BATTLE] ========== Connections Ready! ==========
    [BATTLE] Battle ID: 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
-   [BATTLE] Turn: 45/231
-   [BATTLE] Players alive: 5/5
-   ...
+   [BATTLE] Group is full! All clients connected.
+   [BATTLE] Confirming connection ready status...
+   [BATTLE] ========================================
    ```
 
-10. **バトル完了後、リプレイを表示する：**
+9. **バトル中、サーバーはすべてのターンを事前計算し、リプレイデータをチャンクでクライアントに送信します：**
+   ```
+   [BATTLE] Received replay chunk 1/3 with 50 turns
+   [BATTLE] Received replay chunk 2/3 with 50 turns
+   [BATTLE] Received replay chunk 3/3 with 45 turns
+   [BATTLE] All replay chunks received! Starting replay with 145 turns
+   ```
+
+10. **バトルは5fps（1秒間に5フレーム）で再生され、ターンごとの更新が表示されます：**
     ```
-    > battle-replay 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
-    Battle replay for battle 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212:
+    [BATTLE] Turn 1: Player1 moved to (10,16)
+    [BATTLE] Turn 1: MediumEnemy3 attacked Player2 for 12 damage
     ...
     ```
 
-バトル終了後、グループのバトルIDはリセットされ、グループが再び5人に達すると新しいバトルが開始できるようになります。
+11. **リプレイが完了したら、サーバーに通知して最終ステータスを確認します：**
+    ```
+    > battle-complete
+    Battle replay viewing completed, notified server.
+
+    > battle-status
+    [BATTLE] ========== Battle Status ==========
+    [BATTLE] Battle ID: 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
+    [BATTLE] Result: Victory! All enemies defeated.
+    [BATTLE] ======================================
+    ```
+
+12. **自動化のために、connect-battleコマンドを使用して複数のクライアントでテストします：**
+    ```bash
+    dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+    ```
+    これにより、同じグループに5つのクライアント接続が作成され、バトルが開始され、リプレイが自動的に表示されます。
+
+## 技術的詳細
+
+### メモリ最適化
+
+サーバーはメモリ使用量を最適化するためにいくつかの技術を使用しています：
+
+1. **値型**：エンティティ、位置、その他の小さなデータ構造には不変構造体（`readonly struct`と`readonly record struct`）を使用。
+
+2. **事前割り当て**：再サイズを避けるために予想される容量でコレクションを初期化：
+   ```csharp
+   private readonly List<EntityInfo> _players = new(5); // プレイヤー最大数で事前割り当て
+   private readonly List<EntityInfo> _enemies = new(15); // 敵最大数で事前割り当て
+   ```
+
+3. **チャンクデータ送信**：大きなペイロードの送信を避けるために、バトルリプレイデータを管理しやすいチャンク（チャンクあたり50ターン）に分割：
+   ```csharp
+   public required List<BattleStatus> TurnData { get; set; } = new(50);
+   ```
+
+4. **メモリクリーンアップ**：データが不要になった後の明示的なメモリ管理：
+   ```csharp
+   public void ClearBattleData()
+   {
+       _allTurnData.Clear();
+       _players.Clear();
+       _enemies.Clear();
+       _battleLogs.Clear();
+       // ...
+   }
+   ```
+
+5. **効率的なフィールド表現**：バトルフィールドグリッドに2次元配列と参照型を効率的に使用。
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下でライセンスされています - 詳細はLICENSE.mdファイルを参照してください。

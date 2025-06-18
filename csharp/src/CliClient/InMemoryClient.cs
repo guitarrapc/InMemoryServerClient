@@ -7,13 +7,13 @@ namespace CliClient;
 /// <summary>
 /// Client for InMemory server
 /// </summary>
-public class InMemoryClient
+public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 {
-    private readonly ILogger<InMemoryClient> _logger;
+    private readonly ILogger<InMemoryClient> _logger = logger;
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-    private readonly int _clientIndex;
+    private readonly int _clientIndex = clientIndex;
 
     // Battle replay settings
     private const int BattleReplayFps = 5; // 5fps for battle replay
@@ -26,19 +26,12 @@ public class InMemoryClient
     private bool _isReceivingReplayData = false;
 
     // This is used to track if the battle has completed and to notify the client when it is done
-    private readonly TaskCompletionSource<bool> _battleCompletionSource;
+    private readonly TaskCompletionSource<bool> _battleCompletionSource = new TaskCompletionSource<bool>();
 
     public TaskCompletionSource<bool> BattleCompletionSource => _battleCompletionSource;
 
     public InMemoryClient(ILogger<InMemoryClient> logger) : this(0, logger)
     {
-    }
-
-    public InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
-    {
-        _clientIndex = clientIndex;
-        _logger = logger;
-        _battleCompletionSource = new TaskCompletionSource<bool>();
     }
 
     /// <summary>

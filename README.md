@@ -5,7 +5,7 @@
 
 *[日本語版はこちら / Japanese version](README_jp.md)*
 
-A C# implementation of an in-memory stateful server and CLI client project. The server maintains state in memory and provides an interface for clients to interact with this state.
+A C# implementation of an in-memory stateful server and CLI client project. The server maintains state in memory and provides an interface for clients to interact with this state. The system supports real-time communication, group management, and an automated battle system with replay capabilities.
 
 ## Features
 
@@ -15,27 +15,34 @@ A C# implementation of an in-memory stateful server and CLI client project. The 
   - Key change monitoring functionality
 - **Group Management**
   - Group creation and management identified by UUIDv4
+  - Client-specified or auto-assigned group names
   - Maximum connection limit per group (max 5 sessions)
   - Automatic group expiration management (10 minutes)
 - **Battle System**
   - Automatic battle start when group is full (5 sessions)
   - Turn-based RPG-style battles on 20x20 pseudo field
-  - Fully automated battle system
+  - Pre-computed battle simulation for efficient processing
+  - Battle actions: movement, attack, defense
+  - Victory condition: defeating all enemies
   - Battle replay saved in JSON LINE format
+  - Memory-optimized implementation with chunked data transmission
 
 ### Client Features
-- **Interactive Mode**: Interactive command line
-- **Batch Mode**: Single command execution
-- **Group Operations**: Join groups, send messages
-- **Battle Monitoring**: Real-time battle status display
+- **Interactive Mode**: Interactive command line with real-time responses
+- **Batch Mode**: Single command execution for automation
+- **Connection Management**: Connect multiple sessions for battle testing
+- **Group Operations**: Join groups, broadcast messages, check group status
+- **Battle Visualization**: Display battle status and replay battles at 5fps
+- **Server Status**: Monitor server statistics and resource usage
 
 ## Architecture
 
 ### Technology Stack
-- **.NET 9**: Latest .NET Runtime
-- **SignalR**: Real-time communication
-- **xUnit + NSubstitute**: Testing framework
-- **ConsoleAppFramework**: CLI framework
+- **.NET 9**: Latest .NET Runtime for modern C# features
+- **SignalR**: Real-time bidirectional communication
+- **Minimal API**: Lightweight server implementation
+- **xUnit + NSubstitute**: Comprehensive testing framework
+- **ConsoleAppFramework**: Powerful CLI framework for client commands
 
 ### Project Structure
 ```
@@ -90,6 +97,14 @@ cd csharp/src/CliClient
 dotnet run
 ```
 
+#### Multi-Client Battle Testing
+To test a battle with multiple clients using a single command:
+```bash
+cd csharp/src/CliClient
+dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+```
+This will create 5 client connections in the same group to trigger an automatic battle.
+
 #### Single Command Examples
 ```bash
 # Connect to server
@@ -110,29 +125,33 @@ dotnet run -- broadcast "Hello everyone!"
 dotnet run -- groups
 dotnet run -- my-group
 
-# Battle features
+# Battle operations
 dotnet run -- battle-status
 dotnet run -- battle-replay <battle_id>
+dotnet run -- battle-complete # Signal replay viewing completion
 ```
 
 #### Interactive Mode Commands
 ```
-connect [url] [group]  - Connect to server
-disconnect             - Disconnect from server
-status                 - Show connection status
-get <key>              - Get key
-set <key> <value>      - Set key
-delete <key>           - Delete key
-list [pattern]         - List keys (pattern optional)
-watch <key>            - Watch key changes
-join <group_name>      - Join group
-broadcast <message>    - Send message to group
-groups                 - List groups
-mygroup                - Current group info
-battle-status          - Check battle status
-battle-replay <id>     - Show replay data for a battle
-exit, quit             - Exit
-help                   - Show help
+connect [url] [group]                - Connect to server
+connect-battle [url] [group] [count] - Connect multiple clients for battle testing
+disconnect                           - Disconnect from server
+status                               - Show connection status
+get <key>                            - Get key
+set <key> <value>                    - Set key
+delete <key>                         - Delete key
+list [pattern]                       - List keys (pattern optional)
+watch <key>                          - Watch key changes
+join <group_name>                    - Join group
+broadcast <message>                  - Send message to group
+groups                               - List groups
+mygroup                              - Current group info
+battle-status                        - Check battle status
+battle-replay <id>                   - Show replay data for a battle
+battle-complete                      - Signal replay viewing completion
+server-status                        - Show server statistics
+exit, quit                           - Exit
+help                                 - Show help
 ```
 
 #### Example: Group Session Workflow
@@ -184,21 +203,81 @@ Here's an example of a typical group session workflow:
    [GROUP] Message from a4b5c6d7-e8f9-0a1b-2c3d-4e5f6a7b8c9d: I'm ready!
    ```
 
-8. **If your group reaches 5 members, a battle will automatically start**
-
-9. **Check current battle status during battle:**
+8. **If your group reaches 5 members, a battle will automatically start:**
    ```
-   > battle-status
-   [BATTLE] ========== Battle Status ==========
+   [BATTLE] ========== Connections Ready! ==========
    [BATTLE] Battle ID: 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
-   [BATTLE] Turn: 45/231
-   [BATTLE] Players alive: 5/5
-   ...
+   [BATTLE] Group is full! All clients connected.
+   [BATTLE] Confirming connection ready status...
+   [BATTLE] ========================================
    ```
 
-10. **After battle completes, view the replay:**
+9. **During the battle, the server pre-computes all turns and sends replay data to clients in chunks:**
+   ```
+   [BATTLE] Received replay chunk 1/3 with 50 turns
+   [BATTLE] Received replay chunk 2/3 with 50 turns
+   [BATTLE] Received replay chunk 3/3 with 45 turns
+   [BATTLE] All replay chunks received! Starting replay with 145 turns
+   ```
+
+10. **The battle is replayed at 5fps, displaying turn-by-turn updates:**
     ```
-    > battle-replay 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
-    Battle replay for battle 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212:
+    [BATTLE] Turn 1: Player1 moved to (10,16)
+    [BATTLE] Turn 1: MediumEnemy3 attacked Player2 for 12 damage
     ...
     ```
+
+11. **After the replay completes, notify the server and check the final status:**
+    ```
+    > battle-complete
+    Battle replay viewing completed, notified server.
+
+    > battle-status
+    [BATTLE] ========== Battle Status ==========
+    [BATTLE] Battle ID: 87a2d6f1-32e4-4f3d-9c03-52b8a9a5e212
+    [BATTLE] Result: Victory! All enemies defeated.
+    [BATTLE] ======================================
+    ```
+
+12. **For automation, use the connect-battle command to test with multiple clients:**
+    ```bash
+    dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+    ```
+    This will create 5 client connections in the same group, trigger a battle, and display the replay automatically.
+
+## Technical Details
+
+### Memory Optimization
+
+The server uses several techniques to optimize memory usage:
+
+1. **Value Types**: Immutable structs (`readonly struct` and `readonly record struct`) for entities, positions, and other small data structures.
+
+2. **Pre-allocation**: Collections are initialized with expected capacity to avoid resizing:
+   ```csharp
+   private readonly List<EntityInfo> _players = new(5); // Pre-allocate for max players
+   private readonly List<EntityInfo> _enemies = new(15); // Pre-allocate for max enemies
+   ```
+
+3. **Chunked Data Transmission**: Battle replay data is split into manageable chunks (50 turns per chunk) to avoid sending large payloads:
+   ```csharp
+   public required List<BattleStatus> TurnData { get; set; } = new(50);
+   ```
+
+4. **Memory Cleanup**: Explicit memory management after data is no longer needed:
+   ```csharp
+   public void ClearBattleData()
+   {
+       _allTurnData.Clear();
+       _players.Clear();
+       _enemies.Clear();
+       _battleLogs.Clear();
+       // ...
+   }
+   ```
+
+5. **Efficient Field Representation**: Using 2D arrays and reference types efficiently for the battle field grid.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE.md file for details.
