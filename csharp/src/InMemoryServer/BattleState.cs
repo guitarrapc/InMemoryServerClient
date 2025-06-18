@@ -9,6 +9,35 @@ namespace InMemoryServer;
 /// </summary>
 public partial class BattleState
 {
+    // 行動選択に関する定数
+    private const float ATTACK_ADJACENT_REWARD = 10.0f;
+    private const float ATTACK_LOW_HP_BONUS = 3.0f;
+    private const float DEFEND_LOW_HP_REWARD = 8.0f;
+    private const float DEFEND_ENEMIES_NEARBY_REWARD = 5.0f;
+    private const float MOVE_TO_NEAREST_REWARD = 3.0f;
+    private const float MOVE_TO_LOWEST_HP_REWARD = 2.5f;
+    private const float MOVE_TO_SURROUND_REWARD = 4.0f;
+    private const int NEARBY_DISTANCE_THRESHOLD = 2; // 敵が近くにいると判断する距離の閾値
+
+    /// <summary>
+    /// 行動の報酬を格納する内部構造体
+    /// </summary>
+    private readonly struct ActionReward
+    {
+        public readonly string Action { get; init; }
+        public readonly float Reward { get; init; }
+        public readonly EntityInfo? TargetEntity { get; init; }
+        public readonly Vector2? TargetPosition { get; init; }
+
+        public ActionReward(string action, float reward, EntityInfo? targetEntity = null, Vector2? targetPosition = null)
+        {
+            Action = action;
+            Reward = reward;
+            TargetEntity = targetEntity;
+            TargetPosition = targetPosition;
+        }
+    }
+
     public enum State
     {
         Connected = 0,
@@ -147,7 +176,8 @@ public partial class BattleState
                 int x = _random.Next(Constants.BattleFieldWidth);
                 int y = Constants.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
                 if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth &&
-_battleField[y, x] == null)                {
+_battleField[y, x] == null)
+                {
                     _battleField[y, x] = _players[i].Id;
                     _players[i] = _players[i] with { Position = new Vector2(x, y) };
                     break;
@@ -315,15 +345,18 @@ _battleField[y, x] == null)                {
             // Skip if entity died during this turn
             if (entity.CurrentHp <= 0) continue;
 
+            // Find adjacent target for attack/move evaluation
+            var adjacentTarget = FindAdjacentTarget(entity);
+
             // Decide action: move, attack, or defend
-            var action = DecideAction(entity);
+            var action = DecideAction(entity, adjacentTarget);
             switch (action)
             {
                 case "move":
-                    MoveEntity(entity);
+                    MoveEntity(entity, adjacentTarget);
                     break;
                 case "attack":
-                    AttackWithEntity(entity);
+                    AttackWithEntity(entity, adjacentTarget);
                     break;
                 case "defend":
                     DefendWithEntity(entity);
@@ -350,38 +383,139 @@ _battleField[y, x] == null)                {
     }
 
     /// <summary>
-    /// Decide what action an entity should take
+    /// Decide what action an entity should take based on reward model
     /// </summary>
-    private string DecideAction(EntityInfo entity)
+    private string DecideAction(EntityInfo entity, EntityInfo? adjacentTarget)
     {
-        // Check if any enemy is adjacent (for attack)
-        var adjacentTarget = FindAdjacentTarget(entity);
+        // 各行動の報酬を計算
+        var possibleActions = EvaluateAllActions(entity, adjacentTarget);
+
+        // 最も報酬の高い行動を選択
+        var bestAction = possibleActions.OrderByDescending(a => a.Reward).First();
+
+        _logger.LogDebug("Entity {EntityName} chose {Action} with reward {Reward}", entity.Name, bestAction.Action, bestAction.Reward);
+
+        return bestAction.Action;
+    }
+
+    /// <summary>
+    /// 全ての可能な行動を評価し、それぞれの報酬を計算する
+    /// </summary>
+    private List<ActionReward> EvaluateAllActions(EntityInfo entity, EntityInfo? adjacentTarget)
+    {
+        var actions = new List<ActionReward>();
+
+        // Evaluate attack action
+        EvaluateAttackAction(entity, actions, adjacentTarget);
+
+        // Evaluate defend action
+        EvaluateDefendAction(entity, actions);
+
+        // Evaluate move action
+        EvaluateMoveAction(entity, actions, adjacentTarget);
+
+        return actions;
+    }
+
+    /// <summary>
+    /// 攻撃行動の評価
+    /// </summary>
+    private void EvaluateAttackAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
+    {
         if (adjacentTarget != null)
         {
-            // 70% chance to attack if enemy is adjacent
-            if (_random.Next(100) < 70)
-            {
-                return "attack";
-            }
-        }
+            // Base reward
+            float reward = ATTACK_ADJACENT_REWARD;
 
-        // If HP is low, higher chance to defend
-        if (entity.CurrentHp < entity.MaxHp * 0.3)
+            // Bonus for attacking low HP targets
+            float hpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
+            reward += (1 - hpRatio) * ATTACK_LOW_HP_BONUS;
+
+            actions.Add(new ActionReward("attack", reward, adjacentTarget));
+        }
+        else
         {
-            if (_random.Next(100) < 60)
-            {
-                return "defend";
-            }
+            // Remove attack action if no adjacent target
+            actions.Add(new ActionReward("attack", -100f));
         }
+    }
 
-        // If no adjacent enemies or didn't choose to attack/defend, move
-        if (adjacentTarget is null)
+    /// <summary>
+    /// 防御行動の評価
+    /// </summary>
+    private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions)
+    {
+        // Base reward for defending, always include defend action
+        float reward = 1.0f;
+
+        // Increase reward if entity's HP is low
+        float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
+        if (hpRatio < 0.4)
         {
-            return "move";
+            reward += (1 - hpRatio) * DEFEND_LOW_HP_REWARD;
         }
 
-        // Random choice between move and defend
-        return _random.Next(2) == 0 ? "move" : "defend";
+        // Check if there are enemies within a certain distance threshold
+        bool enemiesNearby = AreEnemiesNearby(entity, NEARBY_DISTANCE_THRESHOLD);
+        if (enemiesNearby)
+        {
+            reward += DEFEND_ENEMIES_NEARBY_REWARD;
+        }
+        else
+        {
+            // Defend action is still valid, but less rewarding
+            reward *= 0.5f;
+        }
+
+        actions.Add(new ActionReward("defend", reward));
+    }
+
+    /// <summary>
+    /// 移動行動の評価
+    /// </summary>
+    private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
+    {
+        if (adjacentTarget != null)
+        {
+            // Move action is less valuable if adjacent target exists
+            actions.Add(new ActionReward("move", 1.0f));
+            return;
+        }
+
+        // Find nearest target for evaluation
+        var nearestTarget = FindNearestTarget(entity);
+
+        // Find the lowest HP target for evaluation
+        var lowestHpTarget = FindLowestHpTarget(entity);
+
+        if (nearestTarget != null)
+        {
+            float reward = MOVE_TO_NEAREST_REWARD;
+
+            // Check if the entity can surround the nearest enemy
+            if (CanSurroundEnemy(entity, nearestTarget.Value))
+            {
+                reward += MOVE_TO_SURROUND_REWARD;
+            }
+
+            actions.Add(new ActionReward("move", reward, nearestTarget));
+        }
+
+        // Lowest HP target evaluation (for future extensibility)
+        if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.Id != nearestTarget.Value.Id))
+        {
+            float reward = MOVE_TO_LOWEST_HP_REWARD;
+            float hpRatio = (float)lowestHpTarget.Value.CurrentHp / lowestHpTarget.Value.MaxHp;
+            reward += (1 - hpRatio) * 2.0f;
+
+            actions.Add(new ActionReward("move", reward, lowestHpTarget));
+        }
+
+        // Random move action to ensure entity can always act
+        if (nearestTarget == null && lowestHpTarget == null)
+        {
+            actions.Add(new ActionReward("move", 1.0f));
+        }
     }
 
     /// <summary>
@@ -432,93 +566,91 @@ _battleField[y, x] == null)                {
     }
 
     /// <summary>
-    /// Move entity towards the nearest enemy
+    /// Move entity towards the nearest enemy or lowest HP enemy
     /// </summary>
-    private void MoveEntity(EntityInfo entity)
+    private void MoveEntity(EntityInfo entity, EntityInfo? adjacentTarget)
     {
-        // Find nearest target
-        EntityInfo? nearestTarget = null;
-        int minDistance = int.MaxValue;
+        // 隣に敵がいないことを前提に移動を試みる
+        // 移動先のターゲットを決定（最も近い敵か最もHPが低い敵）
+        EntityInfo? targetEntity = null;
 
-        var targets = entity.Type == "Player" ?
-            _enemies.Where(e => e.CurrentHp > 0) :
-            _players.Where(p => p.CurrentHp > 0);
+        // 各行動の報酬を計算した結果から、最も良い移動先を選択
+        var possibleActions = new List<ActionReward>();
+        EvaluateMoveAction(entity, possibleActions, adjacentTarget);
 
-        foreach (var target in targets)
-        {
-            int distance = Math.Abs(entity.Position.X - target.Position.X) + Math.Abs(entity.Position.Y - target.Position.Y);
-            if (distance < minDistance)
-            {
-                minDistance = distance;
-                nearestTarget = target;
-            }
-        }
+        // 移動の価値が最も高いものを選択
+        var bestMoveAction = possibleActions
+            .OrderByDescending(a => a.Reward)
+            .FirstOrDefault();
 
-        if (nearestTarget is null)
+        targetEntity = bestMoveAction.TargetEntity;
+
+        if (targetEntity is null)
         {
             _battleLogs.Add($"{entity.Name} has no targets to move towards.");
             return;
         }
 
-        // Determine movement direction towards target
-        int dx = Math.Sign(nearestTarget.Value.Position.X - entity.Position.X);
-        int dy = Math.Sign(nearestTarget.Value.Position.Y - entity.Position.Y);
+        // 目標に向かう方向を決定
+        int dx = Math.Sign(targetEntity.Value.Position.X - entity.Position.X);
+        int dy = Math.Sign(targetEntity.Value.Position.Y - entity.Position.Y);
 
-        // Try to move in that direction
-        int newX = entity.Position.X + dx;
-        int newY = entity.Position.Y + dy;
+        // 最適な移動方向の優先順位を決定
+        // 敵に近づくため、より近づく方向を優先
+        var directions = new List<(int dx, int dy, int priority)>();
 
-        // Check if new position is valid and empty
-        if (newX >= 0 && newX < Constants.BattleFieldWidth &&
-            newY >= 0 && newY < Constants.BattleFieldHeight &&
-            _battleField[newY, newX] == null)
+        // 敵との距離が縦方向と横方向で異なる場合、より離れている方向を優先
+        int xDistance = Math.Abs(targetEntity.Value.Position.X - entity.Position.X);
+        int yDistance = Math.Abs(targetEntity.Value.Position.Y - entity.Position.Y);
+
+        if (xDistance > yDistance)
         {
-            // Update entity position in the appropriate list
-            UpdateEntityPosition(entity, newX, newY);
-            _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY})");
+            // 横方向の移動を優先
+            directions.Add((dx, 0, 1));
+            directions.Add((dx, dy, 2));
+            directions.Add((0, dy, 3));
         }
         else
         {
-            // Try alternative directions if direct path is blocked
-            int[] dxOptions = [dx, 0, -dx];
-            int[] dyOptions = [dy, 0, -dy];
-            bool moved = false;
+            // 縦方向の移動を優先
+            directions.Add((0, dy, 1));
+            directions.Add((dx, dy, 2));
+            directions.Add((dx, 0, 3));
+        }
 
-            foreach (int altDx in dxOptions)
+        // ダイアゴナル方向や逆方向も選択肢として追加（ただし優先度は低い）
+        if (dx != 0 && dy != 0)
+        {
+            directions.Add((dx, -dy, 4));
+            directions.Add((-dx, dy, 5));
+        }
+        directions.Add((-dx, 0, 6));
+        directions.Add((0, -dy, 7));
+        directions.Add((-dx, -dy, 8));
+
+        // 各方向を試す
+        bool moved = false;
+        foreach (var direction in directions.OrderBy(d => d.priority))
+        {
+            int newX = entity.Position.X + direction.dx;
+            int newY = entity.Position.Y + direction.dy;
+
+            // 新しい位置が有効で空いているかチェック
+            if (newX >= 0 && newX < Constants.BattleFieldWidth &&
+                newY >= 0 && newY < Constants.BattleFieldHeight &&
+                _battleField[newY, newX] == null)
             {
-                foreach (int altDy in dyOptions)
-                {
-                    // Skip no movement
-                    if (altDx == 0 && altDy == 0) continue;
-
-                    // Skip original blocked direction
-                    if (altDx == dx && altDy == dy) continue;
-
-                    int altX = entity.Position.X + altDx;
-                    int altY = entity.Position.Y + altDy;
-
-                    if (altX >= 0 && altX < Constants.BattleFieldWidth &&
-                        altY >= 0 && altY < Constants.BattleFieldHeight &&
-                        _battleField[altY, altX] == null)
-                    {
-                        // Update battle field
-                        _battleField[entity.Position.Y, entity.Position.X] = null;
-                        _battleField[altY, altX] = entity.Id;
-
-                        // Update entity position in the appropriate list
-                        UpdateEntityPosition(entity, altX, altY);
-                        _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({altX},{altY})");
-                        moved = true;
-                        break;
-                    }
-                }
-                if (moved) break;
+                // エンティティの位置を更新
+                UpdateEntityPosition(entity, newX, newY);
+                _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY}) towards {targetEntity.Value.Name}.");
+                moved = true;
+                break;
             }
+        }
 
-            if (!moved)
-            {
-                _battleLogs.Add($"{entity.Name} cannot move, all paths are blocked.");
-            }
+        if (!moved)
+        {
+            _battleLogs.Add($"{entity.Name} cannot move, all paths are blocked.");
         }
     }
 
@@ -560,16 +692,15 @@ _battleField[y, x] == null)                {
     /// <summary>
     /// Attack with entity
     /// </summary>
-    private void AttackWithEntity(EntityInfo entity)
+    private void AttackWithEntity(EntityInfo entity, EntityInfo? adjacentTarget)
     {
-        var target = FindAdjacentTarget(entity);
-        if (target is null)
+        if (adjacentTarget is null)
         {
             _battleLogs.Add($"{entity.Name} tries to attack but there are no adjacent targets.");
             return;
         }
 
-        var targetValue = target.Value;
+        var targetValue = adjacentTarget.Value;
 
         // Calculate damage
         int damage = Math.Max(1, entity.Attack - (targetValue.IsDefending ? targetValue.Defense * 2 : targetValue.Defense) / 2);
@@ -800,5 +931,125 @@ _battleField[y, x] == null)                {
     {
         // Check if all clients have confirmed connection readiness
         return _readyClientsCount == _connectedClientsCount;
+    }
+
+    /// <summary>
+    /// 最も近い敵を見つける
+    /// </summary>
+    private EntityInfo? FindNearestTarget(EntityInfo entity)
+    {
+        EntityInfo? nearestTarget = null;
+        int minDistance = int.MaxValue;
+
+        var targets = entity.Type == "Player" ?
+            _enemies.Where(e => e.CurrentHp > 0) :
+            _players.Where(p => p.CurrentHp > 0);
+
+        foreach (var target in targets)
+        {
+            int distance = CalculateManhattanDistance(entity.Position, target.Position);
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                nearestTarget = target;
+            }
+        }
+
+        return nearestTarget;
+    }
+
+    /// <summary>
+    /// 最もHPが低い敵を見つける
+    /// </summary>
+    private EntityInfo? FindLowestHpTarget(EntityInfo entity)
+    {
+        EntityInfo? lowestHpTarget = null;
+        int lowestHp = int.MaxValue;
+
+        var targets = entity.Type == "Player" ?
+            _enemies.Where(e => e.CurrentHp > 0) :
+            _players.Where(p => p.CurrentHp > 0);
+
+        foreach (var target in targets)
+        {
+            if (target.CurrentHp < lowestHp)
+            {
+                lowestHp = target.CurrentHp;
+                lowestHpTarget = target;
+            }
+        }
+
+        return lowestHpTarget;
+    }
+
+    /// <summary>
+    /// 指定した距離内に敵がいるかをチェック
+    /// </summary>
+    private bool AreEnemiesNearby(EntityInfo entity, int distanceThreshold)
+    {
+        var targets = entity.Type == "Player" ?
+            _enemies.Where(e => e.CurrentHp > 0) :
+            _players.Where(p => p.CurrentHp > 0);
+
+        foreach (var target in targets)
+        {
+            int distance = CalculateManhattanDistance(entity.Position, target.Position);
+            if (distance <= distanceThreshold)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 敵を囲むように移動できるかをチェック
+    /// </summary>
+    private bool CanSurroundEnemy(EntityInfo entity, EntityInfo target)
+    {
+        // 味方の位置を取得
+        var allies = entity.Type == "Player" ?
+            _players.Where(p => p.Id != entity.Id && p.CurrentHp > 0) :
+            _enemies.Where(e => e.Id != entity.Id && e.CurrentHp > 0);
+
+        // 敵の周りの位置をチェック
+        int surroundCount = 0;
+        for (int dy = -1; dy <= 1; dy++)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                if (dx == 0 && dy == 0) continue; // 敵自身の位置はスキップ
+
+                int checkX = target.Position.X + dx;
+                int checkY = target.Position.Y + dy;
+
+                // 位置が有効かチェック
+                if (checkX >= 0 && checkX < Constants.BattleFieldWidth &&
+                    checkY >= 0 && checkY < Constants.BattleFieldHeight)
+                {
+                    // 味方がその位置にいるかチェック
+                    foreach (var ally in allies)
+                    {
+                        if (ally.Position.X == checkX && ally.Position.Y == checkY)
+                        {
+                            surroundCount++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 敵を半分以上囲んでいるか、または囲める可能性があるかを判断
+        return surroundCount >= 3;
+    }
+
+    /// <summary>
+    /// マンハッタン距離を計算
+    /// </summary>
+    private int CalculateManhattanDistance(Vector2 a, Vector2 b)
+    {
+        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
     }
 }
