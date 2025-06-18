@@ -1,3 +1,6 @@
+[![Build](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/build.yaml/badge.svg)](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/build.yaml)
+[![Release](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/release.yaml/badge.svg)](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/release.yaml)
+
 # InMemoryServerClient
 
 *[English version](README.md)*
