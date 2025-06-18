@@ -470,7 +470,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
                     // Display players
                     var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
-                    logger.LogInformation($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Length}");
+                    logger.LogInformation($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Count}");
                     foreach (var player in battleStatus.Players)
                     {
                         var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
@@ -479,7 +479,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
                     // Display enemies
                     var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
-                    logger.LogInformation($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Length}");
+                    logger.LogInformation($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Count}");
 
                     // Show recent logs
                     if (battleStatus.RecentLogs.Count > 0)
@@ -565,9 +565,11 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                 logger.LogInformation("No valid battle data found in the replay");
                 Environment.ExitCode = 1;
             }
-
-            // Play the battle replay using InMemoryClient's replay functionality
-            await client.PlayBattleReplayAsync(battleStatuses);
+            else
+            {
+                // Play the battle replay using InMemoryClient's replay functionality
+                await client.PlayBattleReplayAsync(battleStatuses);
+            }
         }
         catch (Exception ex)
         {

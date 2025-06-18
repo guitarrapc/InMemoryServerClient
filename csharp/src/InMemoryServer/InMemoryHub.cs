@@ -300,7 +300,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 var replayData = new BattleReplayData
                 {
                     BattleId = battleId,
-                    TurnData = chunk.ToList(),
+                    TurnData = [.. chunk],
                     ChunkIndex = i,
                     TotalChunks = chunks.Count,
                     IsLastChunk = isLastChunk
@@ -399,8 +399,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 Id = battleEntry.Key,
                 GroupId = battleState.GroupId,
                 CurrentTurn = battleStatus.CurrentTurn,
-                PlayerCount = battleStatus.Players.Length,
-                EnemyCount = battleStatus.Enemies.Length,
+                PlayerCount = battleStatus.Players.Count,
+                EnemyCount = battleStatus.Enemies.Count,
                 StartedAt = battleState.StartTime
             });
         }

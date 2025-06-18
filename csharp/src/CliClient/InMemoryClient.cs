@@ -412,7 +412,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 
                 // Display players info
                 var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Players alive: {alivePlayers}/{status.Players.Length}");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Players alive: {alivePlayers}/{status.Players.Count}");
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
@@ -421,7 +421,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 
                 // Display enemies info
                 var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Length}");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
 
                 // Display recent logs
                 if (status.RecentLogs.Count > 0)
@@ -457,7 +457,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
         if (finalAliveEnemies == 0)
         {
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Length}");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Count}");
 
             // Show surviving players stats
             foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
@@ -469,7 +469,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
         else
         {
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Length}");
+            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
         }
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
@@ -545,13 +545,13 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                     if (isPlayer)
                     {
                         // Player: P1, P2, etc.
-                        int playerIdx = Array.FindIndex(status.Players, p => p.Id == cellContent) + 1;
+                        int playerIdx = status.Players.FindIndex(p => p.Id == cellContent) + 1;
                         line.Append($"P{playerIdx}");
                     }
                     else
                     {
                         // Enemy: E1, E2, etc.
-                        int enemyIdx = Array.FindIndex(status.Enemies, e => e.Id == cellContent) + 1;
+                        int enemyIdx = status.Enemies.FindIndex(e => e.Id == cellContent) + 1;
                         line.Append($"E{enemyIdx}");
                     }
                 }
@@ -559,11 +559,11 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 // Add separator except for the last column
                 if (x < status.FieldWidth - 1)
                 {
-                    line.Append(" ");
+                    line.Append(' ');
                 }
             }
 
-            line.Append("│");
+            line.Append('│');
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] {line}");
         }
 
@@ -572,7 +572,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 
         // Add a legend for easier identification
         var playerLegend = new System.Text.StringBuilder("Players: ");
-        for (int i = 0; i < status.Players.Length; i++)
+        for (int i = 0; i < status.Players.Count; i++)
         {
             var player = status.Players[i];
             if (player.CurrentHp > 0)
@@ -583,7 +583,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE FIELD] {playerLegend}");
 
         var enemyLegend = new System.Text.StringBuilder("Enemies: ");
-        for (int i = 0; i < status.Enemies.Length; i++)
+        for (int i = 0; i < status.Enemies.Count; i++)
         {
             var enemy = status.Enemies[i];
             if (enemy.CurrentHp > 0)

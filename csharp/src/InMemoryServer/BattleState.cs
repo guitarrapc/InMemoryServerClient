@@ -693,12 +693,17 @@ _battleField[y, x] == null)
     /// </summary>
     private async Task WriteReplayFrameAsync(StreamWriter writer)
     {
-        var frame = new
+        var frame = new BattleStatus
         {
-            TurnNumber = _currentTurn,
+            BattleId = _battleId,
+            IsInProgress = !_isCompleted,
+            CurrentTurn = _currentTurn,
+            TotalTurns = _totalTurns,
             Players = _players,
             Enemies = _enemies,
-            Logs = _battleLogs.TakeLast(10).ToList()
+            FieldHeight = _battleField.GetLength(0),
+            FieldWidth = _battleField.GetLength(1),
+            RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
 
         await writer.WriteLineAsync(JsonSerializer.Serialize(frame));
@@ -740,11 +745,11 @@ _battleField[y, x] == null)
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,
-            Players = _players.ToArray(),
-            Enemies = _enemies.ToArray(),
+            Players = [.. _players],
+            Enemies = [.. _enemies],
             FieldWidth = Constants.BattleFieldWidth,
             FieldHeight = Constants.BattleFieldHeight,
-            RecentLogs = _battleLogs.TakeLast(10).ToList()
+            RecentLogs = [.. _battleLogs.TakeLast(10)]
         };
     }
 
@@ -759,11 +764,11 @@ _battleField[y, x] == null)
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,
-            Players = _players.ToArray(), // structs automatically create copies
-            Enemies = _enemies.ToArray(), // structs automatically create copies
+            Players = [.. _players], // structs automatically create copies
+            Enemies = [.. _enemies], // structs automatically create copies
             FieldWidth = Constants.BattleFieldWidth,
             FieldHeight = Constants.BattleFieldHeight,
-            RecentLogs = _battleLogs.TakeLast(10).ToList()
+            RecentLogs = [.. _battleLogs.TakeLast(10)]
         };
     }
 

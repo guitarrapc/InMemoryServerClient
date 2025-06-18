@@ -74,12 +74,12 @@ public class BattleStatus
     /// <summary>
     /// Players in battle
     /// </summary>
-    public EntityInfo[] Players { get; set; } = [];
+    public List<EntityInfo> Players { get; set; } = [];
 
     /// <summary>
     /// Enemies in battle
     /// </summary>
-    public EntityInfo[] Enemies { get; set; } = [];
+    public List<EntityInfo> Enemies { get; set; } = [];
 
     /// <summary>
     /// Field dimensions (for client-side rendering)
