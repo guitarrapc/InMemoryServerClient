@@ -414,7 +414,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.Position})");
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:{player.Position}");
                 }
 
                 // Display enemies info
@@ -448,10 +448,6 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Saved Battle Replay Completed! ==========");
 
-        // Display final battle field state
-        _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Final Battle Field State:");
-        RenderBattleField(finalStatus);
-
         if (finalAliveEnemies == 0)
         {
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
@@ -468,6 +464,13 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
         {
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
+
+            // Show surviving enemy stats
+            foreach (var enemy in finalStatus.Enemies.Where(p => p.CurrentHp > 0))
+            {
+                var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 20);
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar}");
+            }
         }
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
