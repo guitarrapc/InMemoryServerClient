@@ -618,7 +618,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     foreach (var groupSummary in serverStatus.Groups)
                     {
                         var battleStatusText = !string.IsNullOrEmpty(groupSummary.BattleId) ? "[Battle in progress]" : "";
-                        logger.LogInformation($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{Constants.MaxConnectionsPerGroup} connections {battleStatusText}");
+                        logger.LogInformation($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{SystemDefines.MaxConnectionsPerGroup} connections {battleStatusText}");
                     }
                 }
 

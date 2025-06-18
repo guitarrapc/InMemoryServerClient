@@ -67,7 +67,7 @@ public class GroupManagerTests
         Assert.NotNull(result);
         Assert.Equal(groupName, result.Name);
         Assert.Equal(1, result.ConnectionCount);
-        Assert.Equal(Constants.MaxConnectionsPerGroup, result.MaxConnections);
+        Assert.Equal(SystemDefines.MaxConnectionsPerGroup, result.MaxConnections);
     }
 
     [Fact]
@@ -138,9 +138,9 @@ public class BattleStateTests
             Id = Guid.NewGuid().ToString(),
             Name = "test_group",
             ConnectionCount = 3,
-            MaxConnections = Constants.MaxConnectionsPerGroup,
+            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(Constants.GroupExpirationMinutes)
+            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
         };
 
         // Act
@@ -151,10 +151,10 @@ public class BattleStateTests
         Assert.NotNull(status);
         Assert.Equal(battleId, status.BattleId);
         Assert.Equal(group.ConnectionCount, status.Players.Count);
-        Assert.True(status.Enemies.Count >= Constants.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);
-        Assert.Equal(Constants.BattleFieldWidth, status.FieldWidth);
-        Assert.Equal(Constants.BattleFieldHeight, status.FieldHeight);
+        Assert.True(status.Enemies.Count >= BattleBasicDefines.MinEnemyCount);
+        Assert.True(status.Enemies.Count <= BattleBasicDefines.MaxEnemyCount);
+        Assert.Equal(BattleBasicDefines.BattleFieldWidth, status.FieldWidth);
+        Assert.Equal(BattleBasicDefines.BattleFieldHeight, status.FieldHeight);
     }
 
     [Fact]
@@ -167,9 +167,9 @@ public class BattleStateTests
             Id = Guid.NewGuid().ToString(),
             Name = "test_group",
             ConnectionCount = 2,
-            MaxConnections = Constants.MaxConnectionsPerGroup,
+            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(Constants.GroupExpirationMinutes)
+            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
         };
 
         // Act
@@ -182,11 +182,11 @@ public class BattleStateTests
         foreach (var player in status.Players)
         {
             Assert.Equal("Player", player.Type);
-            Assert.True(player.MaxHp >= Constants.PlayerHp - 70 && player.MaxHp <= Constants.PlayerHp + 70);
+            Assert.True(player.MaxHp >= BattleBasicDefines.PlayerHp - 70 && player.MaxHp <= BattleBasicDefines.PlayerHp + 70);
             Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
-            Assert.True(player.Attack >= Constants.MinAttackPower && player.Attack <= Constants.MaxAttackPower + 6);
-            Assert.True(player.Defense >= Constants.MinDefensePower + 2 && player.Defense <= Constants.MaxDefensePower + 4);
-            Assert.True(player.Speed >= Constants.MinMovementSpeed && player.Speed <= Constants.MaxMovementSpeed + 1);
+            Assert.True(player.Attack >= BattleBasicDefines.MinAttackPower && player.Attack <= BattleBasicDefines.MaxAttackPower + 6);
+            Assert.True(player.Defense >= BattleBasicDefines.MinDefensePower + 2 && player.Defense <= BattleBasicDefines.MaxDefensePower + 4);
+            Assert.True(player.Speed >= BattleBasicDefines.MinMovementSpeed && player.Speed <= BattleBasicDefines.MaxMovementSpeed + 1);
         }
     }
 
@@ -200,9 +200,9 @@ public class BattleStateTests
             Id = Guid.NewGuid().ToString(),
             Name = "test_group",
             ConnectionCount = 1,
-            MaxConnections = Constants.MaxConnectionsPerGroup,
+            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(Constants.GroupExpirationMinutes)
+            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
         };
 
         // Act
@@ -210,18 +210,18 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.True(status.Enemies.Count >= Constants.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= Constants.MaxEnemyCount);
+        Assert.True(status.Enemies.Count >= BattleBasicDefines.MinEnemyCount);
+        Assert.True(status.Enemies.Count <= BattleBasicDefines.MaxEnemyCount);
 
         foreach (var enemy in status.Enemies)
         {
-            Assert.True(Constants.EnemyHpByType.ContainsKey(enemy.Type));
-            var baseHp = Constants.EnemyHpByType[enemy.Type];
+            Assert.True(BattleBasicDefines.EnemyHpByType.ContainsKey(enemy.Type));
+            var baseHp = BattleBasicDefines.EnemyHpByType[enemy.Type];
             Assert.True(enemy.MaxHp >= baseHp && enemy.MaxHp <= baseHp + 50);
             Assert.Equal(enemy.MaxHp, enemy.CurrentHp); // Should start at full health
-            Assert.True(enemy.Attack >= Constants.MinAttackPower - 5 && enemy.Attack <= Constants.MaxAttackPower - 3);
-            Assert.True(enemy.Defense >= Constants.MinDefensePower - 2 && enemy.Defense <= Constants.MaxDefensePower);
-            Assert.True(enemy.Speed >= Constants.MinMovementSpeed && enemy.Speed <= Constants.MaxMovementSpeed + 1);
+            Assert.True(enemy.Attack >= BattleBasicDefines.MinAttackPower - 5 && enemy.Attack <= BattleBasicDefines.MaxAttackPower - 3);
+            Assert.True(enemy.Defense >= BattleBasicDefines.MinDefensePower - 2 && enemy.Defense <= BattleBasicDefines.MaxDefensePower);
+            Assert.True(enemy.Speed >= BattleBasicDefines.MinMovementSpeed && enemy.Speed <= BattleBasicDefines.MaxMovementSpeed + 1);
         }
     }
 }

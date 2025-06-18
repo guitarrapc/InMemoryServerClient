@@ -75,7 +75,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
             _logger.LogInformation($"Client {_clientIndex}: Connecting to server: {serverUrl}");
 
             _connection = new HubConnectionBuilder()
-                .WithUrl(_serverUrl + Constants.HubRoute)
+                .WithUrl(_serverUrl + SystemDefines.HubRoute)
                 .WithAutomaticReconnect()
                 .Build();
 

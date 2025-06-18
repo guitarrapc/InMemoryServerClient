@@ -113,7 +113,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         await Clients.OthersInGroup(group.Id).SendAsync("MemberJoined", Context.ConnectionId, group.ConnectionCount);
 
         // Check if group is full and battle should start
-        if (group.ConnectionCount == Constants.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
+        if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
         {
             await StartBattleAsync(group);
         }
@@ -182,8 +182,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             return new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = Constants.BattleFieldWidth,
-                FieldHeight = Constants.BattleFieldHeight
+                FieldWidth = BattleBasicDefines.BattleFieldWidth,
+                FieldHeight = BattleBasicDefines.BattleFieldHeight
             };
         }
 
@@ -192,8 +192,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             : new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = Constants.BattleFieldWidth,
-                FieldHeight = Constants.BattleFieldHeight
+                FieldWidth = BattleBasicDefines.BattleFieldWidth,
+                FieldHeight = BattleBasicDefines.BattleFieldHeight
             };
     }
 
@@ -215,11 +215,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 
-        var replayPath = Path.Combine(Constants.BattleReplayDirectory, $"{battleId}.jsonl");
+        var replayPath = Path.Combine(SystemDefines.BattleReplayDirectory, $"{battleId}.jsonl");
         if (File.Exists(replayPath))
         {
             // Ensure directory exists for battle replays
-            Directory.CreateDirectory(Constants.BattleReplayDirectory);
+            Directory.CreateDirectory(SystemDefines.BattleReplayDirectory);
 
             try
             {

@@ -33,7 +33,7 @@ public readonly record struct Vector2
     /// </summary>
     public override string ToString() => $"({X}, {Y})";
 
-    public static Vector2 InvalidPosition = new Vector2(-1, -1);
+    public static Vector2 InvalidPosition { get; } = new Vector2(-1, -1);
 }
 
 /// <summary>
@@ -177,12 +177,12 @@ public class BattleStatus
     /// <summary>
     /// Field dimensions (for client-side rendering)
     /// </summary>
-    public int FieldWidth { get; set; } = Constants.BattleFieldWidth;
+    public int FieldWidth { get; set; } = BattleBasicDefines.BattleFieldWidth;
 
     /// <summary>
     /// Field dimensions (for client-side rendering)
     /// </summary>
-    public int FieldHeight { get; set; } = Constants.BattleFieldHeight;
+    public int FieldHeight { get; set; } = BattleBasicDefines.BattleFieldHeight;
 
     /// <summary>
     /// Recent battle logs

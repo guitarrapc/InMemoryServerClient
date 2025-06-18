@@ -27,20 +27,20 @@ builder.Services.AddSingleton<InMemoryHub>();
 var app = builder.Build();
 
 // Configure the SignalR endpoint
-app.MapHub<InMemoryHub>(Constants.HubRoute);
+app.MapHub<InMemoryHub>(SystemDefines.HubRoute);
 
 // Add a basic health check endpoint
 app.MapGet("/health", () => "Healthy");
 
 // Create directory for battle replays
-Directory.CreateDirectory(Constants.BattleReplayDirectory);
+Directory.CreateDirectory(SystemDefines.BattleReplayDirectory);
 
 // Start the server
-Console.WriteLine($"InMemory Server starting on port {Constants.DefaultServerPort}...");
-Console.WriteLine($"Hub available at {Constants.HubRoute}");
+Console.WriteLine($"InMemory Server starting on port {SystemDefines.DefaultServerPort}...");
+Console.WriteLine($"Hub available at {SystemDefines.HubRoute}");
 
 // Configure the app to listen on the specified port
-app.Urls.Add($"http://0.0.0.0:{Constants.DefaultServerPort}");
+app.Urls.Add($"http://0.0.0.0:{SystemDefines.DefaultServerPort}");
 
 // Run the app
 await app.RunAsync();

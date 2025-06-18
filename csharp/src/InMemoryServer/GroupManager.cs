@@ -28,7 +28,7 @@ public class GroupManager
         // If group name is specified, try to join that group
         if (!string.IsNullOrEmpty(groupName) && _groups.TryGetValue(groupName, out var existingGroup))
         {
-            if (existingGroup.ConnectionCount < Constants.MaxConnectionsPerGroup)
+            if (existingGroup.ConnectionCount < SystemDefines.MaxConnectionsPerGroup)
             {
                 // Add connection to group
                 existingGroup.ConnectionCount++;
@@ -37,7 +37,7 @@ public class GroupManager
                 _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.Id})");
 
                 // Check if group is full for battle start
-                if (existingGroup.ConnectionCount == Constants.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
+                if (existingGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
                 {
                     _logger.LogInformation($"Group {existingGroup.Name} is now full and ready for battle!");
                 }
@@ -52,7 +52,7 @@ public class GroupManager
 
         // Find an available group with space
         var availableGroup = _groups.Values
-            .Where(g => g.ConnectionCount < Constants.MaxConnectionsPerGroup && string.IsNullOrEmpty(g.BattleId))
+            .Where(g => g.ConnectionCount < SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(g.BattleId))
             .OrderByDescending(g => g.ConnectionCount) // Prefer groups with more connections to fill them up
             .FirstOrDefault();
 
@@ -65,7 +65,7 @@ public class GroupManager
             _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.Id})");
 
             // Check if group is full for battle start
-            if (availableGroup.ConnectionCount == Constants.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+            if (availableGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
             {
                 _logger.LogInformation($"Group {availableGroup.Name} is now full and ready for battle!");
             }
@@ -81,9 +81,9 @@ public class GroupManager
             Id = newGroupId,
             Name = newGroupName,
             ConnectionCount = 1,
-            MaxConnections = Constants.MaxConnectionsPerGroup,
+            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(Constants.GroupExpirationMinutes),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes),
             ClientIds = new List<string> { connectionId }
         };
 

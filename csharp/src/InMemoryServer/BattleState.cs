@@ -9,16 +9,6 @@ namespace InMemoryServer;
 /// </summary>
 public partial class BattleState
 {
-    // 行動選択に関する定数
-    private const float ATTACK_ADJACENT_REWARD = 30.0f; // 攻撃の報酬をさらに増加
-    private const float ATTACK_LOW_HP_BONUS = 8.0f; // HPが低い敵への攻撃ボーナスも増加
-    private const float DEFEND_LOW_HP_REWARD = 2.0f; // 防御の報酬を大幅に減少
-    private const float DEFEND_ENEMIES_NEARBY_REWARD = 1.5f; // 敵が近くにいる場合の防御ボーナスも大幅に減少
-    private const float MOVE_TO_NEAREST_REWARD = 15.0f; // 移動の報酬を大幅に増加
-    private const float MOVE_TO_LOWEST_HP_REWARD = 12.0f; // HPが低い敵への移動報酬も大幅に増加
-    private const float MOVE_TO_SURROUND_REWARD = 6.0f; // 囲み報酬も増加
-    private const int NEARBY_DISTANCE_THRESHOLD = 2; // 敵が近くにいると判断する距離の閾値
-
     /// <summary>
     /// 行動の報酬を格納する内部構造体
     /// </summary>
@@ -81,7 +71,7 @@ public partial class BattleState
         _battleId = battleId;
         _group = group;
         _logger = logger;
-        _battleField = new string[Constants.BattleFieldHeight, Constants.BattleFieldWidth];
+        _battleField = new string[BattleBasicDefines.BattleFieldHeight, BattleBasicDefines.BattleFieldWidth];
 
         // Store client IDs from the group
         foreach (var clientId in group.ClientIds)
@@ -102,7 +92,7 @@ public partial class BattleState
         // Create players (one for each connection)
         for (int i = 0; i < _group.ConnectionCount; i++)
         {
-            var maxHp = _random.Next(Constants.PlayerHp - 70, Constants.PlayerHp + 70);
+            var maxHp = _random.Next(BattleBasicDefines.PlayerHp - 70, BattleBasicDefines.PlayerHp + 70);
             var player = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
@@ -111,22 +101,22 @@ public partial class BattleState
                 CurrentHp = maxHp, // Start at full health
                 MaxHp = maxHp,
                 // Players get slightly better stats than enemies for balance
-                Attack = _random.Next(Constants.MinAttackPower, Constants.MaxAttackPower + 6),
-                Defense = _random.Next(Constants.MinDefensePower + 2, Constants.MaxDefensePower + 4),
-                Speed = _random.Next(Constants.MinMovementSpeed, Constants.MaxMovementSpeed + 1),
+                Attack = _random.Next(BattleBasicDefines.MinAttackPower, BattleBasicDefines.MaxAttackPower + 6),
+                Defense = _random.Next(BattleBasicDefines.MinDefensePower + 2, BattleBasicDefines.MaxDefensePower + 4),
+                Speed = _random.Next(BattleBasicDefines.MinMovementSpeed, BattleBasicDefines.MaxMovementSpeed + 1),
                 IsDefending = false
             };
             _players.Add(player);
         }
 
         // Create enemies
-        int enemyCount = _random.Next(Constants.MinEnemyCount, Constants.MaxEnemyCount);
-        string[] enemyTypes = [.. Constants.EnemyHpByType.Keys];
+        int enemyCount = _random.Next(BattleBasicDefines.MinEnemyCount, BattleBasicDefines.MaxEnemyCount);
+        string[] enemyTypes = [.. BattleBasicDefines.EnemyHpByType.Keys];
 
         for (int i = 0; i < enemyCount; i++)
         {
             var enemyType = enemyTypes[_random.Next(enemyTypes.Length)];
-            var maxHp = _random.Next(Constants.EnemyHpByType[enemyType], Constants.EnemyHpByType[enemyType] + 50);
+            var maxHp = _random.Next(BattleBasicDefines.EnemyHpByType[enemyType], BattleBasicDefines.EnemyHpByType[enemyType] + 50);
             var enemy = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
@@ -135,16 +125,16 @@ public partial class BattleState
                 CurrentHp = maxHp, // Start at full health
                 MaxHp = maxHp,
                 // Enemies get slightly weaker stats for balance
-                Attack = _random.Next(Constants.MinAttackPower - 5, Constants.MaxAttackPower - 3),
-                Defense = _random.Next(Constants.MinDefensePower - 2, Constants.MaxDefensePower),
-                Speed = _random.Next(Constants.MinMovementSpeed, Constants.MaxMovementSpeed + 1),
+                Attack = _random.Next(BattleBasicDefines.MinAttackPower - 5, BattleBasicDefines.MaxAttackPower - 3),
+                Defense = _random.Next(BattleBasicDefines.MinDefensePower - 2, BattleBasicDefines.MaxDefensePower),
+                Speed = _random.Next(BattleBasicDefines.MinMovementSpeed, BattleBasicDefines.MaxMovementSpeed + 1),
                 IsDefending = false
             };
             _enemies.Add(enemy);
         }
 
         // Set total turns for battle (balance to ensure it finishes in reasonable time)
-        _totalTurns = _random.Next(Constants.MinBattleTurns, Constants.MaxBattleTurns + 1);
+        _totalTurns = _random.Next(BattleBasicDefines.MinBattleTurns, BattleBasicDefines.MaxBattleTurns + 1);
 
         // Initialize battle field and place entities
         InitializeBattleField();
@@ -159,9 +149,9 @@ public partial class BattleState
     private void InitializeBattleField()
     {
         // Clear battle field
-        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
         {
-            for (int x = 0; x < Constants.BattleFieldWidth; x++)
+            for (int x = 0; x < BattleBasicDefines.BattleFieldWidth; x++)
             {
                 _battleField[y, x] = null;
             }
@@ -173,9 +163,9 @@ public partial class BattleState
             int attempts = 0;
             while (attempts < 100) // Prevent infinite loop
             {
-                int x = _random.Next(Constants.BattleFieldWidth);
-                int y = Constants.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
-                if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth &&
+                int x = _random.Next(BattleBasicDefines.BattleFieldWidth);
+                int y = BattleBasicDefines.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
+                if (y >= 0 && y < BattleBasicDefines.BattleFieldHeight && x >= 0 && x < BattleBasicDefines.BattleFieldWidth &&
 _battleField[y, x] == null)
                 {
                     _battleField[y, x] = _players[i].Id;
@@ -192,9 +182,9 @@ _battleField[y, x] == null)
             int attempts = 0;
             while (attempts < 100) // Prevent infinite loop
             {
-                int x = _random.Next(Constants.BattleFieldWidth);
+                int x = _random.Next(BattleBasicDefines.BattleFieldWidth);
                 int y = _random.Next(0, 7); // Top 7 rows
-                if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth && _battleField[y, x] == null)
+                if (y >= 0 && y < BattleBasicDefines.BattleFieldHeight && x >= 0 && x < BattleBasicDefines.BattleFieldWidth && _battleField[y, x] == null)
                 {
                     _battleField[y, x] = _enemies[i].Id;
                     _enemies[i] = _enemies[i] with { Position = new Vector2(x, y) };
@@ -214,13 +204,13 @@ _battleField[y, x] == null)
         var startTime = DateTime.UtcNow;
 
         // Create directory for battle replays if it doesn't exist
-        Directory.CreateDirectory(Constants.BattleReplayDirectory);
+        Directory.CreateDirectory(SystemDefines.BattleReplayDirectory);
 
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
         var allTurnData = new List<BattleStatus>(_totalTurns + 1);
 
         // Open file for battle replay
-        using (var replayFile = File.CreateText(Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")))
+        using (var replayFile = File.CreateText(Path.Combine(SystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")))
         {
             // Write initial state
             await WriteReplayFrameAsync(replayFile);
@@ -273,7 +263,7 @@ _battleField[y, x] == null)
         var duration = endTime - startTime;
         _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
         _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
-        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(Constants.BattleReplayDirectory, $"{_battleId}.jsonl")}");
+        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(SystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
 
         // Store all turn data for client transmission
         _allTurnData = allTurnData;
@@ -304,9 +294,9 @@ _battleField[y, x] == null)
         _battleLogs.Clear();
 
         // Clear battle field references
-        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
         {
-            for (int x = 0; x < Constants.BattleFieldWidth; x++)
+            for (int x = 0; x < BattleBasicDefines.BattleFieldWidth; x++)
             {
                 _battleField[y, x] = null;
             }
@@ -425,16 +415,18 @@ _battleField[y, x] == null)
         if (adjacentTarget != null)
         {
             // 基本攻撃報酬 - 最優先
-            float reward = ATTACK_ADJACENT_REWARD;            // HPが低い敵に対するボーナス
+            float reward = BattleAIDefines.AttackAdjacentReward;
+
+            // HPが低い敵に対するボーナス
             float hpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
             // HPが30%未満の敵は優先的に攻撃（とどめを刺す）
-            if (hpRatio < 0.3f)
+            if (hpRatio < BattleAIDefines.LowHpRatio)
             {
                 reward *= 2.0f;  // 大幅にボーナスを増加
             }
 
-            reward += (1 - hpRatio) * ATTACK_LOW_HP_BONUS;
+            reward += (1 - hpRatio) * BattleAIDefines.AttackLowHpBonus;
 
             // 敵のタイプに基づいた優先度
             // Typeがnullでないことを確認
@@ -443,12 +435,12 @@ _battleField[y, x] == null)
                 // 小さい敵は倒しやすいので優先
                 if (adjacentTarget.Value.Type.StartsWith("Small"))
                 {
-                    reward *= 1.5f;  // ボーナスを増加
+                    reward *= BattleAIDefines.SmallEnemyAttackMultiplier;
                 }
                 // 大きい敵は脅威が大きいので優先
                 else if (adjacentTarget.Value.Type.StartsWith("Large"))
                 {
-                    reward *= 1.3f;  // ボーナスを増加
+                    reward *= BattleAIDefines.LargeEnemyAttackMultiplier;
                 }
             }
 
@@ -456,21 +448,21 @@ _battleField[y, x] == null)
             int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
             if (adjacentTarget.Value.IsDefending)
             {
-                estimatedDamage = estimatedDamage * (100 - Constants.DefenseDamageReductionPercent) / 100;
+                estimatedDamage = estimatedDamage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100;
                 estimatedDamage = Math.Max(1, estimatedDamage);
             }
 
             if (estimatedDamage >= adjacentTarget.Value.CurrentHp)
             {
                 // 一撃で倒せる場合は最高優先度
-                reward *= 3.0f;  // 倍率を増加
+                reward *= BattleAIDefines.OneHitKillMultiplier;
             }
 
             // エンティティタイプによる攻撃性調整
             if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
             {
                 // 敵は特に攻撃的に
-                reward *= 1.5f;
+                reward *= BattleAIDefines.NonPlayerAttackMultiplier;
             }
 
             actions.Add(new ActionReward("attack", reward, adjacentTarget));
@@ -492,13 +484,13 @@ _battleField[y, x] == null)
 
         // Increase reward if entity's HP is critically low (only when below 20%)
         float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
-        if (hpRatio < 0.2f)  // HP閾値をさらに下げる（25%→20%）
+        if (hpRatio < BattleAIDefines.CriticalHpRatio)
         {
-            reward += (1 - hpRatio) * DEFEND_LOW_HP_REWARD;
+            reward += (1 - hpRatio) * BattleAIDefines.DefendLowHpReward;
         }
 
         // Check if there are enemies within a certain distance threshold
-        bool enemiesNearby = AreEnemiesNearby(entity, NEARBY_DISTANCE_THRESHOLD);
+        bool enemiesNearby = AreEnemiesNearby(entity, BattleAIDefines.NearbyDistanceThreshold);
         if (enemiesNearby)
         {
             // 敵が隣接している場合にのみ防御を検討
@@ -506,13 +498,13 @@ _battleField[y, x] == null)
             if (adjacentTarget != null)
             {
                 // 敵が隣接していても、HPが50%以上残っている場合は攻撃を優先
-                if (hpRatio > 0.5f)
+                if (hpRatio > BattleAIDefines.SufficientHpRatio)
                 {
                     reward *= 0.2f;  // 防御報酬を大幅に下げる
                 }
                 else
                 {
-                    reward += DEFEND_ENEMIES_NEARBY_REWARD;
+                    reward += BattleAIDefines.DefendEnemiesNearbyReward;
                 }
             }
             else
@@ -532,13 +524,15 @@ _battleField[y, x] == null)
         if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
         {
             // 敵は攻撃的な行動を優先するためさらに報酬を下げる
-            reward *= 0.3f;
+            reward *= BattleAIDefines.NonPlayerDefendMultiplier;
         }
 
         actions.Add(new ActionReward("defend", reward));
     }
 
     /// <summary>
+    /// 移動行動の評価
+    /// </summary>    /// <summary>
     /// 移動行動の評価
     /// </summary>
     private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
@@ -551,7 +545,7 @@ _battleField[y, x] == null)
             float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
             float enemyHpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
-            if (hpRatio < 0.3f && enemyHpRatio > 0.7f)
+            if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
             {
                 // HPが危険な状態で敵が健在なら逃げることを考慮
                 actions.Add(new ActionReward("move", 3.0f));
@@ -574,7 +568,7 @@ _battleField[y, x] == null)
         if (nearestTarget != null)
         {
             // 基本報酬値
-            float reward = MOVE_TO_NEAREST_REWARD;
+            float reward = BattleAIDefines.MoveToNearestReward;
 
             // 最も近い敵までの距離
             int distanceToNearest = CalculateManhattanDistance(entity.Position, nearestTarget.Value.Position);
@@ -582,16 +576,16 @@ _battleField[y, x] == null)
             // 距離が1または2の場合（次の移動で攻撃可能または近づける）は報酬を増加
             if (distanceToNearest == 2)
             {
-                reward *= 2.0f; // 次のターンで攻撃できる位置に移動する場合、報酬を大幅に増加
+                reward *= BattleAIDefines.NextTurnAttackPositionMultiplier;
             }
             else if (distanceToNearest == 3)
             {
-                reward *= 1.7f; // 2ターン後に攻撃できる位置にも報酬を増加
+                reward *= BattleAIDefines.TwoTurnsAttackPositionMultiplier;
             }
 
             // 敵のHPが低い場合のボーナス
             float hpRatio = (float)nearestTarget.Value.CurrentHp / nearestTarget.Value.MaxHp;
-            if (hpRatio < 0.5f)
+            if (hpRatio < BattleAIDefines.SufficientHpRatio)
             {
                 reward *= (1.0f + (1.0f - hpRatio)); // HPが低いほど報酬が高くなる
             }
@@ -599,14 +593,14 @@ _battleField[y, x] == null)
             // 敵を囲む戦略（協調行動）のボーナス
             if (CanSurroundEnemy(entity, nearestTarget.Value))
             {
-                reward += MOVE_TO_SURROUND_REWARD;
+                reward += BattleAIDefines.MoveToSurroundReward;
             }
 
             // エンティティタイプによる攻撃性調整
             if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
             {
                 // 敵は特に移動攻撃的に
-                reward *= 1.3f;
+                reward *= BattleAIDefines.NonPlayerMoveMultiplier;
             }
 
             actions.Add(new ActionReward("move", reward, nearestTarget));
@@ -615,13 +609,13 @@ _battleField[y, x] == null)
         // 最もHPの低い敵に対する評価
         if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.Id != nearestTarget.Value.Id))
         {
-            float reward = MOVE_TO_LOWEST_HP_REWARD;
+            float reward = BattleAIDefines.MoveToLowestHpReward;
             float hpRatio = (float)lowestHpTarget.Value.CurrentHp / lowestHpTarget.Value.MaxHp;
 
             // HPが非常に低い敵（20%未満）への移動は高い優先度
-            if (hpRatio < 0.2f)
+            if (hpRatio < BattleAIDefines.CriticalHpRatio)
             {
-                reward *= 3.0f; // 大幅に増加
+                reward *= BattleAIDefines.LowHpEnemyMoveMultiplier;
             }
             else
             {
@@ -638,7 +632,7 @@ _battleField[y, x] == null)
             // エンティティタイプによる攻撃性調整
             if (!string.IsNullOrEmpty(entity.Type) && entity.Type != "Player")
             {
-                reward *= 1.3f;
+                reward *= BattleAIDefines.NonPlayerMoveMultiplier;
             }
 
             actions.Add(new ActionReward("move", reward, lowestHpTarget));
@@ -670,8 +664,8 @@ _battleField[y, x] == null)
                 int checkY = y + dy;
 
                 // Check if position is valid
-                if (checkX >= 0 && checkX < Constants.BattleFieldWidth &&
-                    checkY >= 0 && checkY < Constants.BattleFieldHeight &&
+                if (checkX >= 0 && checkX < BattleBasicDefines.BattleFieldWidth &&
+                    checkY >= 0 && checkY < BattleBasicDefines.BattleFieldHeight &&
                     _battleField[checkY, checkX] != null)
                 {                    string targetId = _battleField[checkY, checkX]!;
                     EntityInfo? target = null;
@@ -902,8 +896,8 @@ _battleField[y, x] == null)
     /// </summary>
     private bool IsValidEmptyPosition(int x, int y)
     {
-        return x >= 0 && x < Constants.BattleFieldWidth &&
-               y >= 0 && y < Constants.BattleFieldHeight &&
+        return x >= 0 && x < BattleBasicDefines.BattleFieldWidth &&
+               y >= 0 && y < BattleBasicDefines.BattleFieldHeight &&
                _battleField[y, x] == null;
     }
 
@@ -961,7 +955,7 @@ _battleField[y, x] == null)
         // Apply damage reduction if target is defending
         if (targetValue.IsDefending)
         {
-            damage = damage * (100 - Constants.DefenseDamageReductionPercent) / 100;
+            damage = damage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100;
             damage = Math.Max(1, damage); // Minimum 1 damage
         }
 
@@ -1070,7 +1064,7 @@ _battleField[y, x] == null)
             }
         }
 
-        _battleLogs.Add($"{entity.Name} takes a defensive stance, reducing incoming damage by {Constants.DefenseDamageReductionPercent}%.");
+        _battleLogs.Add($"{entity.Name} takes a defensive stance, reducing incoming damage by {BattleBasicDefines.DefenseDamageReductionPercent}%.");
     }
 
     /// <summary>
@@ -1111,18 +1105,18 @@ _battleField[y, x] == null)
     /// </summary>
     private ReadOnlyMemory<ReadOnlyMemory<string?>> GetBattleFieldSnapshot()
     {
-        var cells = new string?[Constants.BattleFieldHeight][];
-        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        var cells = new string?[BattleBasicDefines.BattleFieldHeight][];
+        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
         {
-            cells[y] = new string?[Constants.BattleFieldWidth];
-            for (int x = 0; x < Constants.BattleFieldWidth; x++)
+            cells[y] = new string?[BattleBasicDefines.BattleFieldWidth];
+            for (int x = 0; x < BattleBasicDefines.BattleFieldWidth; x++)
             {
                 cells[y][x] = _battleField[y, x];
             }
         }
 
-        var rowMemories = new ReadOnlyMemory<string?>[Constants.BattleFieldHeight];
-        for (int y = 0; y < Constants.BattleFieldHeight; y++)
+        var rowMemories = new ReadOnlyMemory<string?>[BattleBasicDefines.BattleFieldHeight];
+        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
         {
             rowMemories[y] = cells[y].AsMemory();
         }
@@ -1143,8 +1137,8 @@ _battleField[y, x] == null)
             TotalTurns = _totalTurns,
             Players = [.. _players],
             Enemies = [.. _enemies],
-            FieldWidth = Constants.BattleFieldWidth,
-            FieldHeight = Constants.BattleFieldHeight,
+            FieldWidth = BattleBasicDefines.BattleFieldWidth,
+            FieldHeight = BattleBasicDefines.BattleFieldHeight,
             RecentLogs = [.. _battleLogs.TakeLast(10)]
         };
     }
@@ -1162,8 +1156,8 @@ _battleField[y, x] == null)
             TotalTurns = _totalTurns,
             Players = [.. _players], // structs automatically create copies
             Enemies = [.. _enemies], // structs automatically create copies
-            FieldWidth = Constants.BattleFieldWidth,
-            FieldHeight = Constants.BattleFieldHeight,
+            FieldWidth = BattleBasicDefines.BattleFieldWidth,
+            FieldHeight = BattleBasicDefines.BattleFieldHeight,
             RecentLogs = [.. _battleLogs.TakeLast(10)]
         };
     }
@@ -1278,8 +1272,8 @@ _battleField[y, x] == null)
                 int checkY = target.Position.Y + dy;
 
                 // 位置が有効かチェック
-                if (checkX >= 0 && checkX < Constants.BattleFieldWidth &&
-                    checkY >= 0 && checkY < Constants.BattleFieldHeight)
+                if (checkX >= 0 && checkX < BattleBasicDefines.BattleFieldWidth &&
+                    checkY >= 0 && checkY < BattleBasicDefines.BattleFieldHeight)
                 {
                     // 味方がその位置にいるかチェック
                     foreach (var ally in allies)
