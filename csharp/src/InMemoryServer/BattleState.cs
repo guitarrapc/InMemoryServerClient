@@ -44,10 +44,10 @@ public partial class BattleState
     private readonly string?[,] _battleField;
     private readonly ILogger<BattleState> _logger;
     private readonly ConcurrentDictionary<string, State> _clients = new();
-
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
+    private bool _playerVictory = false; // プレイヤー勝利フラグ
     private int _connectedClientsCount = 0;
     private int _readyClientsCount = 0;
 
@@ -227,9 +227,13 @@ _battleField[y, x] == null)
                 allTurnData.Add(GetStatusSnapshot()); // Store turn data with deep copies
 
                 // Check if battle is over
-                if (CheckBattleOver())
+                var (isOver, isPlayerVictory) = CheckBattleOver();
+                if (isOver)
                 {
                     _isCompleted = true;
+
+                    // 勝敗結果を保存（最終ログ表示用）
+                    _playerVictory = isPlayerVictory;
                     break;
                 }
 
@@ -245,13 +249,13 @@ _battleField[y, x] == null)
             }
 
             // Add final battle log
-            if (_players.Any(p => p.CurrentHp > 0))
+            if (_playerVictory)
             {
                 _battleLogs.Add("Victory! All enemies have been defeated!");
             }
             else
             {
-                _battleLogs.Add("Defeat! All players have been defeated!");
+                _battleLogs.Add("❌ Defeat! All players defeated! ❌");
             }
 
             // Write final state
@@ -262,7 +266,7 @@ _battleField[y, x] == null)
         var endTime = DateTime.UtcNow;
         var duration = endTime - startTime;
         _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
-        _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_players.Any(p => p.CurrentHp > 0) ? "Victory" : "Defeat")}");
+        _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_playerVictory ? "Victory" : "Defeat")}");
         _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(SystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
 
         // Store all turn data for client transmission
@@ -289,7 +293,8 @@ _battleField[y, x] == null)
         {
             turnData.Clear();
         }
-        _allTurnData.Clear(); _players.Clear();
+        _allTurnData.Clear();
+        _players.Clear();
         _enemies.Clear();
         _battleLogs.Clear();
 
@@ -412,10 +417,38 @@ _battleField[y, x] == null)
     /// </summary>
     private void EvaluateAttackAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
     {
+        // 生存している敵がいるか確認
+        var targets = entity.Type == "Player" ?
+            _enemies.Where(e => e.CurrentHp > 0) :
+            _players.Where(p => p.CurrentHp > 0);
+
+        if (!targets.Any())
+        {
+            // 敵が全滅している場合は攻撃不可
+            actions.Add(new ActionReward("attack", -100f));
+            return;
+        }
+
         if (adjacentTarget != null)
         {
             // 基本攻撃報酬 - 最優先
             float reward = BattleAIDefines.AttackAdjacentReward;
+
+            // 敵が残り一体の場合、攻撃報酬を大幅に増加
+            if (targets.Count() == 1)
+            {
+                reward *= 3.0f; // 敵が残り一体なら攻撃を最優先
+            }
+
+            // 味方が自分しかいない場合、攻撃報酬を増加
+            var allies = entity.Type == "Player" ?
+                _players.Where(p => p.CurrentHp > 0) :
+                _enemies.Where(e => e.CurrentHp > 0);
+
+            if (allies.Count() == 1) // 自分しか生き残っていない
+            {
+                reward *= 2.5f; // 自分しか生き残っていない場合は攻撃を優先
+            }
 
             // HPが低い敵に対するボーナス
             float hpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
@@ -479,6 +512,35 @@ _battleField[y, x] == null)
     /// </summary>
     private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions)
     {
+        // すべての敵が倒されている場合、防御する意味はない
+        var targets = entity.Type == "Player" ?
+            _enemies.Where(e => e.CurrentHp > 0) :
+            _players.Where(p => p.CurrentHp > 0);
+
+        if (!targets.Any())
+        {
+            actions.Add(new ActionReward("defend", -100f)); // 敵がいない場合は防御を選ばない
+            return;
+        }
+
+        // 敵が残り一体の場合は、攻撃を優先するために防御の報酬値を大幅に下げる
+        if (targets.Count() == 1)
+        {
+            actions.Add(new ActionReward("defend", -50f)); // 敵が残り一体の場合は攻撃を優先
+            return;
+        }
+
+        // 味方が自分しかいない場合は、攻撃を優先するために防御の報酬値を大幅に下げる
+        var allies = entity.Type == "Player" ?
+            _players.Where(p => p.CurrentHp > 0) :
+            _enemies.Where(e => e.CurrentHp > 0);
+
+        if (allies.Count() == 1) // 自分しか生き残っていない
+        {
+            actions.Add(new ActionReward("defend", -50f)); // 自分しか生き残っていない場合は攻撃を優先
+            return;
+        }
+
         // Base reward for defending - starting with a very low base value
         float reward = 0.1f;  // 防御の基本報酬をさらに低く
 
@@ -532,11 +594,30 @@ _battleField[y, x] == null)
 
     /// <summary>
     /// 移動行動の評価
-    /// </summary>    /// <summary>
-    /// 移動行動の評価
     /// </summary>
     private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget)
     {
+        // 生存している敵がいるか確認
+        var targets = entity.Type == "Player" ?
+            _enemies.Where(e => e.CurrentHp > 0) :
+            _players.Where(p => p.CurrentHp > 0);
+
+        if (!targets.Any())
+        {
+            // 敵が全滅している場合、移動は最低優先度にする
+            actions.Add(new ActionReward("move", 0.1f));
+            return;
+        }
+
+        // 敵が残り一体の場合、その敵に攻撃するために優先的に移動する
+        bool isLastEnemy = targets.Count() == 1;
+
+        // 味方が自分しかいない場合
+        var allies = entity.Type == "Player" ?
+            _players.Where(p => p.CurrentHp > 0) :
+            _enemies.Where(e => e.CurrentHp > 0);
+        bool isLastAlly = allies.Count() == 1; // 自分しか生き残っていない
+
         if (adjacentTarget != null)
         {
             // 隣接する敵がいる場合は、移動よりも攻撃を優先させるため移動の価値を下げる
@@ -545,7 +626,12 @@ _battleField[y, x] == null)
             float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
             float enemyHpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
-            if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
+            // 敵が残り一体または自分しか生き残っていない場合は逃げない
+            if (isLastEnemy || isLastAlly)
+            {
+                actions.Add(new ActionReward("move", 0.1f)); // 攻撃を優先するため移動の報酬を大幅に下げる
+            }
+            else if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
             {
                 // HPが危険な状態で敵が健在なら逃げることを考慮
                 actions.Add(new ActionReward("move", 3.0f));
@@ -560,6 +646,13 @@ _battleField[y, x] == null)
         // Find nearest target for evaluation
         var nearestTarget = FindNearestTarget(entity);
 
+        // 敵が残り一体またはプレイヤーが自分しかいない場合、移動の優先度を上げる
+        float moveMultiplier = 1.0f;
+        if (isLastEnemy || isLastAlly)
+        {
+            moveMultiplier = 5.0f; // 最終決戦状態では移動の優先度を大幅に上げる
+        }
+
         // Find the lowest HP target for evaluation
         var lowestHpTarget = FindLowestHpTarget(entity);
 
@@ -568,7 +661,7 @@ _battleField[y, x] == null)
         if (nearestTarget != null)
         {
             // 基本報酬値
-            float reward = BattleAIDefines.MoveToNearestReward;
+            float reward = BattleAIDefines.MoveToNearestReward * moveMultiplier;
 
             // 最も近い敵までの距離
             int distanceToNearest = CalculateManhattanDistance(entity.Position, nearestTarget.Value.Position);
@@ -609,7 +702,7 @@ _battleField[y, x] == null)
         // 最もHPの低い敵に対する評価
         if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.Id != nearestTarget.Value.Id))
         {
-            float reward = BattleAIDefines.MoveToLowestHpReward;
+            float reward = BattleAIDefines.MoveToLowestHpReward * moveMultiplier;
             float hpRatio = (float)lowestHpTarget.Value.CurrentHp / lowestHpTarget.Value.MaxHp;
 
             // HPが非常に低い敵（20%未満）への移動は高い優先度
@@ -1070,12 +1163,28 @@ _battleField[y, x] == null)
     /// <summary>
     /// Check if battle is over
     /// </summary>
-    private bool CheckBattleOver()
+    /// <returns>Tuple of (isOver, isPlayerVictory) where isOver indicates if battle is over, and isPlayerVictory indicates if players won</returns>
+    private (bool isOver, bool isPlayerVictory) CheckBattleOver()
     {
         // Battle is over if all players or all enemies are defeated
         bool allPlayersDead = _players.All(p => p.CurrentHp <= 0);
         bool allEnemiesDead = _enemies.All(e => e.CurrentHp <= 0);
-        return allPlayersDead || allEnemiesDead;
+
+        // 両方全滅した場合は引き分けとしてプレイヤー敗北とする
+        if (allPlayersDead && allEnemiesDead)
+        {
+            return (true, false); // バトル終了、プレイヤー敗北
+        }
+        else if (allPlayersDead)
+        {
+            return (true, false); // バトル終了、プレイヤー敗北
+        }
+        else if (allEnemiesDead)
+        {
+            return (true, true); // バトル終了、プレイヤー勝利
+        }
+
+        return (false, false); // バトル継続中
     }
 
     /// <summary>
