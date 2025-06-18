@@ -311,16 +311,31 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 // Clear chunk data immediately after sending to reduce memory pressure
                 replayData.TurnData.Clear();
 
-                // Small delay between chunks to avoid overwhelming clients
-                if (!isLastChunk)
+                // Free memory for processed chunk
+                if (i > 0 && chunks.Count > 2)
                 {
-                    await Task.Delay(100);
+                    // Clear previous chunk data from allTurnData to help GC
+                    var startIndex = (i - 1) * maxTurnsPerChunk;
+                    var endIndex = Math.Min(startIndex + maxTurnsPerChunk, allTurnData.Count);
+                    for (int j = startIndex; j < endIndex; j++)
+                    {
+                        if (j < allTurnData.Count)
+                        {
+                            // Clear references within the status object
+                            allTurnData[j].Players.Clear();
+                            allTurnData[j].Enemies.Clear();
+                            allTurnData[j].RecentLogs.Clear();
+                        }
+                    }
                 }
             }
 
             // 6. Battle completed notification
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
             _logger.LogInformation($"Battle {battleId}: All replay data sent, battle marked as completed");
+
+            // Clear entire allTurnData after all chunks sent
+            battle.ClearBattleData();
         });
     }
 
