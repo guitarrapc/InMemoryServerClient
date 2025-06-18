@@ -525,52 +525,49 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
         {
             logger.LogInformation($"Requesting battle replay for battle {battleId}...");
             var replayData = await client.GetBattleReplayAsync(battleId);
-            if (replayData != null)
-            {
-                logger.LogInformation($"Replay data received for battle {battleId}");
-                logger.LogInformation("Processing battle replay data...");
-
-                // Parse the JSONL file into BattleStatus objects
-                var battleStatuses = new List<BattleStatus>();
-                var lines = replayData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (var line in lines)
-                {
-                    if (!string.IsNullOrEmpty(line))
-                    {
-                        try
-                        {
-                            var status = System.Text.Json.JsonSerializer.Deserialize<BattleStatus>(line);
-                            if (status != null)
-                            {
-                                battleStatuses.Add(status);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogInformation($"Error parsing battle status: {ex.Message}");
-                        }
-                    }
-                }
-
-                logger.LogInformation($"Found {battleStatuses.Count} turns in replay data");
-
-                if (battleStatuses.Count > 0)
-                {
-                    // Play the battle replay using InMemoryClient's replay functionality
-                    await client.PlaySavedBattleReplayAsync(battleStatuses);
-                }
-                else
-                {
-                    logger.LogInformation("No valid battle data found in the replay");
-                    Environment.ExitCode = 1;
-                }
-            }
-            else
+            if (replayData is null)
             {
                 logger.LogInformation($"Replay data not found for battle: {battleId}");
                 Environment.ExitCode = 1;
+                return;
             }
+
+            logger.LogInformation($"Replay data received for battle {battleId}");
+            logger.LogInformation("Processing battle replay data...");
+
+            // Parse the JSONL file into BattleStatus objects
+            List<BattleStatus> battleStatuses = [];
+            var lines = replayData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var line in lines)
+            {
+                if (!string.IsNullOrEmpty(line))
+                {
+                    try
+                    {
+                        var status = System.Text.Json.JsonSerializer.Deserialize<BattleStatus>(line);
+                        if (status != null)
+                        {
+                            battleStatuses.Add(status);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogInformation($"Error parsing battle status: {ex.Message}");
+                    }
+                }
+            }
+
+            logger.LogInformation($"Found {battleStatuses.Count} turns in replay data");
+
+            if (battleStatuses.Count <= 0)
+            {
+                logger.LogInformation("No valid battle data found in the replay");
+                Environment.ExitCode = 1;
+            }
+
+            // Play the battle replay using InMemoryClient's replay functionality
+            await client.PlayBattleReplayAsync(battleStatuses);
         }
         catch (Exception ex)
         {
@@ -655,7 +652,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     [Command("connect-battle")]
-    private async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5)
+    public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5)
     {
         if (count <= 0)
         {
