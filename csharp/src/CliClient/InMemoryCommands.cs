@@ -626,6 +626,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
+    [Command("connect-battle")]
     private async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5)
     {
         if (count <= 0)

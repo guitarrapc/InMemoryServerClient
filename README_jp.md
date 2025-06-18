@@ -107,28 +107,11 @@ dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
 
 #### 単発コマンド例
 ```bash
-# サーバーに接続
-dotnet run -- connect -u http://localhost:5000
-
 # バトルテスト用に複数セッションを接続
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 1
+
+# バトルテスト用に単一セッションを接続
 dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 5
-
-# キーバリュー操作
-dotnet run -- set mykey "Hello World"
-dotnet run -- get mykey
-dotnet run -- delete mykey
-dotnet run -- list "*"
-
-# グループ操作
-dotnet run -- join mygroup
-dotnet run -- broadcast "Hello everyone!"
-dotnet run -- groups
-dotnet run -- my-group
-
-# バトル操作
-dotnet run -- battle-status
-dotnet run -- battle-replay <battle_id>
-dotnet run -- battle-complete # リプレイ視聴完了を通知
 ```
 
 #### インタラクティブモードコマンド

@@ -107,28 +107,11 @@ This will create 5 client connections in the same group to trigger an automatic 
 
 #### Single Command Examples
 ```bash
-# Connect to server
-dotnet run -- connect -u http://localhost:5000
+# Connect single sessions for battle testing
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 1
 
 # Connect multiple sessions for battle testing
 dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 5
-
-# Key-value operations
-dotnet run -- set mykey "Hello World"
-dotnet run -- get mykey
-dotnet run -- delete mykey
-dotnet run -- list "*"
-
-# Group operations
-dotnet run -- join mygroup
-dotnet run -- broadcast "Hello everyone!"
-dotnet run -- groups
-dotnet run -- my-group
-
-# Battle operations
-dotnet run -- battle-status
-dotnet run -- battle-replay <battle_id>
-dotnet run -- battle-complete # Signal replay viewing completion
 ```
 
 #### Interactive Mode Commands
