@@ -70,7 +70,6 @@ public partial class BattleState
     /// </summary>
     private void InitializeBattle()
     {
-
         // Create players (one for each connection)
         for (int i = 0; i < _group.ConnectionCount; i++)
         {
@@ -148,10 +147,9 @@ public partial class BattleState
                 int x = _random.Next(Constants.BattleFieldWidth);
                 int y = Constants.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
                 if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth &&
-_battleField[y, x] == null)
-                {
+_battleField[y, x] == null)                {
                     _battleField[y, x] = _players[i].Id;
-                    _players[i] = _players[i] with { PositionX = x, PositionY = y };
+                    _players[i] = _players[i] with { Position = new Vector2(x, y) };
                     break;
                 }
                 attempts++;
@@ -166,11 +164,10 @@ _battleField[y, x] == null)
             {
                 int x = _random.Next(Constants.BattleFieldWidth);
                 int y = _random.Next(0, 7); // Top 7 rows
-                if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth &&
-_battleField[y, x] == null)
+                if (y >= 0 && y < Constants.BattleFieldHeight && x >= 0 && x < Constants.BattleFieldWidth && _battleField[y, x] == null)
                 {
                     _battleField[y, x] = _enemies[i].Id;
-                    _enemies[i] = _enemies[i] with { PositionX = x, PositionY = y };
+                    _enemies[i] = _enemies[i] with { Position = new Vector2(x, y) };
                     break;
                 }
                 attempts++;
@@ -215,6 +212,16 @@ _battleField[y, x] == null)
                     _isCompleted = true;
                     break;
                 }
+
+                // Periodically clear logs to reduce memory pressure
+                if (_currentTurn % 25 == 0)
+                {
+                    // Keep only the most recent logs
+                    if (_battleLogs.Count > 20)
+                    {
+                        _battleLogs.RemoveRange(0, _battleLogs.Count - 20);
+                    }
+                }
             }
 
             // Add final battle log
@@ -242,6 +249,7 @@ _battleField[y, x] == null)
         _allTurnData = allTurnData;
     }
 
+    // Pre-allocate for typical battle length
     private List<BattleStatus> _allTurnData = [];
 
     /// <summary>
@@ -257,8 +265,11 @@ _battleField[y, x] == null)
     /// </summary>
     public void ClearBattleData()
     {
-        _allTurnData.Clear();
-        _players.Clear();
+        foreach (var turnData in _allTurnData)
+        {
+            turnData.Clear();
+        }
+        _allTurnData.Clear(); _players.Clear();
         _enemies.Clear();
         _battleLogs.Clear();
 
@@ -271,7 +282,7 @@ _battleField[y, x] == null)
             }
         }
 
-        _logger.LogInformation("Battle {BattleId}: Memory cleared for GC optimization", _battleId);
+        _logger.LogDebug("Battle {BattleId}: Memory cleared for GC optimization", _battleId);
     }
 
     /// <summary>
@@ -378,8 +389,8 @@ _battleField[y, x] == null)
     /// </summary>
     private EntityInfo? FindAdjacentTarget(EntityInfo entity)
     {
-        int x = entity.PositionX;
-        int y = entity.PositionY;
+        int x = entity.Position.X;
+        int y = entity.Position.Y;
 
         // Check all adjacent positions (including diagonals)
         for (int dy = -1; dy <= 1; dy++)
@@ -435,8 +446,7 @@ _battleField[y, x] == null)
 
         foreach (var target in targets)
         {
-            int distance = Math.Abs(entity.PositionX - target.PositionX) +
-                          Math.Abs(entity.PositionY - target.PositionY);
+            int distance = Math.Abs(entity.Position.X - target.Position.X) + Math.Abs(entity.Position.Y - target.Position.Y);
             if (distance < minDistance)
             {
                 minDistance = distance;
@@ -451,25 +461,21 @@ _battleField[y, x] == null)
         }
 
         // Determine movement direction towards target
-        int dx = Math.Sign(nearestTarget.Value.PositionX - entity.PositionX);
-        int dy = Math.Sign(nearestTarget.Value.PositionY - entity.PositionY);
+        int dx = Math.Sign(nearestTarget.Value.Position.X - entity.Position.X);
+        int dy = Math.Sign(nearestTarget.Value.Position.Y - entity.Position.Y);
 
         // Try to move in that direction
-        int newX = entity.PositionX + dx;
-        int newY = entity.PositionY + dy;
+        int newX = entity.Position.X + dx;
+        int newY = entity.Position.Y + dy;
 
         // Check if new position is valid and empty
         if (newX >= 0 && newX < Constants.BattleFieldWidth &&
             newY >= 0 && newY < Constants.BattleFieldHeight &&
             _battleField[newY, newX] == null)
         {
-            // Update battle field
-            _battleField[entity.PositionY, entity.PositionX] = null;
-            _battleField[newY, newX] = entity.Id;
-
             // Update entity position in the appropriate list
             UpdateEntityPosition(entity, newX, newY);
-            _battleLogs.Add($"{entity.Name} moves from ({entity.PositionX},{entity.PositionY}) to ({newX},{newY})");
+            _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY})");
         }
         else
         {
@@ -488,20 +494,20 @@ _battleField[y, x] == null)
                     // Skip original blocked direction
                     if (altDx == dx && altDy == dy) continue;
 
-                    int altX = entity.PositionX + altDx;
-                    int altY = entity.PositionY + altDy;
+                    int altX = entity.Position.X + altDx;
+                    int altY = entity.Position.Y + altDy;
 
                     if (altX >= 0 && altX < Constants.BattleFieldWidth &&
                         altY >= 0 && altY < Constants.BattleFieldHeight &&
                         _battleField[altY, altX] == null)
                     {
                         // Update battle field
-                        _battleField[entity.PositionY, entity.PositionX] = null;
+                        _battleField[entity.Position.Y, entity.Position.X] = null;
                         _battleField[altY, altX] = entity.Id;
 
                         // Update entity position in the appropriate list
                         UpdateEntityPosition(entity, altX, altY);
-                        _battleLogs.Add($"{entity.Name} moves from ({entity.PositionX},{entity.PositionY}) to ({altX},{altY})");
+                        _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({altX},{altY})");
                         moved = true;
                         break;
                     }
@@ -521,13 +527,19 @@ _battleField[y, x] == null)
     /// </summary>
     private void UpdateEntityPosition(EntityInfo entity, int newX, int newY)
     {
+        // Update the battle field
+        _battleField[entity.Position.Y, entity.Position.X] = null;
+        _battleField[newY, newX] = entity.Id;
+
+        Vector2 newPosition = new Vector2(newX, newY);
+
         if (entity.Type == "Player")
         {
             for (int i = 0; i < _players.Count; i++)
             {
                 if (_players[i].Id == entity.Id)
                 {
-                    _players[i] = _players[i] with { PositionX = newX, PositionY = newY };
+                    _players[i] = _players[i] with { Position = newPosition };
                     break;
                 }
             }
@@ -538,7 +550,7 @@ _battleField[y, x] == null)
             {
                 if (_enemies[i].Id == entity.Id)
                 {
-                    _enemies[i] = _enemies[i] with { PositionX = newX, PositionY = newY };
+                    _enemies[i] = _enemies[i] with { Position = newPosition };
                     break;
                 }
             }
@@ -583,7 +595,7 @@ _battleField[y, x] == null)
             _battleLogs.Add($"{targetValue.Name} has been defeated!");
 
             // Clear the defeated entity from the battle field
-            _battleField[targetValue.PositionY, targetValue.PositionX] = null;
+            _battleField[targetValue.Position.Y, targetValue.Position.X] = null;
 
             // Update the entity's position to invalid coordinates (-1, -1)
             // This ensures the entity won't be considered in further position checks
@@ -593,7 +605,7 @@ _battleField[y, x] == null)
                 {
                     if (_players[i].Id == targetValue.Id)
                     {
-                        _players[i] = _players[i] with { PositionX = -1, PositionY = -1 };
+                        _players[i] = _players[i] with { Position = Vector2.InvalidPosition };
                         break;
                     }
                 }
@@ -604,7 +616,7 @@ _battleField[y, x] == null)
                 {
                     if (_enemies[i].Id == targetValue.Id)
                     {
-                        _enemies[i] = _enemies[i] with { PositionX = -1, PositionY = -1 };
+                        _enemies[i] = _enemies[i] with { Position = Vector2.InvalidPosition };
                         break;
                     }
                 }
@@ -773,12 +785,12 @@ _battleField[y, x] == null)
     }
 
     /// <summary>
-    /// Mark a client as having confirmed connection readiness
-    /// </summary>
+    /// Mark a client as having confirmed connection readiness    /// </summary>
     public void MarkConnectionReadyConfirmed(string clientId)
     {
         _clients.AddOrUpdate(clientId, State.Ready, (_, _) => State.Ready);
-        Interlocked.Increment(ref _readyClientsCount);
+        var newCount = Interlocked.Increment(ref _readyClientsCount);
+        _logger.LogInformation($"Battle {_battleId}: Client {clientId} confirmed connection ready. Ready count: {newCount}/{_connectedClientsCount}");
     }
 
     /// <summary>

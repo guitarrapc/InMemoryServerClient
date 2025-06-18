@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shared;
 
@@ -98,9 +99,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
             _connection.On<string, string>("GroupMessage", (connectionId, message) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [GROUP] Message from {connectionId}: {message}");
-            });
-
-            _connection.On<string>("ConnectionsReady", async (battleId) =>
+            });            _connection.On<string>("ConnectionsReady", async (battleId) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== Connections Ready! ==========");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] 🔄 Battle ID: {battleId}");
@@ -111,8 +110,8 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 // Automatically notify server that connection is ready
                 try
                 {
-                    await ConfirmConnectionReadyAsync();
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Connection ready confirmation sent to server");
+                    var result = await ConfirmConnectionReadyAsync();
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Connection ready confirmation sent to server. Result: {result}");
                 }
                 catch (Exception ex)
                 {
@@ -134,33 +133,30 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
             {
                 try
                 {
-                    if (replayData != null)
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Received replay chunk {replayData.ChunkIndex + 1}/{replayData.TotalChunks} with {replayData.TurnData.Count} turns");
+
+                    // Store the chunk
+                    _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
+                    _expectedTotalChunks = replayData.TotalChunks;
+                    _isReceivingReplayData = true;
+
+                    // Check if we have all chunks
+                    if (_replayChunks.Count == _expectedTotalChunks)
                     {
-                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE] Received replay chunk {replayData.ChunkIndex + 1}/{replayData.TotalChunks} with {replayData.TurnData.Count} turns");
-
-                        // Store the chunk
-                        _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
-                        _expectedTotalChunks = replayData.TotalChunks;
-                        _isReceivingReplayData = true;
-
-                        // Check if we have all chunks
-                        if (_replayChunks.Count == _expectedTotalChunks)
+                        // Reconstruct complete replay data
+                        List<BattleStatus> battleStatuses = [];
+                        for (int i = 0; i < _expectedTotalChunks; i++)
                         {
-                            // Reconstruct complete replay data
-                            List<BattleStatus> battleStatuses = [];
-                            for (int i = 0; i < _expectedTotalChunks; i++)
+                            if (_replayChunks.TryGetValue(i, out var chunk))
                             {
-                                if (_replayChunks.TryGetValue(i, out var chunk))
-                                {
-                                    battleStatuses.AddRange(chunk);
-                                }
+                                battleStatuses.AddRange(chunk);
                             }
-
-                            _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {battleStatuses.Count} turns");
-
-                            // Start replay
-                            await PlayBattleReplayAsync(battleStatuses);
                         }
+
+                        _logger.LogInformation($"Client {_clientIndex}: [BATTLE] All replay chunks received! Starting replay with {battleStatuses.Count} turns");
+
+                        // Start replay
+                        await PlayBattleReplayAsync(battleStatuses);
                     }
                 }
                 catch (Exception ex)
@@ -373,7 +369,10 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
     private async Task<bool> ConfirmConnectionReadyAsync()
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
+        _logger.LogInformation($"Client {_clientIndex}: Sending connection ready confirmation...");
+        var result = await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
+        _logger.LogInformation($"Client {_clientIndex}: Connection ready confirmation result: {result}");
+        return result;
     }
 
     /// <summary>
@@ -416,7 +415,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.PositionX},{player.PositionY})");
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:({player.Position})");
                 }
 
                 // Display enemies info
@@ -487,10 +486,10 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
         foreach (var player in status.Players)
         {
             if (player.CurrentHp > 0 &&
-                player.PositionX >= 0 && player.PositionX < status.FieldWidth &&
-                player.PositionY >= 0 && player.PositionY < status.FieldHeight)
+                player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
+                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
             {
-                field[player.PositionY, player.PositionX] = player.Id;
+                field[player.Position.Y, player.Position.X] = player.Id;
             }
         }
 
@@ -498,10 +497,10 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
         foreach (var enemy in status.Enemies)
         {
             if (enemy.CurrentHp > 0 &&
-                enemy.PositionX >= 0 && enemy.PositionX < status.FieldWidth &&
-                enemy.PositionY >= 0 && enemy.PositionY < status.FieldHeight)
+                enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
+                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
             {
-                field[enemy.PositionY, enemy.PositionX] = enemy.Id;
+                field[enemy.Position.Y, enemy.Position.X] = enemy.Id;
             }
         }
 

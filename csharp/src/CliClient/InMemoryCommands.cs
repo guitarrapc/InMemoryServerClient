@@ -474,7 +474,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     foreach (var player in battleStatus.Players)
                     {
                         var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
-                        logger.LogInformation($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.PositionX},{player.PositionY})");
+                        logger.LogInformation($"[BATTLE] - {player.Name}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, Position: ({player.Position})");
                     }
 
                     // Display enemies

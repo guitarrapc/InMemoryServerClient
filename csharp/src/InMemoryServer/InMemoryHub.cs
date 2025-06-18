@@ -263,20 +263,24 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _ = Task.Run(async () =>
         {
             // Wait for all clients to confirm they received the ConnectionsReady notification
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5)); // 5秒のタイムアウト
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
+            var startTime = DateTime.UtcNow;
+
+            _logger.LogInformation($"Battle {battleId}: Waiting for client confirmations ({group.ConnectionCount} clients)...");
 
             while (!battle.AreAllConnectionsReadyConfirmed())
             {
                 if (await Task.WhenAny(Task.Delay(100), timeoutTask) == timeoutTask)
                 {
                     // タイムアウト発生、確認が揃わなかった
-                    _logger.LogWarning($"Battle {battleId}: Timed out waiting for client confirmations. Proceeding anyway.");
+                    var elapsed = DateTime.UtcNow - startTime;
+                    _logger.LogWarning($"Battle {battleId}: Timed out after {elapsed.TotalSeconds:F1}s waiting for client confirmations. Proceeding anyway.");
                     break;
                 }
             }
 
             // 3. Send BattleStarted notification once all clients have confirmed
-            _logger.LogInformation($"Battle {battleId}: All clients confirmed. Starting battle.");
+            _logger.LogInformation($"Battle {battleId}: All clients confirmed or timeout reached. Starting battle.");
             await Clients.Group(group.Id).SendAsync("BattleStarted", battleId);
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)
@@ -297,19 +301,22 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             {
                 var chunk = chunks[i];
                 var isLastChunk = i == chunks.Count - 1;
+                var turnDataList = new List<BattleStatus>(chunk.Length);
+                turnDataList.AddRange(chunk);
+
                 var replayData = new BattleReplayData
                 {
                     BattleId = battleId,
-                    TurnData = [.. chunk],
+                    TurnData = turnDataList,
                     ChunkIndex = i,
                     TotalChunks = chunks.Count,
-                    IsLastChunk = isLastChunk
+                    IsLastChunk = isLastChunk,
                 };
 
                 await Clients.Group(group.Id).SendAsync("BattleReplayData", replayData);
 
                 // Clear chunk data immediately after sending to reduce memory pressure
-                replayData.TurnData.Clear();
+                turnDataList.Clear();
 
                 // Free memory for processed chunk
                 if (i > 0 && chunks.Count > 2)
@@ -428,10 +435,13 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<bool> ConfirmConnectionReadyAsync()
     {
-        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        var clientId = Context.ConnectionId;
+        _logger.LogInformation($"Client {clientId} is attempting to confirm connection ready");
+
+        var groupId = _groupManager.GetGroupIdForConnection(clientId);
         if (string.IsNullOrEmpty(groupId))
         {
-            _logger.LogWarning($"Client {Context.ConnectionId} attempted to confirm connection ready but is not in any group");
+            _logger.LogWarning($"Client {clientId} attempted to confirm connection ready but is not in any group");
             return false;
         }
 
@@ -450,7 +460,6 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         }
 
         // Mark this client as having confirmed connection readiness
-        var clientId = Context.ConnectionId;
         battle.MarkConnectionReadyConfirmed(clientId);
         _logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
 

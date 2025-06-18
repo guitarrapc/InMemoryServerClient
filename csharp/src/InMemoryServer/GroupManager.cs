@@ -111,7 +111,7 @@ public class GroupManager
                 if (group.ConnectionCount <= 0)
                 {
                     _groups.TryRemove(groupId, out _);
-                    _logger.LogInformation($"Removed empty group {group.Name} (ID: {groupId})");
+                    _logger.LogDebug($"Removed empty group {group.Name} (ID: {groupId})");
                 }
             }
         }

@@ -1,4 +1,97 @@
 ﻿namespace Shared;
+
+/// <summary>
+/// Vector2 for positions
+/// </summary>
+/// <remarks>
+/// Creates a new Vector2
+/// </remarks>
+[System.Text.Json.Serialization.JsonConverter(typeof(Vector2JsonConverter))]
+public readonly record struct Vector2
+{
+    /// <summary>
+    /// X coordinate
+    /// </summary>
+    public readonly int X { get; init; }
+
+    /// <summary>
+    /// Y coordinate
+    /// </summary>
+    public readonly int Y { get; init; }
+
+    /// <summary>
+    /// Creates a new Vector2
+    /// </summary>
+    public Vector2(int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
+
+    /// <summary>
+    /// String representation
+    /// </summary>
+    public override string ToString() => $"({X}, {Y})";
+
+    public static Vector2 InvalidPosition = new Vector2(-1, -1);
+}
+
+/// <summary>
+/// Custom JSON converter for Vector2 to avoid property name conflicts
+/// </summary>
+public class Vector2JsonConverter : System.Text.Json.Serialization.JsonConverter<Vector2>
+{
+    public override Vector2 Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    {
+        if (reader.TokenType != System.Text.Json.JsonTokenType.StartObject)
+        {
+            throw new System.Text.Json.JsonException();
+        }
+
+        int x = 0;
+        int y = 0;
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == System.Text.Json.JsonTokenType.EndObject)
+            {
+                return new Vector2(x, y);
+            }
+
+            if (reader.TokenType != System.Text.Json.JsonTokenType.PropertyName)
+            {
+                throw new System.Text.Json.JsonException();
+            }
+
+            var propertyName = reader.GetString();
+            reader.Read();
+
+            switch (propertyName)
+            {
+                case "X":
+                    x = reader.GetInt32();
+                    break;
+                case "Y":
+                    y = reader.GetInt32();
+                    break;
+                default:
+                    reader.Skip();
+                    break;
+            }
+        }
+
+        throw new System.Text.Json.JsonException();
+    }
+
+    public override void Write(System.Text.Json.Utf8JsonWriter writer, Vector2 value, System.Text.Json.JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("X", value.X);
+        writer.WriteNumber("Y", value.Y);
+        writer.WriteEndObject();
+    }
+}
+
 /// <summary>
 /// Group information
 /// </summary>
@@ -95,6 +188,16 @@ public class BattleStatus
     /// Recent battle logs
     /// </summary>
     public List<string> RecentLogs { get; set; } = new(10); // Pre-allocate for recent logs
+
+    /// <summary>
+    /// Clears all references to reduce memory pressure
+    /// </summary>
+    public void Clear()
+    {
+        Players.Clear();
+        Enemies.Clear();
+        RecentLogs.Clear();
+    }
 }
 
 /// <summary>
@@ -143,14 +246,9 @@ public readonly record struct EntityInfo
     public int Speed { get; init; }
 
     /// <summary>
-    /// Position X
+    /// Position on the battle field
     /// </summary>
-    public int PositionX { get; init; }
-
-    /// <summary>
-    /// Position Y
-    /// </summary>
-    public int PositionY { get; init; }
+    public Vector2 Position { get; init; }
 
     /// <summary>
     /// Is defending (damage reduction)
@@ -280,30 +378,55 @@ public readonly struct BattleSummary
 /// <summary>
 /// Battle replay data sent to clients
 /// </summary>
-public class BattleReplayData
+public readonly struct BattleReplayData
 {
     /// <summary>
     /// Battle ID
     /// </summary>
-    public required string BattleId { get; set; }
+    public required string BattleId { get; init; }
 
     /// <summary>
     /// Turn data for this chunk
     /// </summary>
-    public required List<BattleStatus> TurnData { get; set; } = new(50); // Pre-allocate for chunk size
+    public required List<BattleStatus> TurnData { get; init; }
 
     /// <summary>
     /// Current chunk index (0-based)
     /// </summary>
-    public int ChunkIndex { get; set; }
+    public int ChunkIndex { get; init; }
 
     /// <summary>
     /// Total number of chunks
     /// </summary>
-    public int TotalChunks { get; set; }
+    public int TotalChunks { get; init; }
 
     /// <summary>
     /// Whether this is the last chunk
     /// </summary>
-    public bool IsLastChunk { get; set; }
+    public bool IsLastChunk { get; init; }
+}
+
+/// <summary>
+/// Battle log item
+/// </summary>
+public readonly struct BattleLogItem
+{
+    /// <summary>
+    /// Log message
+    /// </summary>
+    public readonly string Message { get; init; }
+
+    /// <summary>
+    /// Timestamp
+    /// </summary>
+    public readonly DateTime Timestamp { get; init; }
+
+    /// <summary>
+    /// Creates a new battle log item
+    /// </summary>
+    public BattleLogItem(string message)
+    {
+        Message = message;
+        Timestamp = DateTime.UtcNow;
+    }
 }
