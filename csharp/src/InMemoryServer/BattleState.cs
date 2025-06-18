@@ -1,4 +1,4 @@
-﻿using Shared;
+using Shared;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
@@ -438,19 +438,17 @@ _battleField[y, x] == null)
             // Remove attack action if no adjacent target
             actions.Add(new ActionReward("attack", -100f));
         }
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// 防御行動の評価
     /// </summary>
     private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions)
     {
-        // Base reward for defending, always include defend action
-        float reward = 1.0f;
+        // Base reward for defending - starting with a very low base value
+        float reward = 0.5f;
 
-        // Increase reward if entity's HP is low
+        // Increase reward if entity's HP is critically low (only when below 25%)
         float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
-        if (hpRatio < 0.4)
+        if (hpRatio < 0.25f) // HP閾値を下げる（40%→25%）
         {
             reward += (1 - hpRatio) * DEFEND_LOW_HP_REWARD;
         }
@@ -459,11 +457,29 @@ _battleField[y, x] == null)
         bool enemiesNearby = AreEnemiesNearby(entity, NEARBY_DISTANCE_THRESHOLD);
         if (enemiesNearby)
         {
-            reward += DEFEND_ENEMIES_NEARBY_REWARD;
+            // 敵が隣接している場合にのみ防御を検討
+            var adjacentTarget = FindAdjacentTarget(entity);
+            if (adjacentTarget != null)
+            {
+                reward += DEFEND_ENEMIES_NEARBY_REWARD;
+            }
+            else
+            {
+                // 敵が近くにいるが隣接していない場合、防御よりも移動を優先
+                reward *= 0.3f;
+            }
         }
         else
         {
-            // Defend action is still valid, but less rewarding
+            // 敵が近くにいない場合は防御の意味がほとんどない
+            reward *= 0.1f;
+        }
+
+        // エンティティタイプに基づいて防御の確率を調整
+        // プレイヤーは防御を多少利用し、敵は攻撃的に
+        if (entity.Type != "Player")
+        {
+            // 敵は攻撃的な行動を優先
             reward *= 0.5f;
         }
 
@@ -570,7 +586,6 @@ _battleField[y, x] == null)
     /// </summary>
     private void MoveEntity(EntityInfo entity, EntityInfo? adjacentTarget)
     {
-        // 隣に敵がいないことを前提に移動を試みる
         // 移動先のターゲットを決定（最も近い敵か最もHPが低い敵）
         EntityInfo? targetEntity = null;
 
@@ -585,34 +600,95 @@ _battleField[y, x] == null)
 
         targetEntity = bestMoveAction.TargetEntity;
 
-        if (targetEntity is null)
+        // 移動方向のリストを取得
+        var directions = GetMovementDirections(entity, targetEntity);
+
+        // 各方向を試して移動を試みる
+        bool moved = TryMoveInDirections(entity, directions, targetEntity);
+
+        // すべての方向が塞がれている場合は完全ランダムな方向で再試行
+        if (!moved)
         {
-            _battleLogs.Add($"{entity.Name} has no targets to move towards.");
-            return;
+            _battleLogs.Add($"{entity.Name} cannot move in preferred directions, trying random directions.");
+
+            // ランダムな方向を生成
+            var randomDirections = GenerateRandomDirections();
+
+            // ランダムな方向で移動を試みる
+            moved = TryMoveInRandomDirections(entity, randomDirections);
         }
 
-        // 目標に向かう方向を決定
+        if (!moved)
+        {
+            _battleLogs.Add($"{entity.Name} cannot move, all paths are blocked.");
+        }
+    }
+
+    /// <summary>
+    /// 移動方向のリストを取得
+    /// </summary>
+    private List<(int dx, int dy, int priority)> GetMovementDirections(EntityInfo entity, EntityInfo? targetEntity)
+    {
+        var directions = new List<(int dx, int dy, int priority)>();
+
+        // ターゲットがない場合は完全にランダムな方向を返す
+        if (targetEntity is null)
+        {
+            // ランダムな8方向を生成し、すべて同じ優先度で返す
+            int[] randomDirs = [-1, 0, 1];
+            for (int randDx = -1; randDx <= 1; randDx++)
+            {
+                for (int randDy = -1; randDy <= 1; randDy++)
+                {
+                    if (randDx == 0 && randDy == 0) continue; // 自分自身はスキップ
+                    directions.Add((randDx, randDy, 1)); // すべて同じ優先度
+                }
+            }
+
+            // ランダムに並べ替えて返す
+            return directions.OrderBy(_ => _random.Next()).ToList();
+        }
+
+        // ターゲットが存在する場合、ターゲットへの方向を計算
         int dx = Math.Sign(targetEntity.Value.Position.X - entity.Position.X);
         int dy = Math.Sign(targetEntity.Value.Position.Y - entity.Position.Y);
 
-        // 最適な移動方向の優先順位を決定
-        // 敵に近づくため、より近づく方向を優先
-        var directions = new List<(int dx, int dy, int priority)>();
-
-        // 敵との距離が縦方向と横方向で異なる場合、より離れている方向を優先
+        // 敵との距離を計算
         int xDistance = Math.Abs(targetEntity.Value.Position.X - entity.Position.X);
         int yDistance = Math.Abs(targetEntity.Value.Position.Y - entity.Position.Y);
 
-        if (xDistance > yDistance)
+        // 両方の距離が0の場合（同じ位置にいる場合）、ランダムな方向を選択
+        if (xDistance == 0 && yDistance == 0)
         {
-            // 横方向の移動を優先
+            // ランダムな方向を選択
+            int[] randomDirs = [-1, 0, 1];
+            int randDx = randomDirs[_random.Next(randomDirs.Length)];
+            int randDy = randomDirs[_random.Next(randomDirs.Length)];
+
+            // (0,0)は避ける
+            if (randDx == 0 && randDy == 0) randDx = 1;
+
+            directions.Add((randDx, randDy, 1));
+            directions.Add((randDy, randDx, 2)); // 90度回転
+            directions.Add((-randDx, randDy, 3)); // 別方向も試す
+            directions.Add((randDx, -randDy, 4));
+        }
+        else if (xDistance > yDistance)
+        {
+            // X方向の距離が大きい場合、横方向の移動を優先
+            // dxが0の場合は1か-1を選択
+            if (dx == 0) dx = xDistance == 0 ? (_random.Next(2) == 0 ? 1 : -1) : Math.Sign(xDistance);
+
             directions.Add((dx, 0, 1));
             directions.Add((dx, dy, 2));
             directions.Add((0, dy, 3));
         }
         else
         {
-            // 縦方向の移動を優先
+            // Y方向の距離が大きい場合、縦方向の移動を優先
+            // dyが0の場合は1か-1を選択
+            if (dy == 0) dy = yDistance == 0 ? (_random.Next(2) == 0 ? 1 : -1) : Math.Sign(yDistance);
+
             directions.Add((0, dy, 1));
             directions.Add((dx, dy, 2));
             directions.Add((dx, 0, 3));
@@ -628,30 +704,91 @@ _battleField[y, x] == null)
         directions.Add((0, -dy, 7));
         directions.Add((-dx, -dy, 8));
 
-        // 各方向を試す
-        bool moved = false;
+        return directions;
+    }
+
+    /// <summary>
+    /// ランダムな方向を生成
+    /// </summary>
+    private List<(int dx, int dy)> GenerateRandomDirections()
+    {
+        var randomDirections = new List<(int dx, int dy)>();
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0) continue; // 自分自身はスキップ
+                randomDirections.Add((dx, dy));
+            }
+        }
+
+        // ランダムに並べ替え
+        return randomDirections.OrderBy(_ => _random.Next()).ToList();
+    }
+
+    /// <summary>
+    /// 指定された方向のリストに従って移動を試みる
+    /// </summary>
+    private bool TryMoveInDirections(EntityInfo entity, List<(int dx, int dy, int priority)> directions, EntityInfo? targetEntity)
+    {
         foreach (var direction in directions.OrderBy(d => d.priority))
         {
             int newX = entity.Position.X + direction.dx;
             int newY = entity.Position.Y + direction.dy;
 
             // 新しい位置が有効で空いているかチェック
-            if (newX >= 0 && newX < Constants.BattleFieldWidth &&
-                newY >= 0 && newY < Constants.BattleFieldHeight &&
-                _battleField[newY, newX] == null)
+            if (IsValidEmptyPosition(newX, newY))
             {
                 // エンティティの位置を更新
                 UpdateEntityPosition(entity, newX, newY);
-                _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY}) towards {targetEntity.Value.Name}.");
-                moved = true;
-                break;
+
+                if (targetEntity != null)
+                {
+                    _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY}) towards {targetEntity.Value.Name}.");
+                }
+                else
+                {
+                    _battleLogs.Add($"{entity.Name} moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY}).");
+                }
+
+                return true;
             }
         }
 
-        if (!moved)
+        return false;
+    }
+
+    /// <summary>
+    /// ランダムな方向のリストに従って移動を試みる
+    /// </summary>
+    private bool TryMoveInRandomDirections(EntityInfo entity, List<(int dx, int dy)> randomDirections)
+    {
+        foreach (var (dx, dy) in randomDirections)
         {
-            _battleLogs.Add($"{entity.Name} cannot move, all paths are blocked.");
+            int newX = entity.Position.X + dx;
+            int newY = entity.Position.Y + dy;
+
+            // 新しい位置が有効で空いているかチェック
+            if (IsValidEmptyPosition(newX, newY))
+            {
+                // エンティティの位置を更新
+                UpdateEntityPosition(entity, newX, newY);
+                _battleLogs.Add($"{entity.Name} randomly moves from ({entity.Position.X},{entity.Position.Y}) to ({newX},{newY}).");
+                return true;
+            }
         }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 指定された位置が有効で空いているかチェック
+    /// </summary>
+    private bool IsValidEmptyPosition(int x, int y)
+    {
+        return x >= 0 && x < Constants.BattleFieldWidth &&
+               y >= 0 && y < Constants.BattleFieldHeight &&
+               _battleField[y, x] == null;
     }
 
     /// <summary>
