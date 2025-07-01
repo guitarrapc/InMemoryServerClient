@@ -1106,10 +1106,10 @@ _battleField[y, x] == null)
         var targetValue = adjacentTarget.Value;
 
         // Apply flavor variations to stats for this attack
-        var attackerAccuracy = BattleBasicDefines.ApplyAccuracyFlavor(entity.Accuracy, _random);
-        var targetEvasion = BattleBasicDefines.ApplyEvasionFlavor(targetValue.Evasion, _random);
-        var attackerAttack = BattleBasicDefines.ApplyAttackFlavor(entity.Attack, _random);
-        var targetDefense = BattleBasicDefines.ApplyDefenseFlavor(targetValue.Defense, _random);
+        var attackerAccuracy = BattleCalculations.ApplyAccuracyFlavor(entity.Accuracy, _random);
+        var targetEvasion = BattleCalculations.ApplyEvasionFlavor(targetValue.Evasion, _random);
+        var attackerAttack = BattleCalculations.ApplyAttackFlavor(entity.Attack, _random);
+        var targetDefense = BattleCalculations.ApplyDefenseFlavor(targetValue.Defense, _random);
 
         // Hit chance calculation: Final hit chance = Attacker's Accuracy - Target's Evasion
         var finalHitChance = Math.Max(0, attackerAccuracy - targetEvasion);
