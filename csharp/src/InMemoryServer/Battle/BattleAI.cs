@@ -5,48 +5,29 @@ namespace InMemoryServer.Battle;
 /// <summary>
 /// Internal structure to store action rewards
 /// </summary>
-internal readonly struct ActionReward
+internal readonly struct ActionReward(string action, float reward, EntityInfo? targetEntity = null, Vector2? targetPosition = null)
 {
-    public readonly string Action { get; init; }
-    public readonly float Reward { get; init; }
-    public readonly EntityInfo? TargetEntity { get; init; }
-    public readonly Vector2? TargetPosition { get; init; }
-
-    public ActionReward(string action, float reward, EntityInfo? targetEntity = null, Vector2? targetPosition = null)
-    {
-        Action = action;
-        Reward = reward;
-        TargetEntity = targetEntity;
-        TargetPosition = targetPosition;
-    }
+    public readonly string Action { get; init; } = action;
+    public readonly float Reward { get; init; } = reward;
+    public readonly EntityInfo? TargetEntity { get; init; } = targetEntity;
+    public readonly Vector2? TargetPosition { get; init; } = targetPosition;
 }
 
 /// <summary>
 /// Handles AI decision making for battle entities
 /// </summary>
-public class BattleAI
+public class BattleAI(BattleUtilities utilities, ILogger logger)
 {
-    private readonly Random _random;
-    private readonly BattleUtilities _utilities;
-    private readonly ILogger _logger;
-
-    public BattleAI(Random random, BattleUtilities utilities, ILogger logger)
-    {
-        _random = random;
-        _utilities = utilities;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Decide what action an entity should take
     /// </summary>
     public (string action, EntityInfo? target) DecideAction(EntityInfo entity, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
     {
-        var adjacentTarget = _utilities.FindAdjacentTarget(entity, players, enemies, battleField);
+        var adjacentTarget = utilities.FindAdjacentTarget(entity, players, enemies, battleField);
         var possibleActions = EvaluateAllActions(entity, adjacentTarget, players, enemies, battleField);
 
         var bestAction = possibleActions.OrderByDescending(a => a.Reward).First();
-        _logger.LogDebug("Entity {EntityName} chose {Action} with reward {Reward}", entity.Name, bestAction.Action, bestAction.Reward);
+        logger.LogDebug("Entity {EntityName} chose {Action} with reward {Reward}", entity.Name, bestAction.Action, bestAction.Reward);
 
         return (bestAction.Action, bestAction.TargetEntity);
     }
@@ -195,10 +176,10 @@ public class BattleAI
         }
 
         // Check if there are enemies nearby
-        bool enemiesNearby = _utilities.AreEnemiesNearby(entity, players, enemies, BattleAIDefines.NearbyDistanceThreshold);
+        bool enemiesNearby = utilities.AreEnemiesNearby(entity, players, enemies, BattleAIDefines.NearbyDistanceThreshold);
         if (enemiesNearby)
         {
-            var adjacentTarget = _utilities.FindAdjacentTarget(entity, players, enemies, battleField);
+            var adjacentTarget = utilities.FindAdjacentTarget(entity, players, enemies, battleField);
             if (adjacentTarget != null)
             {
                 if (hpRatio > BattleAIDefines.SufficientHpRatio)
@@ -270,8 +251,8 @@ public class BattleAI
             return;
         }
 
-        var nearestTarget = _utilities.FindNearestTarget(entity, players, enemies);
-        var lowestHpTarget = _utilities.FindLowestHpTarget(entity, players, enemies);
+        var nearestTarget = utilities.FindNearestTarget(entity, players, enemies);
+        var lowestHpTarget = utilities.FindLowestHpTarget(entity, players, enemies);
 
         float moveMultiplier = 1.0f;
         if (isLastEnemy || isLastAlly)
@@ -283,7 +264,7 @@ public class BattleAI
         {
             float reward = BattleAIDefines.MoveToNearestReward * moveMultiplier;
 
-            int distanceToNearest = _utilities.CalculateManhattanDistance(entity.Position, nearestTarget.Value.Position);
+            int distanceToNearest = utilities.CalculateManhattanDistance(entity.Position, nearestTarget.Value.Position);
             if (distanceToNearest == 2)
             {
                 reward *= BattleAIDefines.NextTurnAttackPositionMultiplier;
@@ -299,7 +280,7 @@ public class BattleAI
                 reward *= (1.0f + (1.0f - hpRatio));
             }
 
-            if (_utilities.CanSurroundEnemy(entity, nearestTarget.Value, players, enemies))
+            if (utilities.CanSurroundEnemy(entity, nearestTarget.Value, players, enemies))
             {
                 reward += BattleAIDefines.MoveToSurroundReward;
             }
@@ -326,7 +307,7 @@ public class BattleAI
                 reward += (1 - hpRatio) * 4.0f;
             }
 
-            int distanceToLowest = _utilities.CalculateManhattanDistance(entity.Position, lowestHpTarget.Value.Position);
+            int distanceToLowest = utilities.CalculateManhattanDistance(entity.Position, lowestHpTarget.Value.Position);
             if (distanceToLowest <= 3)
             {
                 reward *= (5.0f / (distanceToLowest + 1));

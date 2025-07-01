@@ -5,33 +5,22 @@ namespace InMemoryServer.Battle;
 /// <summary>
 /// Handles combat calculations and damage processing
 /// </summary>
-public class BattleCombat
+public class BattleCombat(Random random, BattleField battleField, BattleUtilities utilities)
 {
-    private readonly Random _random;
-    private readonly BattleField _battleField;
-    private readonly BattleUtilities _utilities;
-
-    public BattleCombat(Random random, BattleField battleField, BattleUtilities utilities)
-    {
-        _random = random;
-        _battleField = battleField;
-        _utilities = utilities;
-    }
-
     /// <summary>
     /// Execute attack between entities
     /// </summary>
     public void ExecuteAttack(EntityInfo attacker, EntityInfo target, List<EntityInfo> players, List<EntityInfo> enemies, List<string> battleLogs)
     {
         // Apply flavor variations to stats for this attack
-        var attackerAccuracy = BattleCalculations.ApplyAccuracyFlavor(attacker.Accuracy, _random);
-        var targetEvasion = BattleCalculations.ApplyEvasionFlavor(target.Evasion, _random);
-        var attackerAttack = BattleCalculations.ApplyAttackFlavor(attacker.Attack, _random);
-        var targetDefense = BattleCalculations.ApplyDefenseFlavor(target.Defense, _random);
+        var attackerAccuracy = BattleCalculations.ApplyAccuracyFlavor(attacker.Accuracy, random);
+        var targetEvasion = BattleCalculations.ApplyEvasionFlavor(target.Evasion, random);
+        var attackerAttack = BattleCalculations.ApplyAttackFlavor(attacker.Attack, random);
+        var targetDefense = BattleCalculations.ApplyDefenseFlavor(target.Defense, random);
 
         // Hit chance calculation: Final hit chance = Attacker's Accuracy - Target's Evasion
         var finalHitChance = Math.Max(0, attackerAccuracy - targetEvasion);
-        int hitRoll = _random.Next(1, 101); // 1-100の乱数
+        int hitRoll = random.Next(1, 101); // 1-100の乱数
 
         if (hitRoll > finalHitChance)
         {
@@ -52,7 +41,7 @@ public class BattleCombat
 
         // Apply damage
         int newHp = Math.Max(0, target.CurrentHp - damage);
-        _utilities.UpdateEntityHp(target, newHp, players, enemies);
+        utilities.UpdateEntityHp(target, newHp, players, enemies);
 
         // Log the attack
         battleLogs.Add($"{attacker.Name} attacks {target.Name} for {damage} damage! (ATK: {attackerAttack}, DEF: {targetDefense})" + (target.IsDefending ? " (Reduced by defense)" : ""));
@@ -75,10 +64,10 @@ public class BattleCombat
         battleLogs.Add($"{defeatedEntity.Name} has been defeated!");
 
         // Clear the defeated entity from the battle field
-        _battleField.RemoveEntity(defeatedEntity.Position);
+        battleField.RemoveEntity(defeatedEntity.Position);
 
         // Update the entity's position to invalid coordinates
-        _utilities.UpdateEntityPosition(defeatedEntity, Vector2.InvalidPosition, players, enemies);
+        utilities.UpdateEntityPosition(defeatedEntity, Vector2.InvalidPosition, players, enemies);
     }
 
     /// <summary>
@@ -86,7 +75,7 @@ public class BattleCombat
     /// </summary>
     public void ExecuteDefend(EntityInfo entity, List<EntityInfo> players, List<EntityInfo> enemies, List<string> battleLogs)
     {
-        _utilities.UpdateEntityDefending(entity, true, players, enemies);
+        utilities.UpdateEntityDefending(entity, true, players, enemies);
         battleLogs.Add($"{entity.Name} takes a defensive stance, reducing incoming damage by {BattleBasicDefines.DefenseDamageReductionPercent}%.");
     }
 }

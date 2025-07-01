@@ -65,8 +65,8 @@ public partial class BattleState
         // Initialize battle components
         _battleField = new BattleField(_random);
         _battleUtilities = new BattleUtilities();
-        _battleInitializer = new BattleInitializer(_random, logger);
-        _battleAI = new BattleAI(_random, _battleUtilities, logger);
+        _battleInitializer = new BattleInitializer(_random);
+        _battleAI = new BattleAI(_battleUtilities, logger);
         _battleMovement = new BattleMovement(_random, _battleField, _battleUtilities);
         _battleCombat = new BattleCombat(_random, _battleField, _battleUtilities);
 

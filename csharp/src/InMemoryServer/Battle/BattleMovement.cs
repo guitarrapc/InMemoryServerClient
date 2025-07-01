@@ -5,19 +5,8 @@ namespace InMemoryServer.Battle;
 /// <summary>
 /// Handles entity movement logic
 /// </summary>
-public class BattleMovement
+public class BattleMovement(Random random, BattleField battleField, BattleUtilities utilities)
 {
-    private readonly Random _random;
-    private readonly BattleField _battleField;
-    private readonly BattleUtilities _utilities;
-
-    public BattleMovement(Random random, BattleField battleField, BattleUtilities utilities)
-    {
-        _random = random;
-        _battleField = battleField;
-        _utilities = utilities;
-    }
-
     /// <summary>
     /// Move entity towards target or in random direction
     /// </summary>
@@ -63,7 +52,7 @@ public class BattleMovement
                     directions.Add((randDx, randDy, 1));
                 }
             }
-            return directions.OrderBy(_ => _random.Next()).ToList();
+            return directions.OrderBy(_ => random.Next()).ToList();
         }
 
         // Calculate direction towards target
@@ -78,8 +67,8 @@ public class BattleMovement
         {
             // At same position, choose random direction
             int[] randomDirs = [-1, 0, 1];
-            int randDx = randomDirs[_random.Next(randomDirs.Length)];
-            int randDy = randomDirs[_random.Next(randomDirs.Length)];
+            int randDx = randomDirs[random.Next(randomDirs.Length)];
+            int randDy = randomDirs[random.Next(randomDirs.Length)];
 
             if (randDx == 0 && randDy == 0) randDx = 1;
 
@@ -91,7 +80,7 @@ public class BattleMovement
         else if (xDistance > yDistance)
         {
             // Prioritize horizontal movement
-            if (dx == 0) dx = xDistance == 0 ? (_random.Next(2) == 0 ? 1 : -1) : Math.Sign(xDistance);
+            if (dx == 0) dx = xDistance == 0 ? (random.Next(2) == 0 ? 1 : -1) : Math.Sign(xDistance);
 
             directions.Add((dx, 0, 1));
             directions.Add((dx, dy, 2));
@@ -100,7 +89,7 @@ public class BattleMovement
         else
         {
             // Prioritize vertical movement
-            if (dy == 0) dy = yDistance == 0 ? (_random.Next(2) == 0 ? 1 : -1) : Math.Sign(yDistance);
+            if (dy == 0) dy = yDistance == 0 ? (random.Next(2) == 0 ? 1 : -1) : Math.Sign(yDistance);
 
             directions.Add((0, dy, 1));
             directions.Add((dx, dy, 2));
@@ -134,7 +123,7 @@ public class BattleMovement
                 randomDirections.Add((dx, dy));
             }
         }
-        return randomDirections.OrderBy(_ => _random.Next()).ToList();
+        return randomDirections.OrderBy(_ => random.Next()).ToList();
     }
 
     /// <summary>
@@ -148,14 +137,14 @@ public class BattleMovement
             int newX = entity.Position.X + direction.dx;
             int newY = entity.Position.Y + direction.dy;
 
-            if (_battleField.IsPositionEmpty(newX, newY))
+            if (battleField.IsPositionEmpty(newX, newY))
             {
                 // Update entity position
                 var oldPosition = entity.Position;
                 var newPosition = new Vector2(newX, newY);
 
-                _utilities.UpdateEntityPosition(entity, newPosition, players, enemies);
-                _battleField.MoveEntity(entity.Id, oldPosition, newPosition);
+                utilities.UpdateEntityPosition(entity, newPosition, players, enemies);
+                battleField.MoveEntity(entity.Id, oldPosition, newPosition);
 
                 if (targetEntity != null)
                 {
@@ -183,13 +172,13 @@ public class BattleMovement
             int newX = entity.Position.X + dx;
             int newY = entity.Position.Y + dy;
 
-            if (_battleField.IsPositionEmpty(newX, newY))
+            if (battleField.IsPositionEmpty(newX, newY))
             {
                 var oldPosition = entity.Position;
                 var newPosition = new Vector2(newX, newY);
 
-                _utilities.UpdateEntityPosition(entity, newPosition, players, enemies);
-                _battleField.MoveEntity(entity.Id, oldPosition, newPosition);
+                utilities.UpdateEntityPosition(entity, newPosition, players, enemies);
+                battleField.MoveEntity(entity.Id, oldPosition, newPosition);
 
                 battleLogs.Add($"{entity.Name} randomly moves from ({oldPosition.X},{oldPosition.Y}) to ({newX},{newY}).");
                 return true;

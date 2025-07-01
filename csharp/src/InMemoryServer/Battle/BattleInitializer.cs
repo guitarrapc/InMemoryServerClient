@@ -5,17 +5,8 @@ namespace InMemoryServer.Battle;
 /// <summary>
 /// Handles battle initialization logic
 /// </summary>
-public class BattleInitializer
+public class BattleInitializer(Random random)
 {
-    private readonly Random _random;
-    private readonly ILogger _logger;
-
-    public BattleInitializer(Random random, ILogger logger)
-    {
-        _random = random;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Initialize players for battle
     /// </summary>
@@ -39,7 +30,7 @@ public class BattleInitializer
     /// </summary>
     public List<EntityInfo> InitializeEnemies(List<string> battleLogs)
     {
-        int enemyCount = _random.Next(BattleBasicDefines.MinEnemyCount, BattleBasicDefines.MaxEnemyCount);
+        int enemyCount = random.Next(BattleBasicDefines.MinEnemyCount, BattleBasicDefines.MaxEnemyCount);
         var enemies = new List<EntityInfo>(enemyCount);
 
         string[] enemyTypes = Enum.GetNames<EnemyType>();
@@ -62,16 +53,16 @@ public class BattleInitializer
     {
         // Randomly assign a job
         var jobTypes = Enum.GetValues<PlayerJob>();
-        var assignedJob = jobTypes[_random.Next(jobTypes.Length)];
+        var assignedJob = jobTypes[random.Next(jobTypes.Length)];
         var jobModifier = BattleBasicDefines.PlayerJobModifiers[assignedJob];
 
         // Calculate base stats
-        var baseMaxHp = _random.Next(BattleBasicDefines.PlayerHp.Min, BattleBasicDefines.PlayerHp.Max);
-        var baseAttack = _random.Next(BattleBasicDefines.PlayerAttackPower.Min, BattleBasicDefines.PlayerAttackPower.Max);
-        var baseDefense = _random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max);
-        var baseSpeed = _random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max);
-        var baseAccuracy = _random.Next(BattleBasicDefines.PlayerAccuracy.Min, BattleBasicDefines.PlayerAccuracy.Max);
-        var baseEvasion = _random.Next(BattleBasicDefines.PlayerEvasion.Min, BattleBasicDefines.PlayerEvasion.Max);
+        var baseMaxHp = random.Next(BattleBasicDefines.PlayerHp.Min, BattleBasicDefines.PlayerHp.Max);
+        var baseAttack = random.Next(BattleBasicDefines.PlayerAttackPower.Min, BattleBasicDefines.PlayerAttackPower.Max);
+        var baseDefense = random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max);
+        var baseSpeed = random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max);
+        var baseAccuracy = random.Next(BattleBasicDefines.PlayerAccuracy.Min, BattleBasicDefines.PlayerAccuracy.Max);
+        var baseEvasion = random.Next(BattleBasicDefines.PlayerEvasion.Min, BattleBasicDefines.PlayerEvasion.Max);
 
         // Apply job modifiers
         var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -103,20 +94,20 @@ public class BattleInitializer
     /// </summary>
     private EntityInfo CreateEnemy(int enemyIndex, string[] enemyTypes)
     {
-        var enemyType = Enum.Parse<EnemyType>(enemyTypes[_random.Next(enemyTypes.Length)]);
+        var enemyType = Enum.Parse<EnemyType>(enemyTypes[random.Next(enemyTypes.Length)]);
 
         // Randomly assign an enemy job
         var jobTypes = Enum.GetValues<EnemyJob>();
-        var assignedEnemyJob = jobTypes[_random.Next(jobTypes.Length)];
+        var assignedEnemyJob = jobTypes[random.Next(jobTypes.Length)];
         var jobModifier = BattleBasicDefines.EnemyJobModifiers[assignedEnemyJob];
 
         // Calculate base stats
-        var baseMaxHp = _random.Next(BattleBasicDefines.EnemyHpByType[enemyType].Min, BattleBasicDefines.EnemyHpByType[enemyType].Max);
-        var baseAttack = _random.Next(BattleBasicDefines.EnemyAttackPower[enemyType].Min, BattleBasicDefines.EnemyAttackPower[enemyType].Max);
-        var baseDefense = _random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max);
-        var baseSpeed = _random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max);
-        var baseAccuracy = _random.Next(BattleBasicDefines.EnemyAccuracy[enemyType].Min, BattleBasicDefines.EnemyAccuracy[enemyType].Max);
-        var baseEvasion = _random.Next(BattleBasicDefines.EnemyEvasion[enemyType].Min, BattleBasicDefines.EnemyEvasion[enemyType].Max);
+        var baseMaxHp = random.Next(BattleBasicDefines.EnemyHpByType[enemyType].Min, BattleBasicDefines.EnemyHpByType[enemyType].Max);
+        var baseAttack = random.Next(BattleBasicDefines.EnemyAttackPower[enemyType].Min, BattleBasicDefines.EnemyAttackPower[enemyType].Max);
+        var baseDefense = random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max);
+        var baseSpeed = random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max);
+        var baseAccuracy = random.Next(BattleBasicDefines.EnemyAccuracy[enemyType].Min, BattleBasicDefines.EnemyAccuracy[enemyType].Max);
+        var baseEvasion = random.Next(BattleBasicDefines.EnemyEvasion[enemyType].Min, BattleBasicDefines.EnemyEvasion[enemyType].Max);
 
         // Apply job modifiers
         var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
