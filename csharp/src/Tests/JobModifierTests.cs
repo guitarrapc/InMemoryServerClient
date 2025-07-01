@@ -70,6 +70,11 @@ public class JobModifierTests
                 var expectedSpeedMin = Math.Max(1, (int)(baseSpeedMin * tankModifier.SpeedMultiplier) + tankModifier.SpeedBonus);
                 var expectedSpeedMax = (int)(baseSpeedMax * tankModifier.SpeedMultiplier) + tankModifier.SpeedBonus;
 
+                var baseAccuracyMin = BattleBasicDefines.PlayerAccuracy.Min;
+                var baseAccuracyMax = BattleBasicDefines.PlayerAccuracy.Max;
+                var expectedAccuracyMin = Math.Max(0, (int)(baseAccuracyMin * tankModifier.AccuracyMultiplier) + tankModifier.AccuracyBonus);
+                var expectedAccuracyMax = (int)(baseAccuracyMax * tankModifier.AccuracyMultiplier) + tankModifier.AccuracyBonus;
+
                 // Assert Tank-specific modifiers
                 Assert.Equal(PlayerJob.Tank, player.Job);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
@@ -80,6 +85,8 @@ public class JobModifierTests
                     $"Tank Defense {player.Defense} should be in range [{expectedDefenseMin}-{expectedDefenseMax}]");
                 Assert.True(player.Speed >= expectedSpeedMin && player.Speed <= expectedSpeedMax,
                     $"Tank Speed {player.Speed} should be in range [{expectedSpeedMin}-{expectedSpeedMax}]");
+                Assert.True(player.Accuracy >= expectedAccuracyMin && player.Accuracy <= expectedAccuracyMax,
+                    $"Tank Accuracy {player.Accuracy} should be in range [{expectedAccuracyMin}-{expectedAccuracyMax}]");
             }
         }
 
@@ -121,12 +128,19 @@ public class JobModifierTests
                 var expectedHpMin = Math.Max(1, (int)(BattleBasicDefines.PlayerHp.Min * warriorModifier.HpMultiplier) + warriorModifier.HpBonus);
                 var expectedHpMax = (int)(BattleBasicDefines.PlayerHp.Max * warriorModifier.HpMultiplier) + warriorModifier.HpBonus;
 
+                var expectedAttackMin = Math.Max(1, (int)(BattleBasicDefines.PlayerAttackPower.Min * warriorModifier.AttackMultiplier) + warriorModifier.AttackBonus);
+                var expectedAttackMax = (int)(BattleBasicDefines.PlayerAttackPower.Max * warriorModifier.AttackMultiplier) + warriorModifier.AttackBonus;
+
+                var expectedAccuracyMin = Math.Max(0, (int)(BattleBasicDefines.PlayerAccuracy.Min * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus);
+                var expectedAccuracyMax = (int)(BattleBasicDefines.PlayerAccuracy.Max * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus;
+
                 Assert.Equal(PlayerJob.Warrior, player.Job);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Warrior HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
-                // High attack due to 1.2x multiplier + 10 bonus
-                // Base attack 25-34, so (25*1.2)+10=40 to (34*1.2)+10=50.8 → 40-50 range
-                Assert.True(player.Attack >= 40, $"Warrior should have high attack power, got {player.Attack}");
+                Assert.True(player.Attack >= expectedAttackMin && player.Attack <= expectedAttackMax,
+                    $"Warrior Attack {player.Attack} should be in range [{expectedAttackMin}-{expectedAttackMax}]");
+                Assert.True(player.Accuracy >= expectedAccuracyMin && player.Accuracy <= expectedAccuracyMax,
+                    $"Warrior Accuracy {player.Accuracy} should be in range [{expectedAccuracyMin}-{expectedAccuracyMax}]");
             }
         }
 

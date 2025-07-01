@@ -256,6 +256,11 @@ public readonly record struct EntityInfo
     public int Speed { get; init; }
 
     /// <summary>
+    /// Accuracy (hit rate, 0-100)
+    /// </summary>
+    public int Accuracy { get; init; }
+
+    /// <summary>
     /// Position on the battle field
     /// </summary>
     public Vector2 Position { get; init; }

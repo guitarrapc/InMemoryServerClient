@@ -35,6 +35,11 @@ public static class BattleBasicDefines
     /// </summary>
     public static readonly StatusRange PlayerMoveSpeed = new(2, 4);
 
+    /// <summary>
+    /// Accuracy range for player (75-90%)
+    /// </summary>
+    public static readonly StatusRange PlayerAccuracy = new(75, 90);
+
     // Enemy Status
     // Enemies get slightly weaker stats for balance
 
@@ -79,6 +84,16 @@ public static class BattleBasicDefines
     };
 
     /// <summary>
+    /// Accuracy range for enemy
+    /// </summary>
+    public static readonly Dictionary<EnemyType, StatusRange> EnemyAccuracy = new Dictionary<EnemyType, StatusRange>
+    {
+        { EnemyType.Small, new (60, 75) },
+        { EnemyType.Medium, new (65, 80) },
+        { EnemyType.Large, new (70, 85) }
+    };
+
+    /// <summary>
     /// Defense damage reduction percentage
     /// </summary>
     public const int DefenseDamageReductionPercent = 50;
@@ -120,10 +135,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 0.8f,
                 defenseMultiplier: 1.5f,
                 speedMultiplier: 0.7f,
+                accuracyMultiplier: 0.9f,  // タンクは命中率がやや低い
                 hpBonus: 80,
                 attackBonus: 0,
                 defenseBonus: 10,
-                speedBonus: -1
+                speedBonus: -1,
+                accuracyBonus: -5
             )
         },
         {
@@ -133,10 +150,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.2f,
                 defenseMultiplier: 1.0f,
                 speedMultiplier: 1.2f,
+                accuracyMultiplier: 1.0f,  // ウォリアーは標準的な命中率
                 hpBonus: 30,
                 attackBonus: 10,
                 defenseBonus: 0,
-                speedBonus: 1
+                speedBonus: 1,
+                accuracyBonus: 0
             )
         },
         {
@@ -146,10 +165,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.4f,
                 defenseMultiplier: 0.7f,
                 speedMultiplier: 0.9f,
+                accuracyMultiplier: 1.2f,  // メイジは高い命中率（魔法の精密性）
                 hpBonus: -50,
                 attackBonus: 8,
                 defenseBonus: -3,
-                speedBonus: 0
+                speedBonus: 0,
+                accuracyBonus: 10
             )
         },
         {
@@ -159,10 +180,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.3f,
                 defenseMultiplier: 0.8f,
                 speedMultiplier: 1.4f,
+                accuracyMultiplier: 1.3f,  // アーチャーは最高の命中率（弓術の精度）
                 hpBonus: -20,
                 attackBonus: 3,
                 defenseBonus: -2,
-                speedBonus: 1
+                speedBonus: 1,
+                accuracyBonus: 15
             )
         }
     };
@@ -179,10 +202,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.1f,
                 defenseMultiplier: 1.0f,
                 speedMultiplier: 1.0f,
+                accuracyMultiplier: 0.95f,  // ブルーザーは若干命中率が低い
                 hpBonus: 30,
                 attackBonus: 4,
                 defenseBonus: 1,
-                speedBonus: 0
+                speedBonus: 0,
+                accuracyBonus: -3
             )
         },
         {
@@ -192,10 +217,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 0.7f,
                 defenseMultiplier: 1.6f,
                 speedMultiplier: 0.6f,
+                accuracyMultiplier: 0.85f,  // ガーディアンは低い命中率（重装備のため）
                 hpBonus: 100,
                 attackBonus: -2,
                 defenseBonus: 10,
-                speedBonus: -1
+                speedBonus: -1,
+                accuracyBonus: -8
             )
         },
         {
@@ -205,10 +232,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.2f,
                 defenseMultiplier: 0.6f,
                 speedMultiplier: 1.5f,
+                accuracyMultiplier: 1.15f,  // アサシンは高い命中率（精密攻撃）
                 hpBonus: -30,
                 attackBonus: 6,
                 defenseBonus: -4,
-                speedBonus: 1
+                speedBonus: 1,
+                accuracyBonus: 8
             )
         },
         {
@@ -218,10 +247,12 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.4f,
                 defenseMultiplier: 0.7f,
                 speedMultiplier: 0.9f,
+                accuracyMultiplier: 1.1f,  // キャスターは高い命中率（魔法の精度）
                 hpBonus: -20,
                 attackBonus: 9,
                 defenseBonus: -3,
-                speedBonus: 0
+                speedBonus: 0,
+                accuracyBonus: 5
             )
         }
     };
@@ -287,6 +318,11 @@ public readonly record struct JobStatModifier
     public float SpeedMultiplier { get; init; }
 
     /// <summary>
+    /// Accuracy multiplier
+    /// </summary>
+    public float AccuracyMultiplier { get; init; }
+
+    /// <summary>
     /// HP bonus (flat addition)
     /// </summary>
     public int HpBonus { get; init; }
@@ -306,23 +342,32 @@ public readonly record struct JobStatModifier
     /// </summary>
     public int SpeedBonus { get; init; }
 
+    /// <summary>
+    /// Accuracy bonus (flat addition, 0-100)
+    /// </summary>
+    public int AccuracyBonus { get; init; }
+
     public JobStatModifier(
         float hpMultiplier,
         float attackMultiplier,
         float defenseMultiplier,
         float speedMultiplier,
+        float accuracyMultiplier,
         int hpBonus,
         int attackBonus,
         int defenseBonus,
-        int speedBonus)
+        int speedBonus,
+        int accuracyBonus)
     {
         HpMultiplier = hpMultiplier;
         AttackMultiplier = attackMultiplier;
         DefenseMultiplier = defenseMultiplier;
         SpeedMultiplier = speedMultiplier;
+        AccuracyMultiplier = accuracyMultiplier;
         HpBonus = hpBonus;
         AttackBonus = attackBonus;
         DefenseBonus = defenseBonus;
         SpeedBonus = speedBonus;
+        AccuracyBonus = accuracyBonus;
     }
 }

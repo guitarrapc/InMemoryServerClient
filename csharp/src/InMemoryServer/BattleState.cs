@@ -102,12 +102,14 @@ public partial class BattleState
             var baseAttack = _random.Next(BattleBasicDefines.PlayerAttackPower.Min, BattleBasicDefines.PlayerAttackPower.Max);
             var baseDefense = _random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max);
             var baseSpeed = _random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max);
+            var baseAccuracy = _random.Next(BattleBasicDefines.PlayerAccuracy.Min, BattleBasicDefines.PlayerAccuracy.Max);
 
             // Apply job modifiers
             var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
             var modifiedAttack = Math.Max(1, (int)(baseAttack * jobModifier.AttackMultiplier) + jobModifier.AttackBonus);
             var modifiedDefense = Math.Max(0, (int)(baseDefense * jobModifier.DefenseMultiplier) + jobModifier.DefenseBonus);
             var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
+            var modifiedAccuracy = Math.Max(0, (int)(baseAccuracy * jobModifier.AccuracyMultiplier) + jobModifier.AccuracyBonus); // 最小0%、最大制限なし
 
             var player = new EntityInfo
             {
@@ -120,6 +122,7 @@ public partial class BattleState
                 Attack = modifiedAttack,
                 Defense = modifiedDefense,
                 Speed = modifiedSpeed,
+                Accuracy = modifiedAccuracy,
                 IsDefending = false
             };
             _players.Add(player);
@@ -143,12 +146,14 @@ public partial class BattleState
             var baseAttack = _random.Next(BattleBasicDefines.EnemyAttackPower[enemyType].Min, BattleBasicDefines.EnemyAttackPower[enemyType].Max);
             var baseDefense = _random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max);
             var baseSpeed = _random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max);
+            var baseAccuracy = _random.Next(BattleBasicDefines.EnemyAccuracy[enemyType].Min, BattleBasicDefines.EnemyAccuracy[enemyType].Max);
 
             // Apply job modifiers
             var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
             var modifiedAttack = Math.Max(1, (int)(baseAttack * jobModifier.AttackMultiplier) + jobModifier.AttackBonus);
             var modifiedDefense = Math.Max(0, (int)(baseDefense * jobModifier.DefenseMultiplier) + jobModifier.DefenseBonus);
             var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
+            var modifiedAccuracy = Math.Max(0, (int)(baseAccuracy * jobModifier.AccuracyMultiplier) + jobModifier.AccuracyBonus); // 最小0%、最大制限なし
 
             var enemy = new EntityInfo
             {
@@ -161,6 +166,7 @@ public partial class BattleState
                 Attack = modifiedAttack,
                 Defense = modifiedDefense,
                 Speed = modifiedSpeed,
+                Accuracy = modifiedAccuracy,
                 IsDefending = false
             };
             _enemies.Add(enemy);
@@ -178,13 +184,13 @@ public partial class BattleState
         // Log player job information
         foreach (var player in _players)
         {
-            _battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}");
+            _battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%");
         }
 
         // Log enemy job information
         foreach (var enemy in _enemies)
         {
-            _battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}");
+            _battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%");
         }
     }
 
@@ -523,6 +529,7 @@ _battleField[y, x] == null)
 
             // Significantly increase reward if attack can potentially defeat the enemy
             int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
+
             if (adjacentTarget.Value.IsDefending)
             {
                 estimatedDamage = estimatedDamage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100;
@@ -531,7 +538,7 @@ _battleField[y, x] == null)
 
             if (estimatedDamage >= adjacentTarget.Value.CurrentHp)
             {
-                // Highest priority if can defeat in one hit
+                // Highest priority if can defeat in one hit (not considering accuracy for AI simplicity)
                 reward *= BattleAIDefines.OneHitKillMultiplier;
             }
 
@@ -1088,7 +1095,17 @@ _battleField[y, x] == null)
 
         var targetValue = adjacentTarget.Value;
 
-        // Calculate damage
+        // Hit chance calculation
+        int hitChance = _random.Next(1, 101); // 1-100の乱数
+
+        if (hitChance > entity.Accuracy)
+        {
+            // Attack missed
+            _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} but misses! (Hit chance: {entity.Accuracy}%)");
+            return;
+        }
+
+        // Attack hits - Calculate damage
         int damage = Math.Max(1, entity.Attack - (targetValue.IsDefending ? targetValue.Defense * 2 : targetValue.Defense) / 2);
 
         // Apply damage reduction if target is defending
