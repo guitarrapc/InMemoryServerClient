@@ -1,4 +1,4 @@
-namespace Shared;
+﻿namespace Shared;
 
 /// <summary>
 /// Battle calculation utilities and helper methods

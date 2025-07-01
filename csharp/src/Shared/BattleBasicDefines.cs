@@ -18,12 +18,12 @@ public static class BattleBasicDefines
     /// <summary>
     /// Player HP range
     /// </summary>
-    public static readonly StatusRange PlayerHp = new (300, 430);
+    public static readonly StatusRange PlayerHp = new(300, 430);
 
     /// <summary>
     /// Attack power range for player
     /// </summary>
-    public static readonly StatusRange PlayerAttackPower = new (25, 34);
+    public static readonly StatusRange PlayerAttackPower = new(25, 34);
 
     /// <summary>
     /// Defense power range for player

@@ -98,7 +98,9 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
             _connection.On<string, string>("GroupMessage", (connectionId, message) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [GROUP] Message from {connectionId}: {message}");
-            });            _connection.On<string>("ConnectionsReady", async (battleId) =>
+            });
+
+            _connection.On<string>("ConnectionsReady", async (battleId) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== Connections Ready! ==========");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] 🔄 Battle ID: {battleId}");
