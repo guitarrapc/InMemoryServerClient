@@ -84,14 +84,14 @@ public static class BattleBasicDefines
     public const int DefenseDamageReductionPercent = 50;
 
     /// <summary>
-    /// Minimum number of enemies in battle
+    /// Minimum number of enemies in a battle
     /// </summary>
-    public const int MinEnemyCount = 15;
+    public const int MinEnemyCount = 14;
 
     /// <summary>
-    /// Maximum number of enemies in battle
+    /// Maximum number of enemies in a battle
     /// </summary>
-    public const int MaxEnemyCount = 20;
+    public const int MaxEnemyCount = 18;
 
     /// <summary>
     /// Minimum battle turns
