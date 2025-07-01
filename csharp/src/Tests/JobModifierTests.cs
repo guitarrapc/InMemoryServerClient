@@ -43,7 +43,7 @@ public class JobModifierTests
             var status = battleState.GetStatus();
 
             var tankPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Tank);
-            if (!tankPlayer.Equals(default(EntityInfo)))
+            if (!tankPlayer.Equals(default))
             {
                 tankPlayerFound = true;
                 var player = tankPlayer;
@@ -111,7 +111,7 @@ public class JobModifierTests
             var status = battleState.GetStatus();
 
             var warriorPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Warrior);
-            if (!warriorPlayer.Equals(default(EntityInfo)))
+            if (!warriorPlayer.Equals(default))
             {
                 warriorPlayerFound = true;
                 var player = warriorPlayer;
@@ -157,7 +157,7 @@ public class JobModifierTests
             var status = battleState.GetStatus();
 
             var magePlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Mage);
-            if (!magePlayer.Equals(default(EntityInfo)))
+            if (!magePlayer.Equals(default))
             {
                 magePlayerFound = true;
                 var player = magePlayer;
@@ -203,7 +203,7 @@ public class JobModifierTests
             var status = battleState.GetStatus();
 
             var archerPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Archer);
-            if (!archerPlayer.Equals(default(EntityInfo)))
+            if (!archerPlayer.Equals(default))
             {
                 archerPlayerFound = true;
                 var player = archerPlayer;
