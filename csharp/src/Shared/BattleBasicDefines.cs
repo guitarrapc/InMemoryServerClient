@@ -18,12 +18,12 @@ public static class BattleBasicDefines
     /// <summary>
     /// Player HP range
     /// </summary>
-    public static readonly StatusRange PlayerHp = new (330, 400);
+    public static readonly StatusRange PlayerHp = new (300, 430);
 
     /// <summary>
     /// Attack power range for player
     /// </summary>
-    public static readonly StatusRange PlayerAttackPower = new (15, 26);
+    public static readonly StatusRange PlayerAttackPower = new (25, 34);
 
     /// <summary>
     /// Defense power range for player
@@ -33,7 +33,7 @@ public static class BattleBasicDefines
     /// <summary>
     /// Movement speed range for player
     /// </summary>
-    public static readonly StatusRange PlayerMoveSpeed = new(1, 4);
+    public static readonly StatusRange PlayerMoveSpeed = new(2, 4);
 
     // Enemy Status
     // Enemies get slightly weaker stats for balance
@@ -121,19 +121,19 @@ public static class BattleBasicDefines
                 defenseMultiplier: 1.5f,
                 speedMultiplier: 0.7f,
                 hpBonus: 80,
-                attackBonus: -3,
+                attackBonus: 0,
                 defenseBonus: 10,
-                speedBonus: -2
+                speedBonus: -1
             )
         },
         {
             PlayerJob.Warrior,
             new JobStatModifier(
                 hpMultiplier: 1.1f,
-                attackMultiplier: 1.3f,
+                attackMultiplier: 1.2f,
                 defenseMultiplier: 1.0f,
-                speedMultiplier: 1.0f,
-                hpBonus: 40,
+                speedMultiplier: 1.2f,
+                hpBonus: 30,
                 attackBonus: 10,
                 defenseBonus: 0,
                 speedBonus: 1
@@ -145,18 +145,18 @@ public static class BattleBasicDefines
                 hpMultiplier: 0.8f,
                 attackMultiplier: 1.4f,
                 defenseMultiplier: 0.7f,
-                speedMultiplier: 1.2f,
-                hpBonus: -100,
+                speedMultiplier: 0.9f,
+                hpBonus: -50,
                 attackBonus: 8,
                 defenseBonus: -3,
-                speedBonus: -1
+                speedBonus: 0
             )
         },
         {
             PlayerJob.Archer,
             new JobStatModifier(
                 hpMultiplier: 0.9f,
-                attackMultiplier: 1.2f,
+                attackMultiplier: 1.3f,
                 defenseMultiplier: 0.8f,
                 speedMultiplier: 1.4f,
                 hpBonus: -20,
@@ -176,12 +176,12 @@ public static class BattleBasicDefines
             EnemyJob.Bruiser,
             new JobStatModifier(
                 hpMultiplier: 1.2f,
-                attackMultiplier: 1.3f,
-                defenseMultiplier: 0.9f,
-                speedMultiplier: 0.8f,
+                attackMultiplier: 1.1f,
+                defenseMultiplier: 1.0f,
+                speedMultiplier: 1.0f,
                 hpBonus: 30,
                 attackBonus: 4,
-                defenseBonus: -1,
+                defenseBonus: 1,
                 speedBonus: 0
             )
         },
@@ -192,22 +192,22 @@ public static class BattleBasicDefines
                 attackMultiplier: 0.7f,
                 defenseMultiplier: 1.6f,
                 speedMultiplier: 0.6f,
-                hpBonus: 50,
-                attackBonus: -2,
+                hpBonus: 100,
+                attackBonus: -3,
                 defenseBonus: 6,
-                speedBonus: 0
+                speedBonus: -1
             )
         },
         {
             EnemyJob.Assassin,
             new JobStatModifier(
                 hpMultiplier: 0.7f,
-                attackMultiplier: 1.4f,
+                attackMultiplier: 1.2f,
                 defenseMultiplier: 0.6f,
                 speedMultiplier: 1.5f,
-                hpBonus: -20,
+                hpBonus: -30,
                 attackBonus: 6,
-                defenseBonus: -3,
+                defenseBonus: -4,
                 speedBonus: 1
             )
         },
@@ -215,13 +215,13 @@ public static class BattleBasicDefines
             EnemyJob.Caster,
             new JobStatModifier(
                 hpMultiplier: 0.8f,
-                attackMultiplier: 1.5f,
+                attackMultiplier: 1.4f,
                 defenseMultiplier: 0.7f,
-                speedMultiplier: 1.3f,
-                hpBonus: -10,
+                speedMultiplier: 0.9f,
+                hpBonus: -20,
                 attackBonus: 7,
-                defenseBonus: -2,
-                speedBonus: 1
+                defenseBonus: -3,
+                speedBonus: -1
             )
         }
     };
