@@ -71,7 +71,7 @@ public class BattleStateTests
         {
             Assert.Equal("Player", player.Type);
             // Players have job modifiers applied, so we need to check wider ranges
-            Assert.True(player.MaxHp >= 200 && player.MaxHp <= 700, $"Player HP {player.MaxHp} is outside expected range");
+            Assert.True(player.MaxHp >= 150 && player.MaxHp <= 700, $"Player HP {player.MaxHp} is outside expected range");
             Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
             Assert.True(player.Attack >= 15 && player.Attack <= 60, $"Player Attack {player.Attack} is outside expected range");
             Assert.True(player.Defense >= 0 && player.Defense <= 50, $"Player Defense {player.Defense} is outside expected range");

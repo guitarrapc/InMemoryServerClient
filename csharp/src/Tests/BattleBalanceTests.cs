@@ -95,7 +95,7 @@ public class BattleBalanceTests
     public async Task BattleBalance_WinRate_ShouldBeWithinRange()
     {
         // 設定パラメータ
-        const int battlesPerTrial = 100; // 1回の試行でのバトル数
+        const int battlesPerTrial = 200; // 1回の試行でのバトル数
         const int numberOfTrials = 10;   // 試行回数
         const double minAcceptableWinRate = 0.5; // 最小許容勝率 (50%)
         const double maxAcceptableWinRate = 0.7; // 最大許容勝率 (70%)
@@ -127,7 +127,7 @@ public class BattleBalanceTests
     public async Task BattleBalance_DetailedAnalysis()
     {
         // 詳細分析のためのバトル数
-        const int battlesForAnalysis = 100;
+        const int battlesForAnalysis = 200;
 
         // 分析用のデータ構造 (敵の数別勝率を記録)
         var enemyCountWinRates = new Dictionary<int, List<bool>>();

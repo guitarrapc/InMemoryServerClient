@@ -261,6 +261,11 @@ public readonly record struct EntityInfo
     public int Accuracy { get; init; }
 
     /// <summary>
+    /// Evasion (dodge rate, 0-100)
+    /// </summary>
+    public int Evasion { get; init; }
+
+    /// <summary>
     /// Position on the battle field
     /// </summary>
     public Vector2 Position { get; init; }

@@ -103,6 +103,7 @@ public partial class BattleState
             var baseDefense = _random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max);
             var baseSpeed = _random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max);
             var baseAccuracy = _random.Next(BattleBasicDefines.PlayerAccuracy.Min, BattleBasicDefines.PlayerAccuracy.Max);
+            var baseEvasion = _random.Next(BattleBasicDefines.PlayerEvasion.Min, BattleBasicDefines.PlayerEvasion.Max);
 
             // Apply job modifiers
             var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -110,6 +111,7 @@ public partial class BattleState
             var modifiedDefense = Math.Max(0, (int)(baseDefense * jobModifier.DefenseMultiplier) + jobModifier.DefenseBonus);
             var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
             var modifiedAccuracy = Math.Max(0, (int)(baseAccuracy * jobModifier.AccuracyMultiplier) + jobModifier.AccuracyBonus); // 最小0%、最大制限なし
+            var modifiedEvasion = Math.Max(0, (int)(baseEvasion * jobModifier.EvasionMultiplier) + jobModifier.EvasionBonus); // 最小0%、最大制限なし
 
             var player = new EntityInfo
             {
@@ -123,6 +125,7 @@ public partial class BattleState
                 Defense = modifiedDefense,
                 Speed = modifiedSpeed,
                 Accuracy = modifiedAccuracy,
+                Evasion = modifiedEvasion,
                 IsDefending = false
             };
             _players.Add(player);
@@ -147,6 +150,7 @@ public partial class BattleState
             var baseDefense = _random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max);
             var baseSpeed = _random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max);
             var baseAccuracy = _random.Next(BattleBasicDefines.EnemyAccuracy[enemyType].Min, BattleBasicDefines.EnemyAccuracy[enemyType].Max);
+            var baseEvasion = _random.Next(BattleBasicDefines.EnemyEvasion[enemyType].Min, BattleBasicDefines.EnemyEvasion[enemyType].Max);
 
             // Apply job modifiers
             var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -154,6 +158,7 @@ public partial class BattleState
             var modifiedDefense = Math.Max(0, (int)(baseDefense * jobModifier.DefenseMultiplier) + jobModifier.DefenseBonus);
             var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
             var modifiedAccuracy = Math.Max(0, (int)(baseAccuracy * jobModifier.AccuracyMultiplier) + jobModifier.AccuracyBonus); // 最小0%、最大制限なし
+            var modifiedEvasion = Math.Max(0, (int)(baseEvasion * jobModifier.EvasionMultiplier) + jobModifier.EvasionBonus); // 最小0%、最大制限なし
 
             var enemy = new EntityInfo
             {
@@ -167,6 +172,7 @@ public partial class BattleState
                 Defense = modifiedDefense,
                 Speed = modifiedSpeed,
                 Accuracy = modifiedAccuracy,
+                Evasion = modifiedEvasion,
                 IsDefending = false
             };
             _enemies.Add(enemy);
@@ -184,13 +190,13 @@ public partial class BattleState
         // Log player job information
         foreach (var player in _players)
         {
-            _battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%");
+            _battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%, EVA: {player.Evasion}%");
         }
 
         // Log enemy job information
         foreach (var enemy in _enemies)
         {
-            _battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%");
+            _battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%, EVA: {enemy.Evasion}%");
         }
     }
 
@@ -528,17 +534,20 @@ _battleField[y, x] == null)
             }
 
             // Significantly increase reward if attack can potentially defeat the enemy
+            // Calculate expected damage considering hit chance with evasion
             int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
+            var finalHitChance = Math.Max(0, entity.Accuracy - adjacentTarget.Value.Evasion);
+            float expectedDamage = estimatedDamage * (finalHitChance / 100.0f);
 
             if (adjacentTarget.Value.IsDefending)
             {
-                estimatedDamage = estimatedDamage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100;
-                estimatedDamage = Math.Max(1, estimatedDamage);
+                expectedDamage = expectedDamage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100.0f;
+                expectedDamage = Math.Max(1.0f, expectedDamage);
             }
 
-            if (estimatedDamage >= adjacentTarget.Value.CurrentHp)
+            if (expectedDamage >= adjacentTarget.Value.CurrentHp)
             {
-                // Highest priority if can defeat in one hit (not considering accuracy for AI simplicity)
+                // Highest priority if expected damage can defeat in one hit
                 reward *= BattleAIDefines.OneHitKillMultiplier;
             }
 
@@ -1095,13 +1104,14 @@ _battleField[y, x] == null)
 
         var targetValue = adjacentTarget.Value;
 
-        // Hit chance calculation
-        int hitChance = _random.Next(1, 101); // 1-100の乱数
+        // Hit chance calculation: Final hit chance = Attacker's Accuracy - Target's Evasion
+        var finalHitChance = Math.Max(0, entity.Accuracy - targetValue.Evasion);
+        int hitRoll = _random.Next(1, 101); // 1-100の乱数
 
-        if (hitChance > entity.Accuracy)
+        if (hitRoll > finalHitChance)
         {
-            // Attack missed
-            _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} but misses! (Hit chance: {entity.Accuracy}%)");
+            // Attack missed/evaded
+            _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} but {(targetValue.Evasion > 0 ? "it's evaded" : "misses")}! (Hit chance: {finalHitChance}% = {entity.Accuracy}% ACC - {targetValue.Evasion}% EVA)");
             return;
         }
 

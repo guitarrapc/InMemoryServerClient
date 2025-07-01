@@ -291,4 +291,97 @@ public class JobModifierTests
             }
         }
     }
+
+    /// <summary>
+    /// Test Evasion rate ranges for all player jobs
+    /// </summary>
+    [Fact]
+    public void PlayerJobs_EvasionRates_ShouldBeWithinExpectedRanges()
+    {
+        // Arrange
+        var battleId = Guid.NewGuid().ToString();
+        var group = new GroupInfo
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "evasion_test_group",
+            ConnectionCount = 5,
+            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
+        };
+
+        var jobsFound = new HashSet<PlayerJob>();
+        var jobEvasionData = new Dictionary<PlayerJob, List<int>>();
+
+        // Act - Run multiple times to collect evasion data for different jobs
+        for (int attempt = 0; attempt < 500 && jobsFound.Count < 4; attempt++)
+        {
+            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var status = battleState.GetStatus();
+
+            foreach (var player in status.Players)
+            {
+                if (player.Job.HasValue && !jobsFound.Contains(player.Job.Value))
+                {
+                    jobsFound.Add(player.Job.Value);
+                    if (!jobEvasionData.ContainsKey(player.Job.Value))
+                    {
+                        jobEvasionData[player.Job.Value] = new List<int>();
+                    }
+                }
+
+                if (player.Job.HasValue)
+                {
+                    if (jobEvasionData.ContainsKey(player.Job.Value))
+                    {
+                        jobEvasionData[player.Job.Value].Add(player.Evasion);
+                    }
+                }
+            }
+        }
+
+        // Assert - Check evasion ranges for each job
+        foreach (var job in jobsFound)
+        {
+            var modifier = BattleBasicDefines.PlayerJobModifiers[job];
+            var baseEvasionMin = BattleBasicDefines.PlayerEvasion.Min;
+            var baseEvasionMax = BattleBasicDefines.PlayerEvasion.Max;
+            var expectedEvasionMin = Math.Max(0, (int)(baseEvasionMin * modifier.EvasionMultiplier) + modifier.EvasionBonus);
+            var expectedEvasionMax = (int)(baseEvasionMax * modifier.EvasionMultiplier) + modifier.EvasionBonus;
+
+            if (jobEvasionData.ContainsKey(job) && jobEvasionData[job].Count > 0)
+            {
+                var actualMin = jobEvasionData[job].Min();
+                var actualMax = jobEvasionData[job].Max();
+
+                Assert.True(actualMin >= expectedEvasionMin,
+                    $"{job} Evasion minimum {actualMin} should be >= {expectedEvasionMin}");
+                Assert.True(actualMax <= expectedEvasionMax,
+                    $"{job} Evasion maximum {actualMax} should be <= {expectedEvasionMax}");
+
+                // Job-specific evasion expectations
+                switch (job)
+                {
+                    case PlayerJob.Archer:
+                        // Archer should have the highest evasion among all jobs
+                        Assert.True(actualMin >= 20, $"Archer should have high evasion, but minimum was {actualMin}");
+                        break;
+                    case PlayerJob.Tank:
+                        // Tank should have the lowest evasion among all jobs
+                        Assert.True(actualMax <= 15, $"Tank should have low evasion, but maximum was {actualMax}");
+                        break;
+                    case PlayerJob.Mage:
+                        // Mage should have lower evasion than Warrior
+                        Assert.True(actualMax <= 25, $"Mage should have lower evasion, but maximum was {actualMax}");
+                        break;
+                    case PlayerJob.Warrior:
+                        // Warrior should have standard evasion
+                        Assert.True(actualMin >= 10 && actualMax <= 35, $"Warrior should have standard evasion range, but got {actualMin}-{actualMax}");
+                        break;
+                }
+            }
+        }
+
+        Assert.True(jobsFound.Count >= 3, "At least 3 different jobs should be found within 500 attempts");
+    }
 }

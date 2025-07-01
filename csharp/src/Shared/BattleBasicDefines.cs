@@ -40,6 +40,11 @@ public static class BattleBasicDefines
     /// </summary>
     public static readonly StatusRange PlayerAccuracy = new(75, 90);
 
+    /// <summary>
+    /// Evasion range for player (15-30%)
+    /// </summary>
+    public static readonly StatusRange PlayerEvasion = new(15, 30);
+
     // Enemy Status
     // Enemies get slightly weaker stats for balance
 
@@ -48,9 +53,9 @@ public static class BattleBasicDefines
     /// </summary>
     public static readonly Dictionary<EnemyType, StatusRange> EnemyHpByType = new Dictionary<EnemyType, StatusRange>
     {
-        { EnemyType.Small, new (50, 80) },
-        { EnemyType.Medium, new (100, 150) },
-        { EnemyType.Large, new (250, 330) }
+        { EnemyType.Small, new (55, 85) },
+        { EnemyType.Medium, new (110, 160) },
+        { EnemyType.Large, new (265, 350) }
     };
 
     /// <summary>
@@ -58,9 +63,9 @@ public static class BattleBasicDefines
     /// </summary>
     public static readonly Dictionary<EnemyType, StatusRange> EnemyAttackPower = new Dictionary<EnemyType, StatusRange>
     {
-        { EnemyType.Small, new (10, 15) },
-        { EnemyType.Medium, new (15, 22) },
-        { EnemyType.Large, new (23, 30) }
+        { EnemyType.Small, new (11, 16) },
+        { EnemyType.Medium, new (16, 24) },
+        { EnemyType.Large, new (24, 32) }
     };
 
     /// <summary>
@@ -88,9 +93,19 @@ public static class BattleBasicDefines
     /// </summary>
     public static readonly Dictionary<EnemyType, StatusRange> EnemyAccuracy = new Dictionary<EnemyType, StatusRange>
     {
-        { EnemyType.Small, new (60, 75) },
-        { EnemyType.Medium, new (65, 80) },
-        { EnemyType.Large, new (70, 85) }
+        { EnemyType.Small, new (65, 80) },
+        { EnemyType.Medium, new (70, 85) },
+        { EnemyType.Large, new (75, 90) }
+    };
+
+    /// <summary>
+    /// Evasion range for enemy (small enemies have higher evasion)
+    /// </summary>
+    public static readonly Dictionary<EnemyType, StatusRange> EnemyEvasion = new Dictionary<EnemyType, StatusRange>
+    {
+        { EnemyType.Small, new (25, 40) },   // 高回避
+        { EnemyType.Medium, new (15, 30) },  // 中回避
+        { EnemyType.Large, new (5, 20) }     // 低回避
     };
 
     /// <summary>
@@ -106,7 +121,7 @@ public static class BattleBasicDefines
     /// <summary>
     /// Maximum number of enemies in a battle
     /// </summary>
-    public const int MaxEnemyCount = 18;
+    public const int MaxEnemyCount = 19;
 
     /// <summary>
     /// Minimum battle turns
@@ -136,11 +151,13 @@ public static class BattleBasicDefines
                 defenseMultiplier: 1.5f,
                 speedMultiplier: 0.7f,
                 accuracyMultiplier: 0.9f,  // タンクは命中率がやや低い
+                evasionMultiplier: 0.6f,   // タンクは低回避率（重装備）
                 hpBonus: 80,
                 attackBonus: 0,
                 defenseBonus: 10,
                 speedBonus: -1,
-                accuracyBonus: -5
+                accuracyBonus: -5,
+                evasionBonus: -10
             )
         },
         {
@@ -151,11 +168,13 @@ public static class BattleBasicDefines
                 defenseMultiplier: 1.0f,
                 speedMultiplier: 1.2f,
                 accuracyMultiplier: 1.0f,  // ウォリアーは標準的な命中率
+                evasionMultiplier: 1.0f,   // ウォリアーは標準的な回避率
                 hpBonus: 30,
                 attackBonus: 10,
                 defenseBonus: 0,
                 speedBonus: 1,
-                accuracyBonus: 0
+                accuracyBonus: 0,
+                evasionBonus: 0
             )
         },
         {
@@ -166,11 +185,13 @@ public static class BattleBasicDefines
                 defenseMultiplier: 0.7f,
                 speedMultiplier: 0.9f,
                 accuracyMultiplier: 1.2f,  // メイジは高い命中率（魔法の精密性）
+                evasionMultiplier: 0.8f,   // メイジは低い回避率（運動性が低い）
                 hpBonus: -50,
                 attackBonus: 8,
                 defenseBonus: -3,
                 speedBonus: 0,
-                accuracyBonus: 10
+                accuracyBonus: 10,
+                evasionBonus: -5
             )
         },
         {
@@ -181,11 +202,13 @@ public static class BattleBasicDefines
                 defenseMultiplier: 0.8f,
                 speedMultiplier: 1.4f,
                 accuracyMultiplier: 1.3f,  // アーチャーは最高の命中率（弓術の精度）
+                evasionMultiplier: 1.5f,   // アーチャーは最高の回避率（機動性重視）
                 hpBonus: -20,
                 attackBonus: 3,
                 defenseBonus: -2,
                 speedBonus: 1,
-                accuracyBonus: 15
+                accuracyBonus: 15,
+                evasionBonus: 10
             )
         }
     };
@@ -202,12 +225,14 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.1f,
                 defenseMultiplier: 1.0f,
                 speedMultiplier: 1.0f,
-                accuracyMultiplier: 0.95f,  // ブルーザーは若干命中率が低い
+                accuracyMultiplier: 1.0f,  // ブルーザーは標準的な命中率
+                evasionMultiplier: 1.0f,    // ブルーザーは標準的な回避率
                 hpBonus: 30,
                 attackBonus: 4,
                 defenseBonus: 1,
                 speedBonus: 0,
-                accuracyBonus: -3
+                accuracyBonus: 0,
+                evasionBonus: 0
             )
         },
         {
@@ -218,11 +243,13 @@ public static class BattleBasicDefines
                 defenseMultiplier: 1.6f,
                 speedMultiplier: 0.6f,
                 accuracyMultiplier: 0.85f,  // ガーディアンは低い命中率（重装備のため）
+                evasionMultiplier: 0.6f,    // ガーディアンは最低回避率（重装備）
                 hpBonus: 100,
                 attackBonus: -2,
                 defenseBonus: 10,
                 speedBonus: -1,
-                accuracyBonus: -8
+                accuracyBonus: -8,
+                evasionBonus: -10
             )
         },
         {
@@ -233,11 +260,13 @@ public static class BattleBasicDefines
                 defenseMultiplier: 0.6f,
                 speedMultiplier: 1.5f,
                 accuracyMultiplier: 1.15f,  // アサシンは高い命中率（精密攻撃）
+                evasionMultiplier: 1.4f,    // アサシンは高い回避率（機動性）
                 hpBonus: -30,
                 attackBonus: 6,
                 defenseBonus: -4,
                 speedBonus: 1,
-                accuracyBonus: 8
+                accuracyBonus: 8,
+                evasionBonus: 12
             )
         },
         {
@@ -247,12 +276,14 @@ public static class BattleBasicDefines
                 attackMultiplier: 1.4f,
                 defenseMultiplier: 0.7f,
                 speedMultiplier: 0.9f,
-                accuracyMultiplier: 1.1f,  // キャスターは高い命中率（魔法の精度）
+                accuracyMultiplier: 1.1f,   // キャスターは高い命中率（魔法の精度）
+                evasionMultiplier: 0.9f,    // キャスターは少し低い回避率（運動性低め）
                 hpBonus: -20,
                 attackBonus: 9,
                 defenseBonus: -3,
                 speedBonus: 0,
-                accuracyBonus: 5
+                accuracyBonus: 5,
+                evasionBonus: -2
             )
         }
     };
@@ -323,6 +354,11 @@ public readonly record struct JobStatModifier
     public float AccuracyMultiplier { get; init; }
 
     /// <summary>
+    /// Evasion multiplier
+    /// </summary>
+    public float EvasionMultiplier { get; init; }
+
+    /// <summary>
     /// HP bonus (flat addition)
     /// </summary>
     public int HpBonus { get; init; }
@@ -347,27 +383,36 @@ public readonly record struct JobStatModifier
     /// </summary>
     public int AccuracyBonus { get; init; }
 
+    /// <summary>
+    /// Evasion bonus (flat addition, 0-100)
+    /// </summary>
+    public int EvasionBonus { get; init; }
+
     public JobStatModifier(
         float hpMultiplier,
         float attackMultiplier,
         float defenseMultiplier,
         float speedMultiplier,
         float accuracyMultiplier,
+        float evasionMultiplier,
         int hpBonus,
         int attackBonus,
         int defenseBonus,
         int speedBonus,
-        int accuracyBonus)
+        int accuracyBonus,
+        int evasionBonus)
     {
         HpMultiplier = hpMultiplier;
         AttackMultiplier = attackMultiplier;
         DefenseMultiplier = defenseMultiplier;
         SpeedMultiplier = speedMultiplier;
         AccuracyMultiplier = accuracyMultiplier;
+        EvasionMultiplier = evasionMultiplier;
         HpBonus = hpBonus;
         AttackBonus = attackBonus;
         DefenseBonus = defenseBonus;
         SpeedBonus = speedBonus;
         AccuracyBonus = accuracyBonus;
+        EvasionBonus = evasionBonus;
     }
 }
