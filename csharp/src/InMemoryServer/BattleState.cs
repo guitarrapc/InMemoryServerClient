@@ -92,7 +92,7 @@ public partial class BattleState
         // Create players (one for each connection)
         for (int i = 0; i < _group.ConnectionCount; i++)
         {
-            var maxHp = _random.Next(BattleBasicDefines.PlayerHp - 70, BattleBasicDefines.PlayerHp + 70);
+            var maxHp = _random.Next(BattleBasicDefines.PlayerHp.Min, BattleBasicDefines.PlayerHp.Max);
             var player = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
@@ -100,10 +100,9 @@ public partial class BattleState
                 Type = "Player",
                 CurrentHp = maxHp, // Start at full health
                 MaxHp = maxHp,
-                // Players get slightly better stats than enemies for balance
-                Attack = _random.Next(BattleBasicDefines.MinAttackPower, BattleBasicDefines.MaxAttackPower + 6),
-                Defense = _random.Next(BattleBasicDefines.MinDefensePower + 2, BattleBasicDefines.MaxDefensePower + 4),
-                Speed = _random.Next(BattleBasicDefines.MinMovementSpeed, BattleBasicDefines.MaxMovementSpeed + 1),
+                Attack = _random.Next(BattleBasicDefines.PlayerAttackPower.Min, BattleBasicDefines.PlayerAttackPower.Max),
+                Defense = _random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max),
+                Speed = _random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max),
                 IsDefending = false
             };
             _players.Add(player);
@@ -111,23 +110,22 @@ public partial class BattleState
 
         // Create enemies
         int enemyCount = _random.Next(BattleBasicDefines.MinEnemyCount, BattleBasicDefines.MaxEnemyCount);
-        string[] enemyTypes = [.. BattleBasicDefines.EnemyHpByType.Keys];
+        string[] enemyTypes = Enum.GetNames<EnemyType>();
 
         for (int i = 0; i < enemyCount; i++)
         {
-            var enemyType = enemyTypes[_random.Next(enemyTypes.Length)];
-            var maxHp = _random.Next(BattleBasicDefines.EnemyHpByType[enemyType], BattleBasicDefines.EnemyHpByType[enemyType] + 50);
+            var enemyType = Enum.Parse<EnemyType>(enemyTypes[_random.Next(enemyTypes.Length)]);
+            var maxHp = _random.Next(BattleBasicDefines.EnemyHpByType[enemyType].Min, BattleBasicDefines.EnemyHpByType[enemyType].Max);
             var enemy = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = $"{enemyType}Enemy{i + 1}",
-                Type = enemyType,
+                Type = enemyType.ToString(),
                 CurrentHp = maxHp, // Start at full health
                 MaxHp = maxHp,
-                // Enemies get slightly weaker stats for balance
-                Attack = _random.Next(BattleBasicDefines.MinAttackPower - 5, BattleBasicDefines.MaxAttackPower - 3),
-                Defense = _random.Next(BattleBasicDefines.MinDefensePower - 2, BattleBasicDefines.MaxDefensePower),
-                Speed = _random.Next(BattleBasicDefines.MinMovementSpeed, BattleBasicDefines.MaxMovementSpeed + 1),
+                Attack = _random.Next(BattleBasicDefines.EnemyAttackPower[enemyType].Min, BattleBasicDefines.EnemyAttackPower[enemyType].Max),
+                Defense = _random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max),
+                Speed = _random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max),
                 IsDefending = false
             };
             _enemies.Add(enemy);

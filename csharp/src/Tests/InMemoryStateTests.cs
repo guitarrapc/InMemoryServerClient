@@ -182,11 +182,11 @@ public class BattleStateTests
         foreach (var player in status.Players)
         {
             Assert.Equal("Player", player.Type);
-            Assert.True(player.MaxHp >= BattleBasicDefines.PlayerHp - 70 && player.MaxHp <= BattleBasicDefines.PlayerHp + 70);
+            Assert.True(player.MaxHp >= BattleBasicDefines.PlayerHp.Min && player.MaxHp <= BattleBasicDefines.PlayerHp.Max);
             Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
-            Assert.True(player.Attack >= BattleBasicDefines.MinAttackPower && player.Attack <= BattleBasicDefines.MaxAttackPower + 6);
-            Assert.True(player.Defense >= BattleBasicDefines.MinDefensePower + 2 && player.Defense <= BattleBasicDefines.MaxDefensePower + 4);
-            Assert.True(player.Speed >= BattleBasicDefines.MinMovementSpeed && player.Speed <= BattleBasicDefines.MaxMovementSpeed + 1);
+            Assert.True(player.Attack >= BattleBasicDefines.PlayerAttackPower.Min && player.Attack <= BattleBasicDefines.PlayerAttackPower.Max);
+            Assert.True(player.Defense >= BattleBasicDefines.PlayerDefencePower.Min && player.Defense <= BattleBasicDefines.PlayerDefencePower.Max);
+            Assert.True(player.Speed >= BattleBasicDefines.PlayerMoveSpeed.Min && player.Speed <= BattleBasicDefines.PlayerMoveSpeed.Max);
         }
     }
 
@@ -215,13 +215,14 @@ public class BattleStateTests
 
         foreach (var enemy in status.Enemies)
         {
-            Assert.True(BattleBasicDefines.EnemyHpByType.ContainsKey(enemy.Type));
-            var baseHp = BattleBasicDefines.EnemyHpByType[enemy.Type];
-            Assert.True(enemy.MaxHp >= baseHp && enemy.MaxHp <= baseHp + 50);
+            var enemyType = Enum.Parse<EnemyType>(enemy.Type);
+            Assert.True(BattleBasicDefines.EnemyHpByType.ContainsKey(enemyType));
+
+            Assert.True(enemy.MaxHp >= BattleBasicDefines.EnemyHpByType[enemyType].Min && enemy.MaxHp <= BattleBasicDefines.EnemyHpByType[enemyType].Max);
             Assert.Equal(enemy.MaxHp, enemy.CurrentHp); // Should start at full health
-            Assert.True(enemy.Attack >= BattleBasicDefines.MinAttackPower - 5 && enemy.Attack <= BattleBasicDefines.MaxAttackPower - 3);
-            Assert.True(enemy.Defense >= BattleBasicDefines.MinDefensePower - 2 && enemy.Defense <= BattleBasicDefines.MaxDefensePower);
-            Assert.True(enemy.Speed >= BattleBasicDefines.MinMovementSpeed && enemy.Speed <= BattleBasicDefines.MaxMovementSpeed + 1);
+            Assert.True(enemy.Attack >= BattleBasicDefines.EnemyAttackPower[enemyType].Min && enemy.Attack <= BattleBasicDefines.EnemyAttackPower[enemyType].Max);
+            Assert.True(enemy.Defense >= BattleBasicDefines.EnemyDefencePower[enemyType].Min - 2 && enemy.Defense <= BattleBasicDefines.EnemyDefencePower[enemyType].Max);
+            Assert.True(enemy.Speed >= BattleBasicDefines.EnemyMoveSpeed[enemyType].Min && enemy.Speed <= BattleBasicDefines.EnemyMoveSpeed[enemyType].Max);
         }
     }
 }

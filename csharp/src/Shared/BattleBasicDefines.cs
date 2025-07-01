@@ -12,50 +12,71 @@ public static class BattleBasicDefines
     /// </summary>
     public const int BattleFieldHeight = 20;
 
-    /// <summary>
-    /// Player HP
-    /// </summary>
-    public const int PlayerHp = 400;
+    // Player Status
+    // Players get slightly better stats than enemies for balance
 
     /// <summary>
-    /// Enemy types and their HP
+    /// Player HP range
     /// </summary>
-    public static readonly Dictionary<string, int> EnemyHpByType = new Dictionary<string, int>
+    public static readonly StatusRange PlayerHp = new (330, 400);
+
+    /// <summary>
+    /// Attack power range for player
+    /// </summary>
+    public static readonly StatusRange PlayerAttackPower = new (15, 26);
+
+    /// <summary>
+    /// Defense power range for player
+    /// </summary>
+    public static readonly StatusRange PlayerDefencePower = new(10, 22);
+
+    /// <summary>
+    /// Movement speed range for player
+    /// </summary>
+    public static readonly StatusRange PlayerMoveSpeed = new(1, 4);
+
+    // Enemy Status
+    // Enemies get slightly weaker stats for balance
+
+    /// <summary>
+    /// Enemy types and their HP ranges
+    /// </summary>
+    public static readonly Dictionary<EnemyType, StatusRange> EnemyHpByType = new Dictionary<EnemyType, StatusRange>
     {
-        { "Small", 80 },
-        { "Medium", 150 },
-        { "Large", 250 }
+        { EnemyType.Small, new (50, 80) },
+        { EnemyType.Medium, new (100, 150) },
+        { EnemyType.Large, new (200, 300) }
     };
 
     /// <summary>
-    /// Minimum attack power
+    /// Attack power range for enemy
     /// </summary>
-    public const int MinAttackPower = 15;
+    public static readonly Dictionary<EnemyType, StatusRange> EnemyAttackPower = new Dictionary<EnemyType, StatusRange>
+    {
+        { EnemyType.Small, new (10, 15) },
+        { EnemyType.Medium, new (15, 22) },
+        { EnemyType.Large, new (20, 30) }
+    };
 
     /// <summary>
-    /// Maximum attack power
+    /// Defense power range for enemy
     /// </summary>
-    public const int MaxAttackPower = 35;
+    public static readonly Dictionary<EnemyType, StatusRange> EnemyDefencePower = new Dictionary<EnemyType, StatusRange>
+    {
+        { EnemyType.Small, new (5, 10) },
+        { EnemyType.Medium, new (8, 13) },
+        { EnemyType.Large, new (12, 20) }
+    };
 
     /// <summary>
-    /// Minimum defense power
+    /// Movement speed range for enemy
     /// </summary>
-    public const int MinDefensePower = 8;
-
-    /// <summary>
-    /// Maximum defense power
-    /// </summary>
-    public const int MaxDefensePower = 18;
-
-    /// <summary>
-    /// Minimum movement speed
-    /// </summary>
-    public const int MinMovementSpeed = 1;
-
-    /// <summary>
-    /// Maximum movement speed
-    /// </summary>
-    public const int MaxMovementSpeed = 3;
+    public static readonly Dictionary<EnemyType, StatusRange> EnemyMoveSpeed = new Dictionary<EnemyType, StatusRange>
+    {
+        { EnemyType.Small, new (1, 1) },
+        { EnemyType.Medium, new (1, 2) },
+        { EnemyType.Large, new (1, 3) }
+    };
 
     /// <summary>
     /// Defense damage reduction percentage
@@ -65,7 +86,7 @@ public static class BattleBasicDefines
     /// <summary>
     /// Minimum number of enemies in battle
     /// </summary>
-    public const int MinEnemyCount = 10;
+    public const int MinEnemyCount = 15;
 
     /// <summary>
     /// Maximum number of enemies in battle
@@ -87,3 +108,22 @@ public static class BattleBasicDefines
     /// </summary>
     public const int BattleReplayFps = 30;
 }
+
+public readonly record struct StatusRange
+{
+    public int Min { get; init; }
+    public int Max { get; init; }
+    public StatusRange(int min, int max)
+    {
+        Min = min;
+        Max = max;
+    }
+}
+
+public enum EnemyType
+{
+    Small,
+    Medium,
+    Large
+}
+
