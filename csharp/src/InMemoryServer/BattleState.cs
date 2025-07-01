@@ -535,6 +535,7 @@ _battleField[y, x] == null)
 
             // Significantly increase reward if attack can potentially defeat the enemy
             // Calculate expected damage considering hit chance with evasion
+            // Note: Use base stats for AI estimation (flavors are applied during actual combat)
             int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
             var finalHitChance = Math.Max(0, entity.Accuracy - adjacentTarget.Value.Evasion);
             float expectedDamage = estimatedDamage * (finalHitChance / 100.0f);
@@ -1104,19 +1105,25 @@ _battleField[y, x] == null)
 
         var targetValue = adjacentTarget.Value;
 
+        // Apply flavor variations to stats for this attack
+        var attackerAccuracy = BattleBasicDefines.ApplyAccuracyFlavor(entity.Accuracy, _random);
+        var targetEvasion = BattleBasicDefines.ApplyEvasionFlavor(targetValue.Evasion, _random);
+        var attackerAttack = BattleBasicDefines.ApplyAttackFlavor(entity.Attack, _random);
+        var targetDefense = BattleBasicDefines.ApplyDefenseFlavor(targetValue.Defense, _random);
+
         // Hit chance calculation: Final hit chance = Attacker's Accuracy - Target's Evasion
-        var finalHitChance = Math.Max(0, entity.Accuracy - targetValue.Evasion);
+        var finalHitChance = Math.Max(0, attackerAccuracy - targetEvasion);
         int hitRoll = _random.Next(1, 101); // 1-100の乱数
 
         if (hitRoll > finalHitChance)
         {
             // Attack missed/evaded
-            _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} but {(targetValue.Evasion > 0 ? "it's evaded" : "misses")}! (Hit chance: {finalHitChance}% = {entity.Accuracy}% ACC - {targetValue.Evasion}% EVA)");
+            _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} but {(targetEvasion > 0 ? "it's evaded" : "misses")}! (Hit chance: {finalHitChance}% = {attackerAccuracy}% ACC - {targetEvasion}% EVA)");
             return;
         }
 
         // Attack hits - Calculate damage
-        int damage = Math.Max(1, entity.Attack - (targetValue.IsDefending ? targetValue.Defense * 2 : targetValue.Defense) / 2);
+        int damage = Math.Max(1, attackerAttack - (targetValue.IsDefending ? targetDefense * 2 : targetDefense) / 2);
 
         // Apply damage reduction if target is defending
         if (targetValue.IsDefending)
@@ -1132,7 +1139,7 @@ _battleField[y, x] == null)
         UpdateEntityHp(targetValue, newHp);
 
         // Log the attack
-        _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} for {damage} damage!" + (targetValue.IsDefending ? " (Reduced by defense)" : ""));
+        _battleLogs.Add($"{entity.Name} attacks {targetValue.Name} for {damage} damage! (ATK: {attackerAttack}, DEF: {targetDefense})" + (targetValue.IsDefending ? " (Reduced by defense)" : ""));
 
         if (newHp <= 0)
         {

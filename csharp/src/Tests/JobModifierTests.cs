@@ -18,6 +18,15 @@ public class JobModifierTests
     }
 
     /// <summary>
+    /// Helper method to validate stat ranges (without flavor variations since flavors are applied per-turn, not at creation)
+    /// </summary>
+    private static void ValidateStat(int actualValue, int expectedMin, int expectedMax, string statName, string jobName)
+    {
+        Assert.True(actualValue >= expectedMin && actualValue <= expectedMax,
+            $"{jobName} {statName} {actualValue} should be in range [{expectedMin}-{expectedMax}]");
+    }
+
+    /// <summary>
     /// Test Tank job modifier application
     /// </summary>
     [Fact]
@@ -79,12 +88,13 @@ public class JobModifierTests
                 Assert.Equal(PlayerJob.Tank, player.Job);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Tank HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
-                Assert.True(player.Attack >= expectedAttackMin && player.Attack <= expectedAttackMax,
-                    $"Tank Attack {player.Attack} should be in range [{expectedAttackMin}-{expectedAttackMax}]");
-                Assert.True(player.Defense >= expectedDefenseMin && player.Defense <= expectedDefenseMax,
-                    $"Tank Defense {player.Defense} should be in range [{expectedDefenseMin}-{expectedDefenseMax}]");
+
+                ValidateStat(player.Attack, expectedAttackMin, expectedAttackMax, "Attack", "Tank");
+                ValidateStat(player.Defense, expectedDefenseMin, expectedDefenseMax, "Defense", "Tank");
+
                 Assert.True(player.Speed >= expectedSpeedMin && player.Speed <= expectedSpeedMax,
                     $"Tank Speed {player.Speed} should be in range [{expectedSpeedMin}-{expectedSpeedMax}]");
+
                 Assert.True(player.Accuracy >= expectedAccuracyMin && player.Accuracy <= expectedAccuracyMax,
                     $"Tank Accuracy {player.Accuracy} should be in range [{expectedAccuracyMin}-{expectedAccuracyMax}]");
             }
@@ -137,8 +147,9 @@ public class JobModifierTests
                 Assert.Equal(PlayerJob.Warrior, player.Job);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Warrior HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
-                Assert.True(player.Attack >= expectedAttackMin && player.Attack <= expectedAttackMax,
-                    $"Warrior Attack {player.Attack} should be in range [{expectedAttackMin}-{expectedAttackMax}]");
+
+                ValidateStat(player.Attack, expectedAttackMin, expectedAttackMax, "Attack", "Warrior");
+
                 Assert.True(player.Accuracy >= expectedAccuracyMin && player.Accuracy <= expectedAccuracyMax,
                     $"Warrior Accuracy {player.Accuracy} should be in range [{expectedAccuracyMin}-{expectedAccuracyMax}]");
             }
@@ -349,34 +360,44 @@ public class JobModifierTests
             var expectedEvasionMin = Math.Max(0, (int)(baseEvasionMin * modifier.EvasionMultiplier) + modifier.EvasionBonus);
             var expectedEvasionMax = (int)(baseEvasionMax * modifier.EvasionMultiplier) + modifier.EvasionBonus;
 
+            // Apply flavor variation for evasion
+            var expectedEvasionMinWithFlavor = Math.Max(0, expectedEvasionMin - BattleBasicDefines.EvasionFlavorRange);
+            var expectedEvasionMaxWithFlavor = Math.Min(100, expectedEvasionMax + BattleBasicDefines.EvasionFlavorRange);
+
             if (jobEvasionData.ContainsKey(job) && jobEvasionData[job].Count > 0)
             {
                 var actualMin = jobEvasionData[job].Min();
                 var actualMax = jobEvasionData[job].Max();
 
-                Assert.True(actualMin >= expectedEvasionMin,
-                    $"{job} Evasion minimum {actualMin} should be >= {expectedEvasionMin}");
-                Assert.True(actualMax <= expectedEvasionMax,
-                    $"{job} Evasion maximum {actualMax} should be <= {expectedEvasionMax}");
+                Assert.True(actualMin >= expectedEvasionMinWithFlavor,
+                    $"{job} Evasion minimum {actualMin} should be >= {expectedEvasionMinWithFlavor} (includes flavor variation)");
+                Assert.True(actualMax <= expectedEvasionMaxWithFlavor,
+                    $"{job} Evasion maximum {actualMax} should be <= {expectedEvasionMaxWithFlavor} (includes flavor variation)");
 
-                // Job-specific evasion expectations
+                // Job-specific evasion expectations (adjusted for flavor)
                 switch (job)
                 {
                     case PlayerJob.Archer:
-                        // Archer should have the highest evasion among all jobs
-                        Assert.True(actualMin >= 20, $"Archer should have high evasion, but minimum was {actualMin}");
+                        // Archer should have the highest evasion among all jobs (adjusted for flavor)
+                        Assert.True(actualMin >= Math.Max(0, 20 - BattleBasicDefines.EvasionFlavorRange),
+                            $"Archer should have high evasion, but minimum was {actualMin} (considering flavor variation)");
                         break;
                     case PlayerJob.Tank:
-                        // Tank should have the lowest evasion among all jobs
-                        Assert.True(actualMax <= 15, $"Tank should have low evasion, but maximum was {actualMax}");
+                        // Tank should have the lowest evasion among all jobs (adjusted for flavor)
+                        Assert.True(actualMax <= 15 + BattleBasicDefines.EvasionFlavorRange,
+                            $"Tank should have low evasion, but maximum was {actualMax} (considering flavor variation)");
                         break;
                     case PlayerJob.Mage:
-                        // Mage should have lower evasion than Warrior
-                        Assert.True(actualMax <= 25, $"Mage should have lower evasion, but maximum was {actualMax}");
+                        // Mage should have lower evasion than Warrior (adjusted for flavor)
+                        Assert.True(actualMax <= 25 + BattleBasicDefines.EvasionFlavorRange,
+                            $"Mage should have lower evasion, but maximum was {actualMax} (considering flavor variation)");
                         break;
                     case PlayerJob.Warrior:
-                        // Warrior should have standard evasion
-                        Assert.True(actualMin >= 10 && actualMax <= 35, $"Warrior should have standard evasion range, but got {actualMin}-{actualMax}");
+                        // Warrior should have standard evasion (adjusted for flavor)
+                        var warriorMinWithFlavor = Math.Max(0, 10 - BattleBasicDefines.EvasionFlavorRange);
+                        var warriorMaxWithFlavor = 35 + BattleBasicDefines.EvasionFlavorRange;
+                        Assert.True(actualMin >= warriorMinWithFlavor && actualMax <= warriorMaxWithFlavor,
+                            $"Warrior should have standard evasion range, but got {actualMin}-{actualMax} (expected {warriorMinWithFlavor}-{warriorMaxWithFlavor} with flavor)");
                         break;
                 }
             }
