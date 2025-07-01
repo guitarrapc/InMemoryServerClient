@@ -221,6 +221,11 @@ public readonly record struct EntityInfo
     public required string Type { get; init; }
 
     /// <summary>
+    /// Player job (only for players)
+    /// </summary>
+    public PlayerJob? Job { get; init; }
+
+    /// <summary>
     /// Current HP
     /// </summary>
     public int CurrentHp { get; init; }

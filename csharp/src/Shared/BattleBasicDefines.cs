@@ -107,6 +107,65 @@ public static class BattleBasicDefines
     /// Battle replay frames per second
     /// </summary>
     public const int BattleReplayFps = 30;
+
+    /// <summary>
+    /// Player job stat modifiers
+    /// </summary>
+    public static readonly Dictionary<PlayerJob, JobStatModifier> PlayerJobModifiers = new Dictionary<PlayerJob, JobStatModifier>
+    {
+        {
+            PlayerJob.Tank,
+            new JobStatModifier(
+                hpMultiplier: 1.3f,
+                attackMultiplier: 0.8f,
+                defenseMultiplier: 1.5f,
+                speedMultiplier: 0.7f,
+                hpBonus: 80,
+                attackBonus: -3,
+                defenseBonus: 10,
+                speedBonus: -2
+            )
+        },
+        {
+            PlayerJob.Warrior,
+            new JobStatModifier(
+                hpMultiplier: 1.1f,
+                attackMultiplier: 1.3f,
+                defenseMultiplier: 1.0f,
+                speedMultiplier: 1.0f,
+                hpBonus: 40,
+                attackBonus: 10,
+                defenseBonus: 0,
+                speedBonus: 1
+            )
+        },
+        {
+            PlayerJob.Mage,
+            new JobStatModifier(
+                hpMultiplier: 0.8f,
+                attackMultiplier: 1.4f,
+                defenseMultiplier: 0.7f,
+                speedMultiplier: 1.2f,
+                hpBonus: -100,
+                attackBonus: 8,
+                defenseBonus: -3,
+                speedBonus: -1
+            )
+        },
+        {
+            PlayerJob.Archer,
+            new JobStatModifier(
+                hpMultiplier: 0.9f,
+                attackMultiplier: 1.2f,
+                defenseMultiplier: 0.8f,
+                speedMultiplier: 1.4f,
+                hpBonus: -20,
+                attackBonus: 3,
+                defenseBonus: -2,
+                speedBonus: 1
+            )
+        }
+    };
 }
 
 public readonly record struct StatusRange
@@ -127,3 +186,76 @@ public enum EnemyType
     Large
 }
 
+public enum PlayerJob
+{
+    Tank,
+    Warrior,
+    Mage,
+    Archer
+}
+
+/// <summary>
+/// Job stat modifier
+/// </summary>
+public readonly record struct JobStatModifier
+{
+    /// <summary>
+    /// HP multiplier
+    /// </summary>
+    public float HpMultiplier { get; init; }
+
+    /// <summary>
+    /// Attack multiplier
+    /// </summary>
+    public float AttackMultiplier { get; init; }
+
+    /// <summary>
+    /// Defense multiplier
+    /// </summary>
+    public float DefenseMultiplier { get; init; }
+
+    /// <summary>
+    /// Speed multiplier
+    /// </summary>
+    public float SpeedMultiplier { get; init; }
+
+    /// <summary>
+    /// HP bonus (flat addition)
+    /// </summary>
+    public int HpBonus { get; init; }
+
+    /// <summary>
+    /// Attack bonus (flat addition)
+    /// </summary>
+    public int AttackBonus { get; init; }
+
+    /// <summary>
+    /// Defense bonus (flat addition)
+    /// </summary>
+    public int DefenseBonus { get; init; }
+
+    /// <summary>
+    /// Speed bonus (flat addition)
+    /// </summary>
+    public int SpeedBonus { get; init; }
+
+    public JobStatModifier(
+        float hpMultiplier,
+        float attackMultiplier,
+        float defenseMultiplier,
+        float speedMultiplier,
+        int hpBonus,
+        int attackBonus,
+        int defenseBonus,
+        int speedBonus)
+    {
+        HpMultiplier = hpMultiplier;
+        AttackMultiplier = attackMultiplier;
+        DefenseMultiplier = defenseMultiplier;
+        SpeedMultiplier = speedMultiplier;
+        HpBonus = hpBonus;
+        AttackBonus = attackBonus;
+        DefenseBonus = defenseBonus;
+        SpeedBonus = speedBonus;
+    }
+}

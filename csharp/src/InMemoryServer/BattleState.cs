@@ -92,17 +92,34 @@ public partial class BattleState
         // Create players (one for each connection)
         for (int i = 0; i < _group.ConnectionCount; i++)
         {
-            var maxHp = _random.Next(BattleBasicDefines.PlayerHp.Min, BattleBasicDefines.PlayerHp.Max);
+            // Randomly assign a job
+            var jobTypes = Enum.GetValues<PlayerJob>();
+            var assignedJob = jobTypes[_random.Next(jobTypes.Length)];
+            var jobModifier = BattleBasicDefines.PlayerJobModifiers[assignedJob];
+
+            // Calculate base stats
+            var baseMaxHp = _random.Next(BattleBasicDefines.PlayerHp.Min, BattleBasicDefines.PlayerHp.Max);
+            var baseAttack = _random.Next(BattleBasicDefines.PlayerAttackPower.Min, BattleBasicDefines.PlayerAttackPower.Max);
+            var baseDefense = _random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max);
+            var baseSpeed = _random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max);
+
+            // Apply job modifiers
+            var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
+            var modifiedAttack = Math.Max(1, (int)(baseAttack * jobModifier.AttackMultiplier) + jobModifier.AttackBonus);
+            var modifiedDefense = Math.Max(0, (int)(baseDefense * jobModifier.DefenseMultiplier) + jobModifier.DefenseBonus);
+            var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
+
             var player = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = $"Player{i + 1}",
+                Name = $"{assignedJob}Player{i + 1}",
                 Type = "Player",
-                CurrentHp = maxHp, // Start at full health
-                MaxHp = maxHp,
-                Attack = _random.Next(BattleBasicDefines.PlayerAttackPower.Min, BattleBasicDefines.PlayerAttackPower.Max),
-                Defense = _random.Next(BattleBasicDefines.PlayerDefencePower.Min, BattleBasicDefines.PlayerDefencePower.Max),
-                Speed = _random.Next(BattleBasicDefines.PlayerMoveSpeed.Min, BattleBasicDefines.PlayerMoveSpeed.Max),
+                Job = assignedJob,
+                CurrentHp = modifiedMaxHp, // Start at full health
+                MaxHp = modifiedMaxHp,
+                Attack = modifiedAttack,
+                Defense = modifiedDefense,
+                Speed = modifiedSpeed,
                 IsDefending = false
             };
             _players.Add(player);
@@ -139,6 +156,12 @@ public partial class BattleState
 
         // Add initial battle log
         _battleLogs.Add($"Battle started with {_players.Count} players and {_enemies.Count} enemies!");
+
+        // Log player job information
+        foreach (var player in _players)
+        {
+            _battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}");
+        }
     }
 
     /// <summary>

@@ -414,7 +414,8 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:{player.Position}");
+                    var jobInfo = player.Job.HasValue ? $" ({player.Job})" : "";
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}{jobInfo}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:{player.Position}");
                 }
 
                 // Display enemies info
