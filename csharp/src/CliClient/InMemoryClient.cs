@@ -421,6 +421,12 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 // Display enemies info
                 var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Enemies alive: {aliveEnemies}/{status.Enemies.Count}");
+                foreach (var enemy in status.Enemies.Take(2)) // Show first 2 enemies to avoid spam
+                {
+                    var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 10);
+                    var jobInfo = enemy.EnemyJob.HasValue ? $" ({enemy.EnemyJob})" : "";
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}{jobInfo}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar} ATK:{enemy.Attack} DEF:{enemy.Defense} SPD:{enemy.Speed} Pos:{enemy.Position}");
+                }
 
                 // Display recent logs
                 if (status.RecentLogs.Count > 0)

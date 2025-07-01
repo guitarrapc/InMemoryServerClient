@@ -166,6 +166,65 @@ public static class BattleBasicDefines
             )
         }
     };
+
+    /// <summary>
+    /// Enemy job stat modifiers
+    /// </summary>
+    public static readonly Dictionary<EnemyJob, JobStatModifier> EnemyJobModifiers = new Dictionary<EnemyJob, JobStatModifier>
+    {
+        {
+            EnemyJob.Bruiser,
+            new JobStatModifier(
+                hpMultiplier: 1.2f,
+                attackMultiplier: 1.3f,
+                defenseMultiplier: 0.9f,
+                speedMultiplier: 0.8f,
+                hpBonus: 30,
+                attackBonus: 4,
+                defenseBonus: -1,
+                speedBonus: 0
+            )
+        },
+        {
+            EnemyJob.Guardian,
+            new JobStatModifier(
+                hpMultiplier: 1.4f,
+                attackMultiplier: 0.7f,
+                defenseMultiplier: 1.6f,
+                speedMultiplier: 0.6f,
+                hpBonus: 50,
+                attackBonus: -2,
+                defenseBonus: 6,
+                speedBonus: 0
+            )
+        },
+        {
+            EnemyJob.Assassin,
+            new JobStatModifier(
+                hpMultiplier: 0.7f,
+                attackMultiplier: 1.4f,
+                defenseMultiplier: 0.6f,
+                speedMultiplier: 1.5f,
+                hpBonus: -20,
+                attackBonus: 6,
+                defenseBonus: -3,
+                speedBonus: 1
+            )
+        },
+        {
+            EnemyJob.Caster,
+            new JobStatModifier(
+                hpMultiplier: 0.8f,
+                attackMultiplier: 1.5f,
+                defenseMultiplier: 0.7f,
+                speedMultiplier: 1.3f,
+                hpBonus: -10,
+                attackBonus: 7,
+                defenseBonus: -2,
+                speedBonus: 1
+            )
+        }
+    };
 }
 
 public readonly record struct StatusRange
@@ -192,6 +251,14 @@ public enum PlayerJob
     Warrior,
     Mage,
     Archer
+}
+
+public enum EnemyJob
+{
+    Bruiser,    // 近接攻撃型、HP・攻撃重視
+    Guardian,   // 防御重視型、HP・防御重視
+    Assassin,   // 速度・攻撃特化型
+    Caster      // 遠距離攻撃型、攻撃・速度重視
 }
 
 /// <summary>

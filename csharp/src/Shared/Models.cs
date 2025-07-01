@@ -226,6 +226,11 @@ public readonly record struct EntityInfo
     public PlayerJob? Job { get; init; }
 
     /// <summary>
+    /// Enemy job (only for enemies)
+    /// </summary>
+    public EnemyJob? EnemyJob { get; init; }
+
+    /// <summary>
     /// Current HP
     /// </summary>
     public int CurrentHp { get; init; }

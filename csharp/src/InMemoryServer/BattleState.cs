@@ -132,17 +132,35 @@ public partial class BattleState
         for (int i = 0; i < enemyCount; i++)
         {
             var enemyType = Enum.Parse<EnemyType>(enemyTypes[_random.Next(enemyTypes.Length)]);
-            var maxHp = _random.Next(BattleBasicDefines.EnemyHpByType[enemyType].Min, BattleBasicDefines.EnemyHpByType[enemyType].Max);
+
+            // Randomly assign an enemy job
+            var jobTypes = Enum.GetValues<EnemyJob>();
+            var assignedEnemyJob = jobTypes[_random.Next(jobTypes.Length)];
+            var jobModifier = BattleBasicDefines.EnemyJobModifiers[assignedEnemyJob];
+
+            // Calculate base stats
+            var baseMaxHp = _random.Next(BattleBasicDefines.EnemyHpByType[enemyType].Min, BattleBasicDefines.EnemyHpByType[enemyType].Max);
+            var baseAttack = _random.Next(BattleBasicDefines.EnemyAttackPower[enemyType].Min, BattleBasicDefines.EnemyAttackPower[enemyType].Max);
+            var baseDefense = _random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max);
+            var baseSpeed = _random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max);
+
+            // Apply job modifiers
+            var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
+            var modifiedAttack = Math.Max(1, (int)(baseAttack * jobModifier.AttackMultiplier) + jobModifier.AttackBonus);
+            var modifiedDefense = Math.Max(0, (int)(baseDefense * jobModifier.DefenseMultiplier) + jobModifier.DefenseBonus);
+            var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
+
             var enemy = new EntityInfo
             {
                 Id = Guid.NewGuid().ToString(),
-                Name = $"{enemyType}Enemy{i + 1}",
+                Name = $"{assignedEnemyJob}{enemyType}Enemy{i + 1}",
                 Type = enemyType.ToString(),
-                CurrentHp = maxHp, // Start at full health
-                MaxHp = maxHp,
-                Attack = _random.Next(BattleBasicDefines.EnemyAttackPower[enemyType].Min, BattleBasicDefines.EnemyAttackPower[enemyType].Max),
-                Defense = _random.Next(BattleBasicDefines.EnemyDefencePower[enemyType].Min, BattleBasicDefines.EnemyDefencePower[enemyType].Max),
-                Speed = _random.Next(BattleBasicDefines.EnemyMoveSpeed[enemyType].Min, BattleBasicDefines.EnemyMoveSpeed[enemyType].Max),
+                EnemyJob = assignedEnemyJob,
+                CurrentHp = modifiedMaxHp, // Start at full health
+                MaxHp = modifiedMaxHp,
+                Attack = modifiedAttack,
+                Defense = modifiedDefense,
+                Speed = modifiedSpeed,
                 IsDefending = false
             };
             _enemies.Add(enemy);
@@ -161,6 +179,12 @@ public partial class BattleState
         foreach (var player in _players)
         {
             _battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}");
+        }
+
+        // Log enemy job information
+        foreach (var enemy in _enemies)
+        {
+            _battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}");
         }
     }
 
