@@ -45,7 +45,7 @@ public static class BattleBasicDefines
     {
         { EnemyType.Small, new (50, 80) },
         { EnemyType.Medium, new (100, 150) },
-        { EnemyType.Large, new (200, 300) }
+        { EnemyType.Large, new (250, 330) }
     };
 
     /// <summary>
@@ -55,7 +55,7 @@ public static class BattleBasicDefines
     {
         { EnemyType.Small, new (10, 15) },
         { EnemyType.Medium, new (15, 22) },
-        { EnemyType.Large, new (20, 30) }
+        { EnemyType.Large, new (23, 30) }
     };
 
     /// <summary>
@@ -65,7 +65,7 @@ public static class BattleBasicDefines
     {
         { EnemyType.Small, new (5, 10) },
         { EnemyType.Medium, new (8, 13) },
-        { EnemyType.Large, new (12, 20) }
+        { EnemyType.Large, new (15, 20) }
     };
 
     /// <summary>
@@ -193,8 +193,8 @@ public static class BattleBasicDefines
                 defenseMultiplier: 1.6f,
                 speedMultiplier: 0.6f,
                 hpBonus: 100,
-                attackBonus: -3,
-                defenseBonus: 6,
+                attackBonus: -2,
+                defenseBonus: 10,
                 speedBonus: -1
             )
         },
@@ -219,9 +219,9 @@ public static class BattleBasicDefines
                 defenseMultiplier: 0.7f,
                 speedMultiplier: 0.9f,
                 hpBonus: -20,
-                attackBonus: 7,
+                attackBonus: 9,
                 defenseBonus: -3,
-                speedBonus: -1
+                speedBonus: 0
             )
         }
     };
