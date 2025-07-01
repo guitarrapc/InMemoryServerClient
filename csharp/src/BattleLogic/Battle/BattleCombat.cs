@@ -1,6 +1,7 @@
-﻿using Shared;
+﻿using BattleLogic.Models;
+using BattleLogic.Services;
 
-namespace InMemoryServer.Battle;
+namespace BattleLogic.Battle;
 
 /// <summary>
 /// Handles combat calculations and damage processing

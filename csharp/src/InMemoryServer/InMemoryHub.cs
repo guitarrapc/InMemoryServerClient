@@ -1,4 +1,8 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using BattleLogic.Models;
+using BattleLogic;
+using BattleLogic.Interfaces;
+using InMemoryServer.BattleAbstraction;
 using Shared;
 
 namespace InMemoryServer;
@@ -6,12 +10,14 @@ namespace InMemoryServer;
 /// <summary>
 /// InMemory SignalR Hub
 /// </summary>
-public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory) : Hub
+public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory, IBattleReplayStorage replayStorage, IBattleNotificationService notificationService) : Hub
 {
     private readonly ILogger<InMemoryHub> _logger = logger;
     private readonly InMemoryState _state = state;
     private readonly GroupManager _groupManager = groupManager;
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
+    private readonly IBattleReplayStorage _replayStorage = replayStorage;
+    private readonly IBattleNotificationService _notificationService = notificationService;
 
     /// <summary>
     /// Get value by key
@@ -215,11 +221,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 
-        var replayPath = Path.Combine(SystemDefines.BattleReplayDirectory, $"{battleId}.jsonl");
+        var replayPath = Path.Combine(BattleBasicDefines.BattleReplayDirectory, $"{battleId}.jsonl");
         if (File.Exists(replayPath))
         {
             // Ensure directory exists for battle replays
-            Directory.CreateDirectory(SystemDefines.BattleReplayDirectory);
+            Directory.CreateDirectory(BattleBasicDefines.BattleReplayDirectory);
 
             try
             {
@@ -252,7 +258,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
         // Create and store battle state
         var battleLogger = _loggerFactory.CreateLogger<BattleState>();
-        var battle = new BattleState(battleId, group, battleLogger);
+        var groupContext = new SignalRBattleGroupContext(group);
+        var battle = new BattleState(battleId, groupContext, battleLogger);
         _state.BattleStates[battleId] = battle;
 
         // 1. Notify all clients that connections are ready

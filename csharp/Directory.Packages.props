@@ -8,6 +8,7 @@
     <PackageVersion Include="ConsoleAppFramework" Version="5.4.1" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.5" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.5" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.5" />
     <!-- Tests -->
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />

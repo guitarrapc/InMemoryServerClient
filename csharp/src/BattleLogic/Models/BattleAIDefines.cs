@@ -1,4 +1,4 @@
-﻿namespace Shared;
+﻿namespace BattleLogic.Models;
 
 /// <summary>
 /// バトルAIのパラメーター調整用定数

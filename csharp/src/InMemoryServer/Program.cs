@@ -1,4 +1,7 @@
 ﻿using InMemoryServer;
+using InMemoryServer.BattleAbstraction;
+using BattleLogic.Models;
+using BattleLogic.Interfaces;
 using Shared;
 
 // Create a WebApplication builder
@@ -23,6 +26,10 @@ builder.Services.AddSingleton<InMemoryState>();
 builder.Services.AddSingleton<GroupManager>();
 builder.Services.AddSingleton<InMemoryHub>();
 
+// Register BattleLogic dependencies
+builder.Services.AddSingleton<IBattleReplayStorage, FileBattleReplayStorage>();
+builder.Services.AddSingleton<IBattleNotificationService, SignalRBattleNotificationService>();
+
 // Build the app
 var app = builder.Build();
 
@@ -33,7 +40,7 @@ app.MapHub<InMemoryHub>(SystemDefines.HubRoute);
 app.MapGet("/health", () => "Healthy");
 
 // Create directory for battle replays
-Directory.CreateDirectory(SystemDefines.BattleReplayDirectory);
+Directory.CreateDirectory(BattleBasicDefines.BattleReplayDirectory);
 
 // Start the server
 Console.WriteLine($"InMemory Server starting on port {SystemDefines.DefaultServerPort}...");

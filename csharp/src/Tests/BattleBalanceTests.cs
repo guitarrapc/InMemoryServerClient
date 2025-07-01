@@ -1,8 +1,9 @@
-﻿using InMemoryServer;
+﻿using BattleLogic;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Shared;
+using BattleLogic.Models;
 using System.Collections.Concurrent;
+using Shared;
 
 namespace Tests;
 

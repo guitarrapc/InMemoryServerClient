@@ -1,9 +1,11 @@
-﻿using Shared;
+﻿using BattleLogic.Models;
+using BattleLogic.Battle;
+using BattleLogic.Interfaces;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Text.Json;
-using InMemoryServer.Battle;
 
-namespace InMemoryServer;
+namespace BattleLogic;
 
 /// <summary>
 /// Represents a battle state
@@ -18,7 +20,7 @@ public partial class BattleState
     }
 
     private readonly string _battleId;
-    private readonly GroupInfo _group;
+    private readonly IBattleGroupContext _group;
     private readonly Random _random = new Random();
     private readonly List<EntityInfo> _players = new(5); // Pre-allocate for max players
     private readonly List<EntityInfo> _enemies = new(15); // Pre-allocate for max enemies
@@ -56,7 +58,7 @@ public partial class BattleState
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(string battleId, GroupInfo group, ILogger<BattleState> logger)
+    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger)
     {
         _battleId = battleId;
         _group = group;
@@ -90,7 +92,7 @@ public partial class BattleState
         _battleLogs.Add($"Battle started!");
 
         // Initialize players and enemies using the initializer
-        var players = _battleInitializer.InitializePlayers(_group.ConnectionCount, _battleLogs);
+        var players = _battleInitializer.InitializePlayers(_group.ConnectedCount, _battleLogs);
         var enemies = _battleInitializer.InitializeEnemies(_battleLogs);
 
         _players.AddRange(players);
@@ -175,13 +177,13 @@ public partial class BattleState
         var startTime = DateTime.UtcNow;
 
         // Create directory for battle replays if it doesn't exist
-        Directory.CreateDirectory(SystemDefines.BattleReplayDirectory);
+        Directory.CreateDirectory(BattleBasicDefines.BattleReplayDirectory);
 
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
         var allTurnData = new List<BattleStatus>(_totalTurns + 1);
 
         // Open file for battle replay
-        using (var replayFile = File.CreateText(Path.Combine(SystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")))
+        using (var replayFile = File.CreateText(Path.Combine(BattleBasicDefines.BattleReplayDirectory, $"{_battleId}.jsonl")))
         {
             // Write initial state
             await WriteReplayFrameAsync(replayFile);
@@ -237,7 +239,7 @@ public partial class BattleState
         var duration = endTime - startTime;
         _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
         _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_playerVictory ? "Victory" : "Defeat")}");
-        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(SystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
+        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(BattleBasicDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
 
         // Store all turn data for client transmission
         _allTurnData = allTurnData;

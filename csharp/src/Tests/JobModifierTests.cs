@@ -1,6 +1,9 @@
-﻿using InMemoryServer;
+﻿using BattleLogic;
 using Microsoft.Extensions.Logging;
+using BattleLogic.Models;
+using BattleLogic.Interfaces;
 using Shared;
+using InMemoryServer.BattleAbstraction;
 
 namespace Tests;
 
@@ -10,11 +13,13 @@ namespace Tests;
 public class JobModifierTests
 {
     private readonly ILogger<BattleState> _logger;
+    private readonly IBattleReplayStorage _battleReplayStorage;
 
     public JobModifierTests()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = loggerFactory.CreateLogger<BattleState>();
+        _battleReplayStorage = new FileBattleReplayStorage(loggerFactory.CreateLogger<FileBattleReplayStorage>());
     }
 
     /// <summary>
@@ -48,7 +53,7 @@ public class JobModifierTests
         var tankPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !tankPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var battleState = new BattleState(battleId + attempt, group, _logger, _battleReplayStorage);
             var status = battleState.GetStatus();
 
             var tankPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Tank);

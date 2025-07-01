@@ -484,7 +484,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     foreach (var enemy in battleStatus.Enemies.Take(3)) // Show first 3 enemies to avoid spam
                     {
                         var status = enemy.CurrentHp > 0 ? "Alive" : "Defeated";
-                        var jobInfo = enemy.EnemyJob.HasValue ? $" (Job: {enemy.EnemyJob})" : "";
+                        var jobInfo = enemy.Job.HasValue ? $" (Job: {enemy.Job})" : "";
                         logger.LogInformation($"[BATTLE] - {enemy.Name}{jobInfo}: {status}, HP: {enemy.CurrentHp}/{enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, Position: ({enemy.Position})");
                     }
 

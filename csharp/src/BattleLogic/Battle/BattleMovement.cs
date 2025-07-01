@@ -1,6 +1,6 @@
-﻿using Shared;
+﻿using BattleLogic.Models;
 
-namespace InMemoryServer.Battle;
+namespace BattleLogic.Battle;
 
 /// <summary>
 /// Handles entity movement logic

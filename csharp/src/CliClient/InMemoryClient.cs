@@ -426,7 +426,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var enemy in status.Enemies.Where(x => x.CurrentHp > 0).Take(2)) // Show first 2 enemies to avoid spam
                 {
                     var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 10);
-                    var jobInfo = enemy.EnemyJob.HasValue ? $" ({enemy.EnemyJob})" : "";
+                    var jobInfo = enemy.Job.HasValue ? $" ({enemy.Job})" : "";
                     _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}{jobInfo}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar} ATK:{enemy.Attack} DEF:{enemy.Defense} SPD:{enemy.Speed} Pos:{enemy.Position}");
                 }
 

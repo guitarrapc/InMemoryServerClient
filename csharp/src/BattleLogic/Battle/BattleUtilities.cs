@@ -1,6 +1,6 @@
-﻿using Shared;
+using BattleLogic.Models;
 
-namespace InMemoryServer.Battle;
+namespace BattleLogic.Battle;
 
 /// <summary>
 /// Utility functions for battle operations
@@ -12,7 +12,7 @@ public class BattleUtilities
     /// </summary>
     public void UpdateEntityPosition(EntityInfo entity, Vector2 newPosition, List<EntityInfo> players, List<EntityInfo> enemies)
     {
-        if (entity.Type == "Player")
+        if (entity.Type == EntityType.Player)
         {
             for (int i = 0; i < players.Count; i++)
             {
@@ -41,7 +41,7 @@ public class BattleUtilities
     /// </summary>
     public void UpdateEntityHp(EntityInfo entity, int newHp, List<EntityInfo> players, List<EntityInfo> enemies)
     {
-        if (entity.Type == "Player")
+        if (entity.Type == EntityType.Player)
         {
             for (int i = 0; i < players.Count; i++)
             {
@@ -70,7 +70,7 @@ public class BattleUtilities
     /// </summary>
     public void UpdateEntityDefending(EntityInfo entity, bool isDefending, List<EntityInfo> players, List<EntityInfo> enemies)
     {
-        if (entity.Type == "Player")
+        if (entity.Type == EntityType.Player)
         {
             for (int i = 0; i < players.Count; i++)
             {
@@ -118,7 +118,7 @@ public class BattleUtilities
                     EntityInfo? target = null;
 
                     // Find entity with matching ID
-                    if (!string.IsNullOrEmpty(entity.Type) && entity.Type == "Player")
+                    if (entity.Type == EntityType.Player)
                     {
                         target = enemies.FirstOrDefault(e => e.Id == targetId && e.CurrentHp > 0);
                     }
@@ -145,7 +145,7 @@ public class BattleUtilities
         EntityInfo? nearestTarget = null;
         int minDistance = int.MaxValue;
 
-        var targets = entity.Type == "Player" ?
+        var targets = entity.Type == EntityType.Player ?
             enemies.Where(e => e.CurrentHp > 0) :
             players.Where(p => p.CurrentHp > 0);
 
@@ -170,7 +170,7 @@ public class BattleUtilities
         EntityInfo? lowestHpTarget = null;
         int lowestHp = int.MaxValue;
 
-        var targets = entity.Type == "Player" ?
+        var targets = entity.Type == EntityType.Player ?
             enemies.Where(e => e.CurrentHp > 0) :
             players.Where(p => p.CurrentHp > 0);
 
@@ -191,7 +191,7 @@ public class BattleUtilities
     /// </summary>
     public bool AreEnemiesNearby(EntityInfo entity, List<EntityInfo> players, List<EntityInfo> enemies, int distanceThreshold)
     {
-        var targets = entity.Type == "Player" ?
+        var targets = entity.Type == EntityType.Player ?
             enemies.Where(e => e.CurrentHp > 0) :
             players.Where(p => p.CurrentHp > 0);
 
@@ -213,7 +213,7 @@ public class BattleUtilities
     public bool CanSurroundEnemy(EntityInfo entity, EntityInfo target, List<EntityInfo> players, List<EntityInfo> enemies)
     {
         // Get allied positions
-        var allies = entity.Type == "Player" ?
+        var allies = entity.Type == EntityType.Player ?
             players.Where(p => p.Id != entity.Id && p.CurrentHp > 0) :
             enemies.Where(e => e.Id != entity.Id && e.CurrentHp > 0);
 
