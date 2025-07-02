@@ -313,7 +313,8 @@ public class BattleState
             Enemies = [.. _enemies],
             FieldWidth = BattleSystemDefines.BattleFieldWidth,
             FieldHeight = BattleSystemDefines.BattleFieldHeight,
-            RecentLogs = [.. _battleLogs.TakeLast(10)]
+            RecentLogs = [.. _battleLogs.TakeLast(10)],
+            IsPlayerVictory = _isCompleted ? _playerVictory : null
         };
     }
 
@@ -332,7 +333,8 @@ public class BattleState
             Enemies = [.. _enemies], // structs automatically create copies
             FieldWidth = BattleSystemDefines.BattleFieldWidth,
             FieldHeight = BattleSystemDefines.BattleFieldHeight,
-            RecentLogs = [.. _battleLogs.TakeLast(10)]
+            RecentLogs = [.. _battleLogs.TakeLast(10)],
+            IsPlayerVictory = _isCompleted ? _playerVictory : null
         };
     }
 
@@ -370,7 +372,8 @@ public class BattleState
             Enemies = _enemies,
             FieldHeight = BattleSystemDefines.BattleFieldHeight,
             FieldWidth = BattleSystemDefines.BattleFieldWidth,
-            RecentLogs = _battleLogs.TakeLast(10).ToList()
+            RecentLogs = _battleLogs.TakeLast(10).ToList(),
+            IsPlayerVictory = _isCompleted ? _playerVictory : null
         };
 
         await writer.WriteLineAsync(JsonSerializer.Serialize(frame));

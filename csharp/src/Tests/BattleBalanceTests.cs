@@ -6,6 +6,7 @@ using BattleLogic.Models;
 using Shared.Constants;
 using BattleLogic.Constans;
 using Shared.Models;
+using Shared.Contracts;
 
 namespace Tests;
 
@@ -82,11 +83,22 @@ public class BattleBalanceTests
         await battleState.RunBattleAsync();
 
         // バトルの最終状態を取得して結果を判定
+        var finalStatus = battleState.GetStatus();
+
+        // 新しいIsPlayerVictoryプロパティを使用
+        bool playerVictory = finalStatus.IsPlayerVictory ?? false;
+
+        // バックアップ検証: 古い方法でも結果を確認
         var allTurnData = battleState.GetAllTurnData();
         var finalState = allTurnData[^1]; // 最後のターンの状態
+        bool backupPlayerVictory = finalState.Players.Any(p => p.CurrentHp > 0);
 
-        // プレイヤーが全滅していなければ勝利
-        bool playerVictory = finalState.Players.Any(p => p.CurrentHp > 0);
+        // 新旧の判定が一致することを確認
+        if (playerVictory != backupPlayerVictory)
+        {
+            _logger.LogError("Battle result mismatch: IsPlayerVictory={PlayerVictory}, backup calculation={BackupPlayerVictory}",
+                playerVictory, backupPlayerVictory);
+        }
 
         // メモリ解放
         battleState.ClearBattleData();
@@ -233,5 +245,47 @@ public class BattleBalanceTests
 
         // アサーション追加
         Assert.True(true, "Battle balance analysis completed");
+    }
+
+    [Fact]
+    public async Task BattleResult_ShouldBeConsistent_BetweenPropertyAndCalculation()
+    {
+        // Arrange
+        var battleId = BattleSeed.NewTimestampId().ToString();
+        var group = Substitute.For<IBattleGroupContext>();
+        group.ConnectedCount.Returns(5);
+        group.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
+
+        // Act
+        var battleState = new BattleState(battleId, group, _logger);
+        await battleState.RunBattleAsync();
+
+        var finalStatus = battleState.GetStatus();
+        var allTurnData = battleState.GetAllTurnData();
+        var finalTurnData = allTurnData[^1];
+
+        // Assert
+        Assert.False(finalStatus.IsInProgress); // Battle should be completed
+        Assert.NotNull(finalStatus.IsPlayerVictory); // Should have a victory result
+
+        // Calculate victory using the old method
+        bool calculatedVictory = finalTurnData.Players.Any(p => p.CurrentHp > 0);
+
+        // Verify consistency between new property and old calculation
+        Assert.Equal(calculatedVictory, finalStatus.IsPlayerVictory.Value);
+
+        // Verify battle state consistency
+        if (finalStatus.IsPlayerVictory.Value)
+        {
+            Assert.True(finalTurnData.Players.Any(p => p.CurrentHp > 0), "At least one player should be alive if players won");
+            Assert.True(finalTurnData.Enemies.All(e => e.CurrentHp <= 0), "All enemies should be defeated if players won");
+        }
+        else
+        {
+            Assert.True(finalTurnData.Players.All(p => p.CurrentHp <= 0), "All players should be defeated if players lost");
+        }
+
+        // Clean up
+        battleState.ClearBattleData();
     }
 }

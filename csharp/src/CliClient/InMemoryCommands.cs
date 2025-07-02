@@ -514,7 +514,39 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                 }
                 else
                 {
-                    logger.LogInformation("No active battle in progress.");
+                    if (!battleStatus.IsPlayerVictory.HasValue)
+                    {
+                        // This is abnormal - completed battle should have IsPlayerVictory set
+                        logger.LogWarning("⚠️ Warning: Battle completed but IsPlayerVictory is null. This indicates a server-side issue.");
+                        throw new InvalidOperationException("Battle completed but IsPlayerVictory is null. This should not happen.");
+                    }
+
+                    // Battle is completed - show result using IsPlayerVictory
+                    logger.LogInformation($"[BATTLE] ========== Battle Result ==========");
+                    logger.LogInformation($"[BATTLE] Battle ID: {battleStatus.BattleId}");
+
+                    if (battleStatus.IsPlayerVictory.Value)
+                    {
+                        logger.LogInformation($"[BATTLE] 🎉 VICTORY! 🎉");
+                        logger.LogInformation($"[BATTLE] Result: Players have defeated all enemies!");
+                    }
+                    else
+                    {
+                        logger.LogInformation($"[BATTLE] ❌ DEFEAT ❌");
+                        logger.LogInformation($"[BATTLE] Result: All players have been defeated!");
+                    }
+
+                    logger.LogInformation($"[BATTLE] Final Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
+
+                    // Show final player status
+                    var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
+                    logger.LogInformation($"[BATTLE] Players surviving: {alivePlayers}/{battleStatus.Players.Count}");
+
+                    // Show final enemy status
+                    var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
+                    logger.LogInformation($"[BATTLE] Enemies remaining: {aliveEnemies}/{battleStatus.Enemies.Count}");
+
+                    logger.LogInformation("[BATTLE] ===================================");
                 }
             }
             else
@@ -736,7 +768,9 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                 logger.LogInformation($"Error during cleanup: {ex.Message}");
             }
         }
-    }    /// <summary>Reproduce a battle with specific battle ID</summary>
+    }
+
+    /// <summary>Reproduce a battle with specific battle ID</summary>
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
         string battleId,

@@ -51,6 +51,11 @@ public class BattleStatus
     public List<string> RecentLogs { get; set; } = new(10); // Pre-allocate for recent logs
 
     /// <summary>
+    /// Battle result (null if battle is still in progress)
+    /// </summary>
+    public bool? IsPlayerVictory { get; set; }
+
+    /// <summary>
     /// Clears all references to reduce memory pressure
     /// </summary>
     public void Clear()

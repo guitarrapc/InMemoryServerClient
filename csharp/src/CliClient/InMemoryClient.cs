@@ -452,14 +452,21 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
             }
         }
 
-        // Display final results
+        // Display final results using IsPlayerVictory
         var finalStatus = replayData.Last();
         var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
         var finalAliveEnemies = finalStatus.Enemies.Count(e => e.CurrentHp > 0);
 
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Saved Battle Replay Completed! ==========");
 
-        if (finalAliveEnemies == 0)
+        if (!finalStatus.IsPlayerVictory.HasValue)
+        {
+            // This is abnormal - completed battle should have IsPlayerVictory set
+            _logger.LogWarning($"Client {_clientIndex}: [BATTLE REPLAY] ⚠️ Warning: Battle completed but IsPlayerVictory is null. Using fallback logic.");
+            throw new InvalidOperationException("Battle completed but IsPlayerVictory is null. This should not happen.");
+        }
+
+        if (finalStatus.IsPlayerVictory.Value)
         {
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
             _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Count}");
@@ -483,6 +490,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar}");
             }
         }
+
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");
