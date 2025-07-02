@@ -1,4 +1,4 @@
-﻿namespace Shared;
+﻿namespace Shared.Constants;
 
 /// <summary>
 /// Constants used in InMemoryServer
@@ -24,9 +24,4 @@ public static class SystemDefines
     /// Group expiration time in minutes
     /// </summary>
     public const int GroupExpirationMinutes = 10;
-
-    /// <summary>
-    /// Battle replay directory
-    /// </summary>
-    public const string BattleReplayDirectory = "./battle_replay/";
 }

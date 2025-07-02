@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using Shared;
+using Shared.Battle;
+using Shared.Constants;
+using Shared.Models;
 
 namespace CliClient;
 
@@ -98,7 +100,9 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
             _connection.On<string, string>("GroupMessage", (connectionId, message) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [GROUP] Message from {connectionId}: {message}");
-            });            _connection.On<string>("ConnectionsReady", async (battleId) =>
+            });
+
+            _connection.On<string>("ConnectionsReady", async (battleId) =>
             {
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] ========== Connections Ready! ==========");
                 _logger.LogInformation($"Client {_clientIndex}: [BATTLE] 🔄 Battle ID: {battleId}");
@@ -414,7 +418,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    var jobInfo = player.Job.HasValue ? $" ({player.Job})" : "";
+                    var jobInfo = player.PlayerJob.HasValue ? $" ({player.PlayerJob})" : "";
                     _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}{jobInfo}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:{player.Position}");
                 }
 

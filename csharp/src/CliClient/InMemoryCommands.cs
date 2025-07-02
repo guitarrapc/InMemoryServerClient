@@ -1,6 +1,7 @@
 ﻿using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
-using Shared;
+using Shared.Battle;
+using Shared.Constants;
 
 namespace CliClient;
 
@@ -474,7 +475,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     foreach (var player in battleStatus.Players)
                     {
                         var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
-                        var jobInfo = player.Job.HasValue ? $" (Job: {player.Job})" : "";
+                        var jobInfo = player.PlayerJob.HasValue ? $" (Job: {player.PlayerJob})" : "";
                         logger.LogInformation($"[BATTLE] - {player.Name}{jobInfo}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, Position: ({player.Position})");
                     }
 

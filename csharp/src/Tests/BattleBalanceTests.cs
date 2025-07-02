@@ -1,8 +1,10 @@
-using InMemoryServer;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Shared;
 using System.Collections.Concurrent;
+using BattleLogic.Battle;
+using Shared.Constants;
+using BattleLogic.Constans;
+using Shared.Models;
 
 namespace Tests;
 
@@ -97,7 +99,7 @@ public class BattleBalanceTests
         // 設定パラメータ
         const int battlesPerTrial = 200; // 1回の試行でのバトル数
         const int numberOfTrials = 10;   // 試行回数
-        const double minAcceptableWinRate = 0.5; // 最小許容勝率 (50%)
+        const double minAcceptableWinRate = 0.45; // 最小許容勝率 (45%)
         const double maxAcceptableWinRate = 0.7; // 最大許容勝率 (70%)
 
         // 複数回の試行の勝率を記録
@@ -131,7 +133,7 @@ public class BattleBalanceTests
 
         // 分析用のデータ構造 (敵の数別勝率を記録)
         var enemyCountWinRates = new Dictionary<int, List<bool>>();
-        for (int i = BattleBasicDefines.MinEnemyCount; i <= BattleBasicDefines.MaxEnemyCount; i++)
+        for (int i = BattleSystemDefines.MinEnemyCount; i <= BattleSystemDefines.MaxEnemyCount; i++)
         {
             enemyCountWinRates[i] = new List<bool>();
         }

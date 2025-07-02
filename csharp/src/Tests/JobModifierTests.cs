@@ -1,6 +1,10 @@
-﻿using InMemoryServer;
-using Microsoft.Extensions.Logging;
-using Shared;
+﻿using Microsoft.Extensions.Logging;
+using InMemoryServer.BattleAbstraction;
+using BattleLogic.Battle;
+using Shared.Battle;
+using Shared.Constants;
+using BattleLogic.Constans;
+using Shared.Models;
 
 namespace Tests;
 
@@ -10,11 +14,13 @@ namespace Tests;
 public class JobModifierTests
 {
     private readonly ILogger<BattleState> _logger;
+    private readonly IBattleReplayStorage _battleReplayStorage;
 
     public JobModifierTests()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = loggerFactory.CreateLogger<BattleState>();
+        _battleReplayStorage = new FileBattleReplayStorage(loggerFactory.CreateLogger<FileBattleReplayStorage>());
     }
 
     /// <summary>
@@ -51,41 +57,41 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var tankPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Tank);
+            var tankPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Tank);
             if (!tankPlayer.Equals(default))
             {
                 tankPlayerFound = true;
                 var player = tankPlayer;
-                var tankModifier = BattleBasicDefines.PlayerJobModifiers[PlayerJob.Tank];
+                var tankModifier = BattleSystemDefines.PlayerJobModifiers[PlayerJob.Tank];
 
                 // Calculate expected ranges for Tank
-                var baseHpMin = BattleBasicDefines.PlayerHp.Min;
-                var baseHpMax = BattleBasicDefines.PlayerHp.Max;
+                var baseHpMin = BattleSystemDefines.PlayerHp.Min;
+                var baseHpMax = BattleSystemDefines.PlayerHp.Max;
                 var expectedHpMin = Math.Max(1, (int)(baseHpMin * tankModifier.HpMultiplier) + tankModifier.HpBonus);
                 var expectedHpMax = (int)(baseHpMax * tankModifier.HpMultiplier) + tankModifier.HpBonus;
 
-                var baseAttackMin = BattleBasicDefines.PlayerAttackPower.Min;
-                var baseAttackMax = BattleBasicDefines.PlayerAttackPower.Max;
+                var baseAttackMin = BattleSystemDefines.PlayerAttackPower.Min;
+                var baseAttackMax = BattleSystemDefines.PlayerAttackPower.Max;
                 var expectedAttackMin = Math.Max(1, (int)(baseAttackMin * tankModifier.AttackMultiplier) + tankModifier.AttackBonus);
                 var expectedAttackMax = (int)(baseAttackMax * tankModifier.AttackMultiplier) + tankModifier.AttackBonus;
 
-                var baseDefenseMin = BattleBasicDefines.PlayerDefencePower.Min;
-                var baseDefenseMax = BattleBasicDefines.PlayerDefencePower.Max;
+                var baseDefenseMin = BattleSystemDefines.PlayerDefencePower.Min;
+                var baseDefenseMax = BattleSystemDefines.PlayerDefencePower.Max;
                 var expectedDefenseMin = Math.Max(0, (int)(baseDefenseMin * tankModifier.DefenseMultiplier) + tankModifier.DefenseBonus);
                 var expectedDefenseMax = (int)(baseDefenseMax * tankModifier.DefenseMultiplier) + tankModifier.DefenseBonus;
 
-                var baseSpeedMin = BattleBasicDefines.PlayerMoveSpeed.Min;
-                var baseSpeedMax = BattleBasicDefines.PlayerMoveSpeed.Max;
+                var baseSpeedMin = BattleSystemDefines.PlayerMoveSpeed.Min;
+                var baseSpeedMax = BattleSystemDefines.PlayerMoveSpeed.Max;
                 var expectedSpeedMin = Math.Max(1, (int)(baseSpeedMin * tankModifier.SpeedMultiplier) + tankModifier.SpeedBonus);
                 var expectedSpeedMax = (int)(baseSpeedMax * tankModifier.SpeedMultiplier) + tankModifier.SpeedBonus;
 
-                var baseAccuracyMin = BattleBasicDefines.PlayerAccuracy.Min;
-                var baseAccuracyMax = BattleBasicDefines.PlayerAccuracy.Max;
+                var baseAccuracyMin = BattleSystemDefines.PlayerAccuracy.Min;
+                var baseAccuracyMax = BattleSystemDefines.PlayerAccuracy.Max;
                 var expectedAccuracyMin = Math.Max(0, (int)(baseAccuracyMin * tankModifier.AccuracyMultiplier) + tankModifier.AccuracyBonus);
                 var expectedAccuracyMax = (int)(baseAccuracyMax * tankModifier.AccuracyMultiplier) + tankModifier.AccuracyBonus;
 
                 // Assert Tank-specific modifiers
-                Assert.Equal(PlayerJob.Tank, player.Job);
+                Assert.Equal(PlayerJob.Tank, player.PlayerJob);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Tank HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
 
@@ -127,24 +133,24 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var warriorPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Warrior);
+            var warriorPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Warrior);
             if (!warriorPlayer.Equals(default))
             {
                 warriorPlayerFound = true;
                 var player = warriorPlayer;
-                var warriorModifier = BattleBasicDefines.PlayerJobModifiers[PlayerJob.Warrior];
+                var warriorModifier = BattleSystemDefines.PlayerJobModifiers[PlayerJob.Warrior];
 
                 // Calculate expected ranges for Warrior
-                var expectedHpMin = Math.Max(1, (int)(BattleBasicDefines.PlayerHp.Min * warriorModifier.HpMultiplier) + warriorModifier.HpBonus);
-                var expectedHpMax = (int)(BattleBasicDefines.PlayerHp.Max * warriorModifier.HpMultiplier) + warriorModifier.HpBonus;
+                var expectedHpMin = Math.Max(1, (int)(BattleSystemDefines.PlayerHp.Min * warriorModifier.HpMultiplier) + warriorModifier.HpBonus);
+                var expectedHpMax = (int)(BattleSystemDefines.PlayerHp.Max * warriorModifier.HpMultiplier) + warriorModifier.HpBonus;
 
-                var expectedAttackMin = Math.Max(1, (int)(BattleBasicDefines.PlayerAttackPower.Min * warriorModifier.AttackMultiplier) + warriorModifier.AttackBonus);
-                var expectedAttackMax = (int)(BattleBasicDefines.PlayerAttackPower.Max * warriorModifier.AttackMultiplier) + warriorModifier.AttackBonus;
+                var expectedAttackMin = Math.Max(1, (int)(BattleSystemDefines.PlayerAttackPower.Min * warriorModifier.AttackMultiplier) + warriorModifier.AttackBonus);
+                var expectedAttackMax = (int)(BattleSystemDefines.PlayerAttackPower.Max * warriorModifier.AttackMultiplier) + warriorModifier.AttackBonus;
 
-                var expectedAccuracyMin = Math.Max(0, (int)(BattleBasicDefines.PlayerAccuracy.Min * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus);
-                var expectedAccuracyMax = (int)(BattleBasicDefines.PlayerAccuracy.Max * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus;
+                var expectedAccuracyMin = Math.Max(0, (int)(BattleSystemDefines.PlayerAccuracy.Min * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus);
+                var expectedAccuracyMax = (int)(BattleSystemDefines.PlayerAccuracy.Max * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus;
 
-                Assert.Equal(PlayerJob.Warrior, player.Job);
+                Assert.Equal(PlayerJob.Warrior, player.PlayerJob);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Warrior HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
 
@@ -181,14 +187,14 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var magePlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Mage);
+            var magePlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Mage);
             if (!magePlayer.Equals(default))
             {
                 magePlayerFound = true;
                 var player = magePlayer;
-                var mageModifier = BattleBasicDefines.PlayerJobModifiers[PlayerJob.Mage];
+                var mageModifier = BattleSystemDefines.PlayerJobModifiers[PlayerJob.Mage];
 
-                Assert.Equal(PlayerJob.Mage, player.Job);
+                Assert.Equal(PlayerJob.Mage, player.PlayerJob);
                 // Mage should have lower HP due to 0.8x multiplier and -50 bonus
                 // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 → 110-350 range
                 Assert.True(player.MaxHp <= 350, $"Mage should have lower HP, got {player.MaxHp}");
@@ -227,14 +233,14 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var archerPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Archer);
+            var archerPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Archer);
             if (!archerPlayer.Equals(default))
             {
                 archerPlayerFound = true;
                 var player = archerPlayer;
-                var archerModifier = BattleBasicDefines.PlayerJobModifiers[PlayerJob.Archer];
+                var archerModifier = BattleSystemDefines.PlayerJobModifiers[PlayerJob.Archer];
 
-                Assert.Equal(PlayerJob.Archer, player.Job);
+                Assert.Equal(PlayerJob.Archer, player.PlayerJob);
                 // Archer should have high speed due to 1.4x multiplier + 1 bonus
                 // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 → 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
@@ -281,7 +287,7 @@ public class JobModifierTests
             {
                 case EnemyJob.Guardian:
                     // Guardian should have high HP and defense but low speed
-                    var guardianModifier = BattleBasicDefines.EnemyJobModifiers[EnemyJob.Guardian];
+                    var guardianModifier = BattleSystemDefines.EnemyJobModifiers[EnemyJob.Guardian];
                     Assert.True(enemy.MaxHp > enemy.Attack, "Guardian should prioritize HP over attack");
                     break;
 
@@ -332,20 +338,20 @@ public class JobModifierTests
 
             foreach (var player in status.Players)
             {
-                if (player.Job.HasValue && !jobsFound.Contains(player.Job.Value))
+                if (player.PlayerJob.HasValue && !jobsFound.Contains(player.PlayerJob.Value))
                 {
-                    jobsFound.Add(player.Job.Value);
-                    if (!jobEvasionData.ContainsKey(player.Job.Value))
+                    jobsFound.Add(player.PlayerJob.Value);
+                    if (!jobEvasionData.ContainsKey(player.PlayerJob.Value))
                     {
-                        jobEvasionData[player.Job.Value] = new List<int>();
+                        jobEvasionData[player.PlayerJob.Value] = new List<int>();
                     }
                 }
 
-                if (player.Job.HasValue)
+                if (player.PlayerJob.HasValue)
                 {
-                    if (jobEvasionData.ContainsKey(player.Job.Value))
+                    if (jobEvasionData.ContainsKey(player.PlayerJob.Value))
                     {
-                        jobEvasionData[player.Job.Value].Add(player.Evasion);
+                        jobEvasionData[player.PlayerJob.Value].Add(player.Evasion);
                     }
                 }
             }
@@ -354,15 +360,15 @@ public class JobModifierTests
         // Assert - Check evasion ranges for each job
         foreach (var job in jobsFound)
         {
-            var modifier = BattleBasicDefines.PlayerJobModifiers[job];
-            var baseEvasionMin = BattleBasicDefines.PlayerEvasion.Min;
-            var baseEvasionMax = BattleBasicDefines.PlayerEvasion.Max;
+            var modifier = BattleSystemDefines.PlayerJobModifiers[job];
+            var baseEvasionMin = BattleSystemDefines.PlayerEvasion.Min;
+            var baseEvasionMax = BattleSystemDefines.PlayerEvasion.Max;
             var expectedEvasionMin = Math.Max(0, (int)(baseEvasionMin * modifier.EvasionMultiplier) + modifier.EvasionBonus);
             var expectedEvasionMax = (int)(baseEvasionMax * modifier.EvasionMultiplier) + modifier.EvasionBonus;
 
             // Apply flavor variation for evasion
-            var expectedEvasionMinWithFlavor = Math.Max(0, expectedEvasionMin - BattleBasicDefines.EvasionFlavorRange);
-            var expectedEvasionMaxWithFlavor = Math.Min(100, expectedEvasionMax + BattleBasicDefines.EvasionFlavorRange);
+            var expectedEvasionMinWithFlavor = Math.Max(0, expectedEvasionMin - BattleSystemDefines.EvasionFlavorRange);
+            var expectedEvasionMaxWithFlavor = Math.Min(100, expectedEvasionMax + BattleSystemDefines.EvasionFlavorRange);
 
             if (jobEvasionData.ContainsKey(job) && jobEvasionData[job].Count > 0)
             {
@@ -379,23 +385,23 @@ public class JobModifierTests
                 {
                     case PlayerJob.Archer:
                         // Archer should have the highest evasion among all jobs (adjusted for flavor)
-                        Assert.True(actualMin >= Math.Max(0, 20 - BattleBasicDefines.EvasionFlavorRange),
+                        Assert.True(actualMin >= Math.Max(0, 20 - BattleSystemDefines.EvasionFlavorRange),
                             $"Archer should have high evasion, but minimum was {actualMin} (considering flavor variation)");
                         break;
                     case PlayerJob.Tank:
                         // Tank should have the lowest evasion among all jobs (adjusted for flavor)
-                        Assert.True(actualMax <= 15 + BattleBasicDefines.EvasionFlavorRange,
+                        Assert.True(actualMax <= 15 + BattleSystemDefines.EvasionFlavorRange,
                             $"Tank should have low evasion, but maximum was {actualMax} (considering flavor variation)");
                         break;
                     case PlayerJob.Mage:
                         // Mage should have lower evasion than Warrior (adjusted for flavor)
-                        Assert.True(actualMax <= 25 + BattleBasicDefines.EvasionFlavorRange,
+                        Assert.True(actualMax <= 25 + BattleSystemDefines.EvasionFlavorRange,
                             $"Mage should have lower evasion, but maximum was {actualMax} (considering flavor variation)");
                         break;
                     case PlayerJob.Warrior:
                         // Warrior should have standard evasion (adjusted for flavor)
-                        var warriorMinWithFlavor = Math.Max(0, 10 - BattleBasicDefines.EvasionFlavorRange);
-                        var warriorMaxWithFlavor = 35 + BattleBasicDefines.EvasionFlavorRange;
+                        var warriorMinWithFlavor = Math.Max(0, 10 - BattleSystemDefines.EvasionFlavorRange);
+                        var warriorMaxWithFlavor = 35 + BattleSystemDefines.EvasionFlavorRange;
                         Assert.True(actualMin >= warriorMinWithFlavor && actualMax <= warriorMaxWithFlavor,
                             $"Warrior should have standard evasion range, but got {actualMin}-{actualMax} (expected {warriorMinWithFlavor}-{warriorMaxWithFlavor} with flavor)");
                         break;

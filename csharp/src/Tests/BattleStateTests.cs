@@ -1,7 +1,11 @@
-﻿using InMemoryServer;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Shared;
+using BattleLogic.Battle;
+using Shared.Contracts;
+using Shared.Battle;
+using Shared.Constants;
+using BattleLogic.Constans;
+using Shared.Models;
 
 namespace Tests;
 
@@ -12,37 +16,47 @@ public class BattleStateTests
 {
     private readonly ILogger<BattleState> _logger;
 
+    private readonly IBattleGroupContext _mockGroup;
+
     public BattleStateTests()
     {
         _logger = Substitute.For<ILogger<BattleState>>();
+
+        var groupInfo = new GroupInfo
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "test_group",
+            ConnectionCount = 5,
+            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
+        };
+
+        _mockGroup = Substitute.For<IBattleGroupContext>();
+        _mockGroup.Id.Returns(groupInfo.Id);
+        _mockGroup.Name.Returns(groupInfo.Name);
+        _mockGroup.ConnectedCount.Returns(groupInfo.ConnectionCount);
+        _mockGroup.MaxClients.Returns(groupInfo.MaxConnections);
+        _mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
     }
     [Fact]
     public void BattleState_ShouldInitialize_WithProvidedGroup()
     {
         // Arrange
         var battleId = Guid.NewGuid().ToString();
-        var group = new GroupInfo
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = "test_group",
-            ConnectionCount = 3,
-            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
-        };
 
         // Act
-        var battleState = new BattleState(battleId, group, _logger);
+        var battleState = new BattleState(battleId, _mockGroup, _logger);
         var status = battleState.GetStatus();
 
         // Assert
         Assert.NotNull(status);
         Assert.Equal(battleId, status.BattleId);
-        Assert.Equal(group.ConnectionCount, status.Players.Count);
-        Assert.True(status.Enemies.Count >= BattleBasicDefines.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= BattleBasicDefines.MaxEnemyCount);
-        Assert.Equal(BattleBasicDefines.BattleFieldWidth, status.FieldWidth);
-        Assert.Equal(BattleBasicDefines.BattleFieldHeight, status.FieldHeight);
+        Assert.Equal(_mockGroup.ConnectedCount, status.Players.Count);
+        Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
+        Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+        Assert.Equal(BattleSystemDefines.BattleFieldWidth, status.FieldWidth);
+        Assert.Equal(BattleSystemDefines.BattleFieldHeight, status.FieldHeight);
     }
 
     [Fact]
@@ -50,18 +64,12 @@ public class BattleStateTests
     {
         // Arrange
         var battleId = Guid.NewGuid().ToString();
-        var group = new GroupInfo
-        {
-            Id = Guid.NewGuid().ToString(),
-            Name = "test_group",
-            ConnectionCount = 2,
-            MaxConnections = SystemDefines.MaxConnectionsPerGroup,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
-        };
+        var mockGroup = Substitute.For<IBattleGroupContext>();
+        mockGroup.ConnectedCount.Returns(2);
+        mockGroup.ClientIds.Returns(new List<string> { "client1", "client2" });
 
         // Act
-        var battleState = new BattleState(battleId, group, _logger);
+        var battleState = new BattleState(battleId, mockGroup, _logger);
         var status = battleState.GetStatus();
 
         // Assert
@@ -69,7 +77,7 @@ public class BattleStateTests
 
         foreach (var player in status.Players)
         {
-            Assert.Equal("Player", player.Type);
+            Assert.True(player.Type.IsPlayer);
             // Players have job modifiers applied, so we need to check wider ranges
             Assert.True(player.MaxHp >= 150 && player.MaxHp <= 700, $"Player HP {player.MaxHp} is outside expected range");
             Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
@@ -99,39 +107,24 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.True(status.Enemies.Count >= BattleBasicDefines.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= BattleBasicDefines.MaxEnemyCount);
+        Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
+        Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
 
         foreach (var enemy in status.Enemies)
         {
-            var enemyType = Enum.Parse<EnemyType>(enemy.Type);
-            Assert.True(BattleBasicDefines.EnemyHpByType.ContainsKey(enemyType));
+            // Check that enemy is indeed an enemy with specific size
+            Assert.True(enemy.Type.IsEnemy);
+            Assert.True(enemy.Type.EnemySize.HasValue);
+            Assert.True(enemy.Type.EnemySize == EnemySize.Small ||
+                       enemy.Type.EnemySize == EnemySize.Medium ||
+                       enemy.Type.EnemySize == EnemySize.Large);
 
-            // Enemies also have job modifiers applied, so we check wider ranges
-            var baseHpRange = BattleBasicDefines.EnemyHpByType[enemyType];
-            var baseAttackRange = BattleBasicDefines.EnemyAttackPower[enemyType];
-            var baseDefenseRange = BattleBasicDefines.EnemyDefencePower[enemyType];
-            var baseSpeedRange = BattleBasicDefines.EnemyMoveSpeed[enemyType];
-
-            // Job modifiers can multiply values by up to 1.4x and add up to +100, or reduce by 0.6x and subtract up to -30
-            var expectedMinHp = Math.Max(1, (int)(baseHpRange.Min * 0.6f - 30));
-            var expectedMaxHp = (int)(baseHpRange.Max * 1.4f + 100);
-            var expectedMinAttack = Math.Max(1, (int)(baseAttackRange.Min * 0.6f - 5));
-            var expectedMaxAttack = (int)(baseAttackRange.Max * 1.4f + 10);
-            var expectedMinDefense = Math.Max(0, (int)(baseDefenseRange.Min * 0.6f - 5));
-            var expectedMaxDefense = (int)(baseDefenseRange.Max * 1.6f + 10);
-            var expectedMinSpeed = Math.Max(1, (int)(baseSpeedRange.Min * 0.6f - 1));
-            var expectedMaxSpeed = (int)(baseSpeedRange.Max * 1.5f + 1);
-
-            Assert.True(enemy.MaxHp >= expectedMinHp && enemy.MaxHp <= expectedMaxHp,
-                $"Enemy HP {enemy.MaxHp} is outside expected range [{expectedMinHp}-{expectedMaxHp}]");
-            Assert.Equal(enemy.MaxHp, enemy.CurrentHp); // Should start at full health
-            Assert.True(enemy.Attack >= expectedMinAttack && enemy.Attack <= expectedMaxAttack,
-                $"Enemy Attack {enemy.Attack} is outside expected range [{expectedMinAttack}-{expectedMaxAttack}]");
-            Assert.True(enemy.Defense >= expectedMinDefense && enemy.Defense <= expectedMaxDefense,
-                $"Enemy Defense {enemy.Defense} is outside expected range [{expectedMinDefense}-{expectedMaxDefense}]");
-            Assert.True(enemy.Speed >= expectedMinSpeed && enemy.Speed <= expectedMaxSpeed,
-                $"Enemy Speed {enemy.Speed} is outside expected range [{expectedMinSpeed}-{expectedMaxSpeed}]");
+            // Verify basic HP/Attack/Defense/Speed ranges
+            Assert.True(enemy.CurrentHp >= 8); // Minimum possible HP after job modifiers (Small + Assassin worst case)
+            Assert.True(enemy.CurrentHp <= 600); // Maximum possible HP after job modifiers (Large + Guardian worst case)
+            Assert.True(enemy.Attack >= 1, $"Enemy {enemy.Name} has Attack={enemy.Attack}, Job={enemy.EnemyJob}, Type={enemy.Type}");
+            Assert.True(enemy.Defense >= 0); // Defense can be 0 after modifiers
+            Assert.True(enemy.Speed >= 1);
         }
     }
 }

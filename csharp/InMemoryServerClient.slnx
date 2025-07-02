@@ -5,6 +5,7 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/src/">
+    <Project Path="src/BattleLogic/BattleLogic.csproj" />
     <Project Path="src/CliClient/CliClient.csproj" />
     <Project Path="src/InMemoryServer/InMemoryServer.csproj" />
     <Project Path="src/Shared/Shared.csproj" />

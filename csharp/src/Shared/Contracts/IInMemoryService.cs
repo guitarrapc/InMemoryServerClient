@@ -1,4 +1,7 @@
-﻿namespace Shared;
+﻿using Shared.Battle;
+using Shared.Models;
+
+namespace Shared.Contracts;
 
 /// <summary>
 /// InMemoryServer service interface for SignalR hub

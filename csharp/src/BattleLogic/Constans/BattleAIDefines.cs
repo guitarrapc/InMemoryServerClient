@@ -1,9 +1,9 @@
-﻿namespace Shared;
+﻿namespace BattleLogic.Constans;
 
 /// <summary>
 /// バトルAIのパラメーター調整用定数
 /// </summary>
-public static class BattleAIDefines
+internal static class BattleAIDefines
 {
     #region 行動選択の報酬値
 
