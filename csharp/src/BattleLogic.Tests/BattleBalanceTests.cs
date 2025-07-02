@@ -268,10 +268,29 @@ public class BattleBalanceTests
         Assert.False(finalStatus.IsInProgress); // Battle should be completed
         Assert.NotNull(finalStatus.IsPlayerVictory); // Should have a victory result
 
-        // Calculate victory using the old method
-        bool calculatedVictory = finalTurnData.Players.Any(p => p.CurrentHp > 0);
+        // Calculate victory using the same method as CheckBattleOver
+        bool allPlayersDead = finalTurnData.Players.All(p => p.CurrentHp <= 0);
+        bool allEnemiesDead = finalTurnData.Enemies.All(e => e.CurrentHp <= 0);
 
-        // Verify consistency between new property and old calculation
+        bool calculatedVictory;
+        if (allPlayersDead && allEnemiesDead)
+        {
+            calculatedVictory = false; // Battle over, player defeat (same as CheckBattleOver)
+        }
+        else if (allPlayersDead)
+        {
+            calculatedVictory = false; // Battle over, player defeat
+        }
+        else if (allEnemiesDead)
+        {
+            calculatedVictory = true; // Battle over, player victory
+        }
+        else
+        {
+            calculatedVictory = false; // Battle continues (shouldn't happen in final status)
+        }
+
+        // Verify consistency between new property and updated calculation
         Assert.Equal(calculatedVictory, finalStatus.IsPlayerVictory.Value);
 
         // Verify battle state consistency

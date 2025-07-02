@@ -234,6 +234,14 @@ public class BattleState
                 }
             }
 
+            // If battle ended due to turn limit, determine final result
+            if (!_isCompleted)
+            {
+                _isCompleted = true;
+                var (_, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+                _playerVictory = isPlayerVictory;
+            }
+
             // Add final battle log
             if (_playerVictory)
             {
