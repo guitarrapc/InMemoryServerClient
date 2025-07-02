@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using InMemoryServer.BattleAbstraction;
 using BattleLogic.Battle;
 using Shared.Battle;
 using Shared.Constants;
@@ -14,13 +13,11 @@ namespace Tests;
 public class JobModifierTests
 {
     private readonly ILogger<BattleState> _logger;
-    private readonly IBattleReplayStorage _battleReplayStorage;
 
     public JobModifierTests()
     {
         var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = loggerFactory.CreateLogger<BattleState>();
-        _battleReplayStorage = new FileBattleReplayStorage(loggerFactory.CreateLogger<FileBattleReplayStorage>());
     }
 
     /// <summary>
