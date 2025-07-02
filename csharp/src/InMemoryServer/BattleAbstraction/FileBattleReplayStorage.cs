@@ -1,5 +1,5 @@
-﻿using BattleLogic;
-using Shared;
+﻿using BattleLogic.Constans;
+using Shared.Battle;
 using System.Text.Json;
 
 namespace InMemoryServer.BattleAbstraction;

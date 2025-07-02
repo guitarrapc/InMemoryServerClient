@@ -1,4 +1,6 @@
-﻿namespace Shared;
+﻿using Shared.Contracts;
+
+namespace Shared.Models;
 
 /// <summary>
 /// Group information
@@ -60,66 +62,4 @@ public class GroupInfo : IBattleGroupContext
     /// Gets the readonly list of client IDs
     /// </summary>
     IReadOnlyList<string> IBattleGroupContext.ClientIds => ClientIds;
-}
-
-/// <summary>
-/// Server status information
-/// </summary>
-public class ServerStatus
-{
-    /// <summary>
-    /// Server uptime
-    /// </summary>
-    public TimeSpan Uptime { get; set; }
-
-    /// <summary>
-    /// Total active connections
-    /// </summary>
-    public int TotalConnections { get; set; }
-
-    /// <summary>
-    /// Number of groups
-    /// </summary>
-    public int GroupCount { get; set; }
-
-    /// <summary>
-    /// Number of active battles
-    /// </summary>
-    public int ActiveBattleCount { get; set; }
-
-    /// <summary>
-    /// List of group summaries
-    /// </summary>
-    public List<GroupSummary> Groups { get; set; } = new(10); // Pre-allocate for typical group count
-
-    /// <summary>
-    /// List of active battle summaries
-    /// </summary>
-    public List<BattleSummary> ActiveBattles { get; set; } = new(5); // Pre-allocate for typical battle count
-}
-
-/// <summary>
-/// Group summary information
-/// </summary>
-public readonly struct GroupSummary
-{
-    /// <summary>
-    /// Group ID
-    /// </summary>
-    public required string Id { get; init; }
-
-    /// <summary>
-    /// Group name
-    /// </summary>
-    public required string Name { get; init; }
-
-    /// <summary>
-    /// Current connection count
-    /// </summary>
-    public int ConnectionCount { get; init; }
-
-    /// <summary>
-    /// Battle ID if battle is in progress
-    /// </summary>
-    public string? BattleId { get; init; }
 }

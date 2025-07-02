@@ -1,9 +1,11 @@
-﻿using BattleLogic;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NSubstitute;
-using BattleLogic.Interfaces;
-using Shared;
 using BattleLogic.Battle;
+using Shared.Contracts;
+using Shared.Battle;
+using Shared.Constants;
+using BattleLogic.Constans;
+using Shared.Models;
 
 namespace Tests;
 

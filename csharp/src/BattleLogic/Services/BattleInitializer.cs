@@ -1,4 +1,6 @@
-﻿namespace BattleLogic.Services;
+﻿using BattleLogic.Constans;
+
+namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles battle initialization logic

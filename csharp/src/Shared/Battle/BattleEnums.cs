@@ -1,4 +1,4 @@
-﻿namespace Shared;
+﻿namespace Shared.Battle;
 
 /// <summary>
 /// Basic entity type enum for client-server communication

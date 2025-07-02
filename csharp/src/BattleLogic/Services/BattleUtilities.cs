@@ -1,4 +1,6 @@
-﻿namespace BattleLogic.Services;
+﻿using BattleLogic.Constans;
+
+namespace BattleLogic.Services;
 
 /// <summary>
 /// Utility functions for battle operations

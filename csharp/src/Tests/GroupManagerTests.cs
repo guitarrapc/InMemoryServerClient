@@ -1,7 +1,7 @@
 ﻿using InMemoryServer;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using Shared;
+using Shared.Constants;
 
 namespace Tests;
 

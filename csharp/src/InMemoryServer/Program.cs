@@ -1,7 +1,7 @@
 ﻿using InMemoryServer;
 using InMemoryServer.BattleAbstraction;
-using Shared;
-using BattleLogic;
+using Shared.Constants;
+using BattleLogic.Constans;
 
 // Create a WebApplication builder
 var builder = WebApplication.CreateBuilder(args);

@@ -1,6 +1,7 @@
 ﻿using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
-using Shared;
+using Shared.Battle;
+using Shared.Constants;
 
 namespace CliClient;
 

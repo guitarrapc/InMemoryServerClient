@@ -1,9 +1,10 @@
-﻿using BattleLogic;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Collections.Concurrent;
-using Shared;
 using BattleLogic.Battle;
+using Shared.Constants;
+using BattleLogic.Constans;
+using Shared.Models;
 
 namespace Tests;
 

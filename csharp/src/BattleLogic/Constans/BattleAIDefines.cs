@@ -1,4 +1,4 @@
-﻿namespace BattleLogic;
+﻿namespace BattleLogic.Constans;
 
 /// <summary>
 /// バトルAIのパラメーター調整用定数

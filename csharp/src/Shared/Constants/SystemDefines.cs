@@ -1,4 +1,4 @@
-﻿namespace Shared;
+﻿namespace Shared.Constants;
 
 /// <summary>
 /// Constants used in InMemoryServer

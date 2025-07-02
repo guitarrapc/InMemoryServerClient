@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using BattleLogic;
 using InMemoryServer.BattleAbstraction;
-using Shared;
 using BattleLogic.Battle;
+using Shared.Battle;
+using Shared.Models;
+using Shared.Constants;
+using BattleLogic.Constans;
 
 namespace InMemoryServer;
 

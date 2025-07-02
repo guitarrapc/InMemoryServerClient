@@ -1,4 +1,5 @@
-﻿using Shared;
+﻿using Shared.Contracts;
+using Shared.Models;
 
 namespace InMemoryServer.BattleAbstraction;
 

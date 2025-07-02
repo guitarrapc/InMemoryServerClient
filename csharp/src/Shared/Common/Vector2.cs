@@ -1,4 +1,4 @@
-﻿namespace Shared;
+﻿namespace Shared.Common;
 
 /// <summary>
 /// Vector2 for positions

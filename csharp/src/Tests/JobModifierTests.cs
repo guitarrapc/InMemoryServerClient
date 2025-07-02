@@ -1,8 +1,10 @@
-﻿using BattleLogic;
-using Microsoft.Extensions.Logging;
-using Shared;
+﻿using Microsoft.Extensions.Logging;
 using InMemoryServer.BattleAbstraction;
 using BattleLogic.Battle;
+using Shared.Battle;
+using Shared.Constants;
+using BattleLogic.Constans;
+using Shared.Models;
 
 namespace Tests;
 

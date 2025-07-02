@@ -1,4 +1,4 @@
-namespace Shared;
+﻿namespace Shared.Contracts;
 
 /// <summary>
 /// Represents battle group context information

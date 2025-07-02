@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Shared;
+using Shared.Battle;
 
 namespace InMemoryServer.BattleAbstraction;
 

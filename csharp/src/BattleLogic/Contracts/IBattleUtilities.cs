@@ -1,6 +1,4 @@
-﻿using BattleLogic.Models;
-
-namespace BattleLogic.Interfaces;
+﻿namespace BattleLogic.Contracts;
 
 /// <summary>
 /// Interface for battle utilities and helper functions

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using Shared;
+using Shared.Battle;
+using Shared.Constants;
+using Shared.Models;
 
 namespace CliClient;
 
