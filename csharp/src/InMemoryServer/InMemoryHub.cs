@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using InMemoryServer.BattleAbstraction;
 using BattleLogic.Battle;
 using BattleLogic.Models;
 using Shared.Battle;
@@ -254,8 +253,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
         // Create and store battle state
         var battleLogger = loggerFactory.CreateLogger<BattleState>();
-        var groupContext = new SignalRBattleGroupContext(group);
-        var battle = new BattleState(battleId, groupContext, battleLogger, replayWriterFactory);
+        var battle = new BattleState(battleId, group, battleLogger, replayWriterFactory);
         state.BattleStates[battleId] = battle;
 
         // 1. Notify all clients that connections are ready

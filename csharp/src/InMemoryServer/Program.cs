@@ -1,5 +1,4 @@
 ﻿using InMemoryServer;
-using InMemoryServer.BattleAbstraction;
 using Shared.Constants;
 using BattleLogic.Constans;
 using BattleLogic.Infrastructures.BattleReplayWriter;
