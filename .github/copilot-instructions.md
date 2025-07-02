@@ -1,3 +1,4 @@
+````instructions
 # InMemoryServerClient - Copilotインストラクション
 
 ## 最重要ルール - 新しいルールの追加
@@ -420,3 +421,118 @@ var version = (guidBytes[7] & 0xF0) >> 4; // v7の場合
 - 同時接続のロードテスト（オプション）
 
 コードを生成する際は、サーバーとクライアントの両方のコンポーネントが構造化され、最新のC#プラクティスに従い、適切なエラー処理とドキュメントを含むようにしてください。
+
+## MagicOnion対応のための抽象化パターン（標準ルール）
+
+CliClientではSignalRとMagicOnionの両方の通信プロトコルをサポートするため、以下の抽象化パターンを標準として採用します。
+
+### 1. 通信層の抽象化
+
+#### 1.1 IClientConnection抽象インターフェース
+クライアント-サーバー間通信を抽象化するインターフェースを提供します：
+
+```csharp
+// Shared/Contracts/IClientConnection.cs
+public interface IClientConnection : IAsyncDisposable
+{
+    bool IsConnected { get; }
+    event Action<string> OnDisconnected;
+
+    Task<bool> ConnectAsync(string serverUrl, string? groupName = null);
+    Task DisconnectAsync();
+
+    // Basic operations
+    Task<T> InvokeAsync<T>(string method, params object[] args);
+    Task<bool> InvokeAsync(string method, params object[] args);
+
+    // Event subscription
+    void Subscribe<T>(string eventName, Action<T> handler);
+    void Subscribe<T1, T2>(string eventName, Action<T1, T2> handler);
+}
+```
+
+#### 1.2 プロトコル固有の実装
+各通信プロトコルの具体的な実装はインターフェースを実装する形で提供：
+
+- **SignalRConnection**: SignalR用の実装
+- **MagicOnionConnection**: MagicOnion用の実装（将来対応）
+
+### 2. クライアント層の抽象化
+
+#### 2.1 プロトコル非依存クライアント
+通信プロトコルに依存しないクライアントクラスを提供：
+
+```csharp
+// CliClient/InMemoryClient.cs
+public class InMemoryClient
+{
+    private readonly IClientConnection _connection;
+    private readonly ILogger<InMemoryClient> _logger;
+
+    public InMemoryClient(IClientConnection connection, ILogger<InMemoryClient> logger) { /* ... */ }
+
+    // ビジネスロジックを実装したメソッド群
+    public async Task<bool> ConnectAsync(string serverUrl, string? groupName = null) { /* ... */ }
+    public async Task<string?> GetAsync(string key) { /* ... */ }
+    // ... 他の操作
+}
+```
+
+#### 2.2 コマンド層
+コマンドラインインターフェースからの指示を処理：
+
+```csharp
+// CliClient/InMemoryCommand.cs
+public class InMemoryCommand
+{
+    private readonly InMemoryClient _client;
+    private readonly ILogger<InMemoryCommand> _logger;
+
+    public InMemoryCommand(InMemoryClient client, ILogger<InMemoryCommand> logger) { /* ... */ }
+
+    // 各コマンドに対応するメソッド群
+    public async Task InteractiveAsync() { /* ... */ }
+    public async Task ConnectAsync(string url, string? group = null) { /* ... */ }
+    // ... 他のコマンド
+}
+```
+
+### 3. 設定による切り替え
+
+プロトコル選択は設定から制御可能に：
+
+```csharp
+// CliClient/Program.cs
+var app = ConsoleApp.Create()
+    .ConfigureServices((services, config) =>
+    {
+        var connectionType = config.GetValue<ConnectionType>("ConnectionType", ConnectionType.SignalR);
+
+        services.AddSingleton<IClientConnection>(provider =>
+        {
+            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+            return connectionType == ConnectionType.SignalR
+                ? new SignalRConnection(loggerFactory)
+                : new MagicOnionConnection(loggerFactory);
+        });
+
+        services.AddSingleton<InMemoryClient>();
+        services.AddSingleton<InMemoryCommand>();
+    });
+```
+
+### 4. ガイドライン
+
+1. **プロトコル固有コードの隔離**: プロトコル固有のコードは対応するConnectionクラス内に隔離する
+2. **リアルタイム通知の統一インターフェース**: Subscribe系メソッドでイベントドリブンとストリーミングの違いを吸収
+3. **例外処理の統一**: 各実装で発生する例外は共通のエラーモデルに変換
+4. **型安全性の確保**: 特にMagicOnion導入時は型安全性を維持する工夫が必要
+5. **非同期処理の適切な扱い**: 全ての通信処理は非同期で実装しスレッドブロックを避ける
+
+### 5. 段階的移行計画
+
+1. **Phase 1**: インターフェース定義と既存SignalR実装の適合
+2. **Phase 2**: テスト用のモック実装作成
+3. **Phase 3**: MagicOnion実装の追加
+4. **Phase 4**: 全機能のテスト・検証
+````
