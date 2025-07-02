@@ -5,10 +5,10 @@ namespace CliClient;
 /// <summary>
 /// Service to manage multiple independent client instances
 /// </summary>
-public class MultiClientManager(ILoggerFactory loggerFactory)
+public class MultiSignalRClientManager(ILoggerFactory loggerFactory)
 {
-    private readonly ILogger<MultiClientManager> _logger = loggerFactory.CreateLogger<MultiClientManager>();
-    private readonly List<InMemoryClient> _clients = [];
+    private readonly ILogger<MultiSignalRClientManager> _logger = loggerFactory.CreateLogger<MultiSignalRClientManager>();
+    private readonly List<SignalRClient> _clients = [];
 
     /// <summary>
     /// Connect multiple independent client instances to the same group
@@ -31,8 +31,8 @@ public class MultiClientManager(ILoggerFactory loggerFactory)
         {
             try
             {
-                var clientLogger = loggerFactory.CreateLogger<InMemoryClient>();
-                var client = new InMemoryClient(i, clientLogger);
+                var clientLogger = loggerFactory.CreateLogger<SignalRClient>();
+                var client = new SignalRClient(i, clientLogger);
 
                 // クライアントをリストに追加
                 _clients.Add(client);

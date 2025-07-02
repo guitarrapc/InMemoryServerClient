@@ -9,9 +9,9 @@ namespace CliClient;
 /// <summary>
 /// Client for InMemory server
 /// </summary>
-public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
+public class SignalRClient(int clientIndex, ILogger<SignalRClient> logger)
 {
-    private readonly ILogger<InMemoryClient> _logger = logger;
+    private readonly ILogger<SignalRClient> _logger = logger;
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
@@ -31,7 +31,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 
     public TaskCompletionSource<bool> BattleCompletionSource => _battleCompletionSource;
 
-    public InMemoryClient(ILogger<InMemoryClient> logger) : this(0, logger)
+    public SignalRClient(ILogger<SignalRClient> logger) : this(0, logger)
     {
     }
 
@@ -459,38 +459,47 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
 
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ========== Saved Battle Replay Completed! ==========");
 
-        if (!finalStatus.IsPlayerVictory.HasValue)
+        if (finalStatus.IsPlayerVictory.HasValue)
         {
-            // This is abnormal - completed battle should have IsPlayerVictory set
-            _logger.LogWarning($"Client {_clientIndex}: [BATTLE REPLAY] ⚠️ Warning: Battle completed but IsPlayerVictory is null. Using fallback logic.");
-            throw new InvalidOperationException("Battle completed but IsPlayerVictory is null. This should not happen.");
-        }
-
-        if (finalStatus.IsPlayerVictory.Value)
-        {
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Count}");
-
-            // Show surviving players stats
-            foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
+            if (finalStatus.IsPlayerVictory.Value)
             {
-                var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Count}");
+
+                // Show surviving players stats
+                foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
+                {
+                    var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}: HP {player.CurrentHp}/{player.MaxHp} {healthBar}");
+                }
+            }
+            else
+            {
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
+
+                // Show surviving enemy stats
+                foreach (var enemy in finalStatus.Enemies.Where(p => p.CurrentHp > 0))
+                {
+                    var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 20);
+                    _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar}");
+                }
             }
         }
         else
         {
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
-            _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
-
-            // Show surviving enemy stats
-            foreach (var enemy in finalStatus.Enemies.Where(p => p.CurrentHp > 0))
+            // Fallback to legacy logic if IsPlayerVictory is not available (shouldn't happen in normal cases)
+            if (finalAliveEnemies == 0)
             {
-                var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 20);
-                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar}");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Surviving players: {finalAlivePlayers}/{finalStatus.Players.Count}");
+            }
+            else
+            {
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
+                _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Remaining enemies: {finalAliveEnemies}/{finalStatus.Enemies.Count}");
             }
         }
-
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Total turns: {finalStatus.CurrentTurn}");
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] Battle ID: {finalStatus.BattleId} (replay completed)");
         _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] ===============================================");

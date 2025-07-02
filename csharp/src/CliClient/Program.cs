@@ -22,12 +22,12 @@ var app = ConsoleApp.Create()
     })
     .ConfigureServices(services =>
     {
-        services.AddSingleton<InMemoryClient>();
-        services.AddSingleton<MultiClientManager>();
+        services.AddSingleton<SignalRClient>();
+        services.AddSingleton<MultiSignalRClientManager>();
     });
 
 // Add commands
-app.Add<InMemoryCommands>();
+app.Add<SignalRCommand>();
 
 // Run the application
 app.Run(args);
