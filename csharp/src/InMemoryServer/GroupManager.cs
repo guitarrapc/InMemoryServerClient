@@ -75,7 +75,7 @@ public class GroupManager
         }
 
         // Create a new group
-        var newGroupId = Guid.NewGuid().ToString();
+        var newGroupId = Guid.CreateVersion7().ToString(); // Use GUID v7 for timestamp ordering
         var newGroupName = !string.IsNullOrEmpty(groupName) ? groupName : $"Group-{newGroupId[..8]}";
         var newGroup = new GroupInfo
         {

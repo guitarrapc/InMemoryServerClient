@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using InMemoryServer.BattleAbstraction;
 using BattleLogic.Battle;
+using BattleLogic.Models;
 using Shared.Battle;
 using Shared.Models;
 using Shared.Constants;
@@ -251,7 +252,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     private async Task StartBattleAsync(GroupInfo group)
     {
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for timestamp ordering
         group.BattleId = battleId;
 
         _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");

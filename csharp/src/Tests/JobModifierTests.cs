@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using BattleLogic.Battle;
+using BattleLogic.Models;
 using Shared.Battle;
 using Shared.Constants;
 using BattleLogic.Constans;
@@ -36,10 +37,10 @@ public class JobModifierTests
     public void PlayerJob_Tank_ShouldApplyCorrectModifiers()
     {
         // Arrange
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
         var group = new GroupInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "tank_test_group",
             ConnectionCount = 5, // Full group to ensure Tank might be selected
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -113,10 +114,10 @@ public class JobModifierTests
     public void PlayerJob_Warrior_ShouldApplyCorrectModifiers()
     {
         // Similar pattern to Tank test but for Warrior
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = BattleSeed.NewTimestampId().ToString(),
             Name = "warrior_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -167,10 +168,10 @@ public class JobModifierTests
     [Fact]
     public void PlayerJob_Mage_ShouldApplyCorrectModifiers()
     {
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = BattleSeed.NewTimestampId().ToString(),
             Name = "mage_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -193,13 +194,13 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Mage, player.PlayerJob);
                 // Mage should have lower HP due to 0.8x multiplier and -50 bonus
-                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 → 110-350 range
+                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 ¨ 110-350 range
                 Assert.True(player.MaxHp <= 350, $"Mage should have lower HP, got {player.MaxHp}");
                 // But very high attack due to 1.4x multiplier + 8 bonus
-                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 → 22-50 range
+                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 ¨ 22-50 range
                 Assert.True(player.Attack >= 22, $"Mage should have very high attack power, got {player.Attack}");
                 // And lower defense due to 0.7x multiplier and -3 bonus
-                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 → 4-12 range
+                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 ¨ 4-12 range
                 Assert.True(player.Defense <= 12, $"Mage should have lower defense, got {player.Defense}");
             }
         }
@@ -213,10 +214,10 @@ public class JobModifierTests
     [Fact]
     public void PlayerJob_Archer_ShouldApplyCorrectModifiers()
     {
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = BattleSeed.NewTimestampId().ToString(),
             Name = "archer_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -239,10 +240,10 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Archer, player.PlayerJob);
                 // Archer should have high speed due to 1.4x multiplier + 1 bonus
-                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 → 3-6 range
+                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 ¨ 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
                 // Good attack due to 1.3x multiplier + 3 bonus
-                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 → 35-47 range
+                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 ¨ 35-47 range
                 Assert.True(player.Attack >= 35, $"Archer should have good attack power, got {player.Attack}");
             }
         }
@@ -256,10 +257,10 @@ public class JobModifierTests
     [Fact]
     public void EnemyJobs_ShouldApplyCorrectModifiers()
     {
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = BattleSeed.NewTimestampId().ToString(),
             Name = "enemy_job_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -313,10 +314,10 @@ public class JobModifierTests
     public void PlayerJobs_EvasionRates_ShouldBeWithinExpectedRanges()
     {
         // Arrange
-        var battleId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = BattleSeed.NewTimestampId().ToString(),
             Name = "evasion_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,

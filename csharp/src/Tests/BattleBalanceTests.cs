@@ -2,6 +2,7 @@
 using NSubstitute;
 using System.Collections.Concurrent;
 using BattleLogic.Battle;
+using BattleLogic.Models;
 using Shared.Constants;
 using BattleLogic.Constans;
 using Shared.Models;
@@ -59,8 +60,8 @@ public class BattleBalanceTests
         // テスト用のグループを作成 (プレイヤー数は常に5人)
         var playerCount = 5; // 常に5人のプレイヤー
 
-        var battleId = Guid.NewGuid().ToString();
-        var groupId = Guid.NewGuid().ToString();
+        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
+        var groupId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for group ID
         var group = new GroupInfo
         {
             Id = groupId,
@@ -70,7 +71,7 @@ public class BattleBalanceTests
             CreatedAt = DateTime.UtcNow,
             ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes),
             ClientIds = Enumerable.Range(0, playerCount)
-                                .Select(_ => Guid.NewGuid().ToString())
+                                .Select(_ => BattleSeed.NewTimestampId().ToString()) // Use GUID v7 for client IDs
                                 .ToList()
         };
 
@@ -148,8 +149,8 @@ public class BattleBalanceTests
             // プレイヤー数は常に5人
             var playerCount = 5;
 
-            var battleId = Guid.NewGuid().ToString();
-            var groupId = Guid.NewGuid().ToString();
+            var battleId = BattleSeed.NewTimestampId().ToString();
+            var groupId = BattleSeed.NewTimestampId().ToString();
             var group = new GroupInfo
             {
                 Id = groupId,
@@ -159,7 +160,7 @@ public class BattleBalanceTests
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes),
                 ClientIds = Enumerable.Range(0, playerCount)
-                                    .Select(_ => Guid.NewGuid().ToString())
+                                    .Select(_ => BattleSeed.NewTimestampId().ToString())
                                     .ToList()
             };
 

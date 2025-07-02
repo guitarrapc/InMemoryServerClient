@@ -75,7 +75,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
 
         return new EntityInfo
         {
-            Id = battleSeed.NextGuid().ToString(), // Use deterministic GUID for players
+            Id = battleSeed.NextEntityId().ToString(), // Use deterministic GUID v4 for entity
             Name = $"{assignedJob}Player{playerIndex + 1}",
             Type = EntityTypeInfo.Player,
             PlayerJob = assignedJob,
@@ -130,7 +130,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
 
         return new EntityInfo
         {
-            Id = battleSeed.NextGuid().ToString(), // Use deterministic GUID for enemies
+            Id = battleSeed.NextEntityId().ToString(), // Use deterministic GUID v4 for entity
             Name = $"Enemy{enemyIndex + 1}_{enemySize}",
             Type = entityTypeInfo,
             PlayerJob = null,
