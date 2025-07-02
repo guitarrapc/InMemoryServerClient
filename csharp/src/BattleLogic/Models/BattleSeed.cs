@@ -93,8 +93,10 @@ public sealed class BattleSeed
             var bytes = new byte[16];
             _random.NextBytes(bytes);
 
-            // Set version to 4 (random) and variant bits according to RFC 4122
-            bytes[6] = (byte)((bytes[6] & 0x0F) | 0x40); // Version 4
+            // Set version to 4 and variant bits according to RFC 4122
+            // Note: .NET GUID constructor handles byte order conversion, so we need to
+            // set the version in the correct position considering endianness
+            bytes[7] = (byte)((bytes[7] & 0x0F) | 0x40); // Version 4 in correct position
             bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80); // Variant bits
 
             return new Guid(bytes);

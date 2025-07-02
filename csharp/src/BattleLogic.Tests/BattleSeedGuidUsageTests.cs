@@ -33,8 +33,7 @@ public class BattleSeedGuidUsageTests
         // Verify all generated GUIDs are version 4
         foreach (var guid in entityIds1)
         {
-            var guidBytes = guid.ToByteArray();
-            var version = (guidBytes[6] & 0xF0) >> 4; // Version is in byte 6, upper nibble
+            var version = ExtractVersion(guid);
             Assert.Equal(4, version); // GUID v4
         }
     }
@@ -87,9 +86,7 @@ public class BattleSeedGuidUsageTests
         // Verify all generated GUIDs are version 7
         foreach (var guid in timestampIds)
         {
-            var guidBytes = guid.ToByteArray();
-            // For GUID v7, version is in byte 7 due to little-endian
-            var version = (guidBytes[7] & 0xF0) >> 4;
+            var version = ExtractVersion(guid);
             Assert.Equal(7, version); // GUID v7
         }
     }
@@ -222,18 +219,17 @@ public class BattleSeedGuidUsageTests
     }
 
     /// <summary>
-    /// Extract version from GUID
-    /// For GUID v4: byte 6, upper nibble
-    /// For GUID v7: byte 7, upper nibble (due to little-endian byte order)
+    /// Extract version from GUID using string representation (RFC-compliant method)
+    /// This avoids byte-order complications in .NET's ToByteArray()
     /// </summary>
     private static int ExtractVersion(Guid guid)
     {
-        var bytes = guid.ToByteArray();
-        // Try both positions due to endianness differences
-        var version6 = (bytes[6] & 0xF0) >> 4;
-        var version7 = (bytes[7] & 0xF0) >> 4;
+        // Get the string representation and parse the version from time_hi_and_version field
+        var guidStr = guid.ToString();
+        var parts = guidStr.Split('-');
+        var timeHiAndVersion = parts[2]; // Third part: time_hi_and_version
 
-        // Return the one that makes sense (4 or 7)
-        return version6 is 4 or 7 ? version6 : version7;
+        // Version is the first hex digit of time_hi_and_version
+        return int.Parse(timeHiAndVersion[0].ToString(), System.Globalization.NumberStyles.HexNumber);
     }
 }
