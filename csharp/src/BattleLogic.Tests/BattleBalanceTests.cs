@@ -1,14 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using NSubstitute;
-using System.Collections.Concurrent;
-using BattleLogic.Battle;
-using BattleLogic.Models;
-using Shared.Constants;
-using BattleLogic.Constans;
-using Shared.Models;
 using Shared.Contracts;
+using System.Collections.Concurrent;
 
-namespace Tests;
+namespace BattleLogic.Tests;
 
 /// <summary>
 /// バトルシステムのバランス検証用テストクラス
@@ -16,9 +10,11 @@ namespace Tests;
 public class BattleBalanceTests
 {
     private readonly ILogger<BattleState> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
     public BattleBalanceTests()
     {
+        _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = Substitute.For<ILogger<BattleState>>();
     }
 
@@ -77,7 +73,7 @@ public class BattleBalanceTests
         };
 
         // バトル状態を初期化
-        var battleState = new BattleState(battleId, group, _logger);
+        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
         // バトルを実行
         await battleState.RunBattleAsync();
@@ -177,7 +173,7 @@ public class BattleBalanceTests
             };
 
             // バトル状態を初期化
-            var battleState = new BattleState(battleId, group, _logger);
+            var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
             // バトルを実行
             await battleState.RunBattleAsync();
@@ -257,7 +253,7 @@ public class BattleBalanceTests
         group.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battleState = new BattleState(battleId, group, _logger);
+        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         await battleState.RunBattleAsync();
 
         var finalStatus = battleState.GetStatus();
@@ -268,29 +264,10 @@ public class BattleBalanceTests
         Assert.False(finalStatus.IsInProgress); // Battle should be completed
         Assert.NotNull(finalStatus.IsPlayerVictory); // Should have a victory result
 
-        // Calculate victory using the same method as CheckBattleOver
-        bool allPlayersDead = finalTurnData.Players.All(p => p.CurrentHp <= 0);
-        bool allEnemiesDead = finalTurnData.Enemies.All(e => e.CurrentHp <= 0);
+        // Calculate victory using the old method
+        bool calculatedVictory = finalTurnData.Players.Any(p => p.CurrentHp > 0);
 
-        bool calculatedVictory;
-        if (allPlayersDead && allEnemiesDead)
-        {
-            calculatedVictory = false; // Battle over, player defeat (same as CheckBattleOver)
-        }
-        else if (allPlayersDead)
-        {
-            calculatedVictory = false; // Battle over, player defeat
-        }
-        else if (allEnemiesDead)
-        {
-            calculatedVictory = true; // Battle over, player victory
-        }
-        else
-        {
-            calculatedVictory = false; // Battle continues (shouldn't happen in final status)
-        }
-
-        // Verify consistency between new property and updated calculation
+        // Verify consistency between new property and old calculation
         Assert.Equal(calculatedVictory, finalStatus.IsPlayerVictory.Value);
 
         // Verify battle state consistency

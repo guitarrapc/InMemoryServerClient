@@ -6,28 +6,22 @@ using Shared.Battle;
 using Shared.Models;
 using Shared.Constants;
 using BattleLogic.Constans;
+using BattleLogic.Infrastructures.BattleReplayWriter;
 
 namespace InMemoryServer;
 
 /// <summary>
 /// InMemory SignalR Hub
 /// </summary>
-public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory, IBattleReplayStorage replayStorage, IBattleNotificationService notificationService) : Hub
+public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory, BattleReplayWriterFactory replayWriterFactory) : Hub
 {
-    private readonly ILogger<InMemoryHub> _logger = logger;
-    private readonly InMemoryState _state = state;
-    private readonly GroupManager _groupManager = groupManager;
-    private readonly ILoggerFactory _loggerFactory = loggerFactory;
-    private readonly IBattleReplayStorage _replayStorage = replayStorage;
-    private readonly IBattleNotificationService _notificationService = notificationService;
-
     /// <summary>
     /// Get value by key
     /// </summary>
     public async Task<string?> GetAsync(string key)
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} requested value for key: {key}");
-        return _state.KeyValueStore.TryGetValue(key, out var value) ? value : null;
+        logger.LogInformation($"Client {Context.ConnectionId} requested value for key: {key}");
+        return state.KeyValueStore.TryGetValue(key, out var value) ? value : null;
     }
 
     /// <summary>
@@ -35,11 +29,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<bool> SetAsync(string key, string value)
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} setting key: {key} to value: {value}");
-        _state.KeyValueStore[key] = value;
+        logger.LogInformation($"Client {Context.ConnectionId} setting key: {key} to value: {value}");
+        state.KeyValueStore[key] = value;
 
         // Notify any watchers of this key
-        if (_state.KeyWatchers.TryGetValue(key, out var watchers))
+        if (state.KeyWatchers.TryGetValue(key, out var watchers))
         {
             foreach (var watcherId in watchers)
             {
@@ -55,11 +49,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<bool> DeleteAsync(string key)
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} deleting key: {key}");
-        var result = _state.KeyValueStore.TryRemove(key, out _);
+        logger.LogInformation($"Client {Context.ConnectionId} deleting key: {key}");
+        var result = state.KeyValueStore.TryRemove(key, out _);
 
         // Notify any watchers of this key
-        if (result && _state.KeyWatchers.TryGetValue(key, out var watchers))
+        if (result && state.KeyWatchers.TryGetValue(key, out var watchers))
         {
             foreach (var watcherId in watchers)
             {
@@ -75,17 +69,17 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<IEnumerable<string>> ListAsync(string pattern = "*")
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} listing keys with pattern: {pattern}");
+        logger.LogInformation($"Client {Context.ConnectionId} listing keys with pattern: {pattern}");
 
         // Simple pattern matching, replace * with .* for regex
         if (pattern == "*")
         {
-            return _state.KeyValueStore.Keys;
+            return state.KeyValueStore.Keys;
         }
         else
         {
             var regexPattern = "^" + pattern.Replace("*", ".*") + "$";
-            return _state.KeyValueStore.Keys.Where(k => System.Text.RegularExpressions.Regex.IsMatch(k, regexPattern));
+            return state.KeyValueStore.Keys.Where(k => System.Text.RegularExpressions.Regex.IsMatch(k, regexPattern));
         }
     }
 
@@ -94,12 +88,12 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<bool> WatchAsync(string key)
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} watching key: {key}");
+        logger.LogInformation($"Client {Context.ConnectionId} watching key: {key}");
 
-        if (!_state.KeyWatchers.TryGetValue(key, out var watchers))
+        if (!state.KeyWatchers.TryGetValue(key, out var watchers))
         {
             watchers = [];
-            _state.KeyWatchers[key] = watchers;
+            state.KeyWatchers[key] = watchers;
         }
 
         watchers.Add(Context.ConnectionId);
@@ -112,10 +106,10 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     public async Task<string> JoinGroupAsync(string? groupName = null)
     {
         // Find or create group
-        var group = await _groupManager.JoinGroupAsync(Context.ConnectionId, groupName);
+        var group = await groupManager.JoinGroupAsync(Context.ConnectionId, groupName);
         await Groups.AddToGroupAsync(Context.ConnectionId, group.Id);
 
-        _logger.LogInformation($"Client {Context.ConnectionId} joined group: {group.Name} (ID: {group.Id})");
+        logger.LogInformation($"Client {Context.ConnectionId} joined group: {group.Name} (ID: {group.Id})");
 
         // Notify other members
         await Clients.OthersInGroup(group.Id).SendAsync("MemberJoined", Context.ConnectionId, group.ConnectionCount);
@@ -134,14 +128,14 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<bool> BroadcastAsync(string message)
     {
-        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        var groupId = groupManager.GetGroupIdForConnection(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            _logger.LogWarning($"Client {Context.ConnectionId} tried to broadcast but is not in any group");
+            logger.LogWarning($"Client {Context.ConnectionId} tried to broadcast but is not in any group");
             return false;
         }
 
-        _logger.LogInformation($"Client {Context.ConnectionId} broadcasting message to group {groupId}");
+        logger.LogInformation($"Client {Context.ConnectionId} broadcasting message to group {groupId}");
         await Clients.Group(groupId).SendAsync("GroupMessage", Context.ConnectionId, message);
         return true;
     }
@@ -151,8 +145,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<IEnumerable<GroupInfo>> GetGroupsAsync()
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} requesting group list");
-        return _groupManager.GetAllGroups();
+        logger.LogInformation($"Client {Context.ConnectionId} requesting group list");
+        return groupManager.GetAllGroups();
     }
 
     /// <summary>
@@ -160,14 +154,14 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<GroupInfo?> GetCurrentGroupAsync()
     {
-        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        var groupId = groupManager.GetGroupIdForConnection(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            _logger.LogWarning($"Client {Context.ConnectionId} requested current group but is not in any group");
+            logger.LogWarning($"Client {Context.ConnectionId} requested current group but is not in any group");
             return null;
         }
 
-        return _groupManager.GetGroupInfo(groupId);
+        return groupManager.GetGroupInfo(groupId);
     }
 
     /// <summary>
@@ -175,17 +169,17 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
-        var groupId = _groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        var groupId = groupManager.GetGroupIdForConnection(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            _logger.LogWarning($"Client {Context.ConnectionId} requested battle status but is not in any group");
+            logger.LogWarning($"Client {Context.ConnectionId} requested battle status but is not in any group");
             return null;
         }
 
-        var group = _groupManager.GetGroupInfo(groupId);
+        var group = groupManager.GetGroupInfo(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
-            _logger.LogWarning($"Group {groupId} does not have an active battle");
+            logger.LogWarning($"Group {groupId} does not have an active battle");
 
             return new BattleStatus
             {
@@ -195,7 +189,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             };
         }
 
-        return _state.BattleStates.TryGetValue(group.BattleId, out var battle)
+        return state.BattleStates.TryGetValue(group.BattleId, out var battle)
             ? battle.GetStatus()
             : new BattleStatus
             {
@@ -212,7 +206,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     {
         // For the initial implementation, battle is fully automated
         // This method is included for future expansion
-        _logger.LogInformation($"Client {Context.ConnectionId} requested battle action {actionType}, but battles are currently automated");
+        logger.LogInformation($"Client {Context.ConnectionId} requested battle action {actionType}, but battles are currently automated");
         return false;
     }
 
@@ -221,7 +215,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<string?> GetBattleReplayAsync(string battleId)
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
+        logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 
         var replayPath = Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{battleId}.jsonl");
         if (File.Exists(replayPath))
@@ -236,13 +230,13 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error reading battle replay file: {replayPath}");
+                logger.LogError(ex, $"Error reading battle replay file: {replayPath}");
                 return null;
             }
         }
         else
         {
-            _logger.LogWarning($"Battle replay file not found: {replayPath}");
+            logger.LogWarning($"Battle replay file not found: {replayPath}");
             return null;
         }
     }
@@ -255,17 +249,17 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for timestamp ordering
         group.BattleId = battleId;
 
-        _logger.LogInformation($"Starting battle {battleId} for group {group.Id}");
-        _logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
+        logger.LogInformation($"Starting battle {battleId} for group {group.Id}");
+        logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
 
         // Create and store battle state
-        var battleLogger = _loggerFactory.CreateLogger<BattleState>();
+        var battleLogger = loggerFactory.CreateLogger<BattleState>();
         var groupContext = new SignalRBattleGroupContext(group);
-        var battle = new BattleState(battleId, groupContext, battleLogger);
-        _state.BattleStates[battleId] = battle;
+        var battle = new BattleState(battleId, groupContext, battleLogger, replayWriterFactory);
+        state.BattleStates[battleId] = battle;
 
         // 1. Notify all clients that connections are ready
-        _logger.LogInformation($"Battle {battleId}: Notifying all clients that connections are ready");
+        logger.LogInformation($"Battle {battleId}: Notifying all clients that connections are ready");
         await Clients.Group(group.Id).SendAsync("ConnectionsReady", battleId);
 
         // 2. Start battle processing in background after all clients confirm readiness
@@ -275,7 +269,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
             var startTime = DateTime.UtcNow;
 
-            _logger.LogInformation($"Battle {battleId}: Waiting for client confirmations ({group.ConnectionCount} clients)...");
+            logger.LogInformation($"Battle {battleId}: Waiting for client confirmations ({group.ConnectionCount} clients)...");
 
             while (!battle.AreAllConnectionsReadyConfirmed())
             {
@@ -283,28 +277,28 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 {
                     // タイムアウト発生、確認が揃わなかった
                     var elapsed = DateTime.UtcNow - startTime;
-                    _logger.LogWarning($"Battle {battleId}: Timed out after {elapsed.TotalSeconds:F1}s waiting for client confirmations. Proceeding anyway.");
+                    logger.LogWarning($"Battle {battleId}: Timed out after {elapsed.TotalSeconds:F1}s waiting for client confirmations. Proceeding anyway.");
                     break;
                 }
             }
 
             // 3. Send BattleStarted notification once all clients have confirmed
-            _logger.LogInformation($"Battle {battleId}: All clients confirmed or timeout reached. Starting battle.");
+            logger.LogInformation($"Battle {battleId}: All clients confirmed or timeout reached. Starting battle.");
             await Clients.Group(group.Id).SendAsync("BattleStarted", battleId);
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)
-            _logger.LogInformation($"Battle {battleId}: Starting pre-computation of battle simulation");
+            logger.LogInformation($"Battle {battleId}: Starting pre-computation of battle simulation");
             await battle.RunBattleAsync();
 
             // 5. Send all battle data to clients for replay
-            _logger.LogInformation($"Battle {battleId}: Sending battle replay data to clients");
+            logger.LogInformation($"Battle {battleId}: Sending battle replay data to clients");
             var allTurnData = battle.GetAllTurnData();
 
             // Check if data is too large, split if necessary
             const int maxTurnsPerChunk = 50; // Send in chunks of 50 turns
             var chunks = allTurnData.Chunk(maxTurnsPerChunk).ToList();
 
-            _logger.LogInformation($"Battle {battleId}: Sending {allTurnData.Count} turns in {chunks.Count} chunk(s)");
+            logger.LogInformation($"Battle {battleId}: Sending {allTurnData.Count} turns in {chunks.Count} chunk(s)");
 
             for (int i = 0; i < chunks.Count; i++)
             {
@@ -348,7 +342,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
             // 6. Battle completed notification
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
-            _logger.LogInformation($"Battle {battleId}: All replay data sent, battle marked as completed");
+            logger.LogInformation($"Battle {battleId}: All replay data sent, battle marked as completed");
 
             // Clear entire allTurnData after all chunks sent
             battle.ClearBattleData();
@@ -360,8 +354,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public override async Task OnConnectedAsync()
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} connected");
-        _state.ConnectionCount++;
+        logger.LogInformation($"Client {Context.ConnectionId} connected");
+        state.ConnectionCount++;
         await base.OnConnectedAsync();
     }
 
@@ -370,21 +364,21 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} disconnected");
-        _state.ConnectionCount--;
+        logger.LogInformation($"Client {Context.ConnectionId} disconnected");
+        state.ConnectionCount--;
 
         // Remove from group
-        await _groupManager.LeaveGroupAsync(Context.ConnectionId);
+        await groupManager.LeaveGroupAsync(Context.ConnectionId);
 
         // Remove from watchers
-        foreach (var key in _state.KeyWatchers.Keys.ToList())
+        foreach (var key in state.KeyWatchers.Keys.ToList())
         {
-            if (_state.KeyWatchers.TryGetValue(key, out var watchers))
+            if (state.KeyWatchers.TryGetValue(key, out var watchers))
             {
                 watchers.Remove(Context.ConnectionId);
                 if (watchers.Count == 0)
                 {
-                    _state.KeyWatchers.TryRemove(key, out _);
+                    state.KeyWatchers.TryRemove(key, out _);
                 }
             }
         }
@@ -397,18 +391,18 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     public async Task<ServerStatus> GetServerStatusAsync()
     {
-        _logger.LogInformation($"Client {Context.ConnectionId} requested server status");
+        logger.LogInformation($"Client {Context.ConnectionId} requested server status");
 
         var status = new ServerStatus
         {
-            Uptime = DateTime.UtcNow - _state.StartTime,
-            TotalConnections = _state.ConnectionCount,
-            GroupCount = _groupManager.GetAllGroups().Count(),
-            ActiveBattleCount = _state.BattleStates.Count
+            Uptime = DateTime.UtcNow - state.StartTime,
+            TotalConnections = state.ConnectionCount,
+            GroupCount = groupManager.GetAllGroups().Count(),
+            ActiveBattleCount = state.BattleStates.Count
         };
 
         // Get group summaries
-        foreach (var group in _groupManager.GetAllGroups())
+        foreach (var group in groupManager.GetAllGroups())
         {
             status.Groups.Add(new GroupSummary
             {
@@ -420,7 +414,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         }
 
         // Get battle summaries
-        foreach (var battleEntry in _state.BattleStates)
+        foreach (var battleEntry in state.BattleStates)
         {
             var battleState = battleEntry.Value;
             var battleStatus = battleState.GetStatus();
@@ -445,32 +439,32 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     public async Task<bool> ConfirmConnectionReadyAsync()
     {
         var clientId = Context.ConnectionId;
-        _logger.LogInformation($"Client {clientId} is attempting to confirm connection ready");
+        logger.LogInformation($"Client {clientId} is attempting to confirm connection ready");
 
-        var groupId = _groupManager.GetGroupIdForConnection(clientId);
+        var groupId = groupManager.GetGroupIdForConnection(clientId);
         if (string.IsNullOrEmpty(groupId))
         {
-            _logger.LogWarning($"Client {clientId} attempted to confirm connection ready but is not in any group");
+            logger.LogWarning($"Client {clientId} attempted to confirm connection ready but is not in any group");
             return false;
         }
 
-        var group = _groupManager.GetGroupInfo(groupId);
+        var group = groupManager.GetGroupInfo(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
-            _logger.LogWarning($"Group {groupId} does not have an active battle for connection ready confirmation");
+            logger.LogWarning($"Group {groupId} does not have an active battle for connection ready confirmation");
             return false;
         }
 
         // Get battle state
-        if (!_state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        if (!state.BattleStates.TryGetValue(group.BattleId, out var battle))
         {
-            _logger.LogWarning($"Battle state not found for battle {group.BattleId}");
+            logger.LogWarning($"Battle state not found for battle {group.BattleId}");
             return false;
         }
 
         // Mark this client as having confirmed connection readiness
         battle.MarkConnectionReadyConfirmed(clientId);
-        _logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
+        logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
 
         return true;
     }

@@ -1,12 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using BattleLogic.Battle;
-using BattleLogic.Models;
 using Shared.Battle;
-using Shared.Constants;
-using BattleLogic.Constans;
-using Shared.Models;
 
-namespace Tests;
+namespace BattleLogic.Tests;
 
 /// <summary>
 /// Job modifier specific tests for battle entities
@@ -14,11 +9,12 @@ namespace Tests;
 public class JobModifierTests
 {
     private readonly ILogger<BattleState> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
     public JobModifierTests()
     {
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        _logger = loggerFactory.CreateLogger<BattleState>();
+        _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        _logger = _loggerFactory.CreateLogger<BattleState>();
     }
 
     /// <summary>
@@ -52,7 +48,7 @@ public class JobModifierTests
         var tankPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !tankPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
             var status = battleState.GetStatus();
 
             var tankPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Tank);
@@ -128,7 +124,7 @@ public class JobModifierTests
         var warriorPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !warriorPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
             var status = battleState.GetStatus();
 
             var warriorPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Warrior);
@@ -182,7 +178,7 @@ public class JobModifierTests
         var magePlayerFound = false;
         for (int attempt = 0; attempt < 200 && !magePlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
             var status = battleState.GetStatus();
 
             var magePlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Mage);
@@ -194,13 +190,13 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Mage, player.PlayerJob);
                 // Mage should have lower HP due to 0.8x multiplier and -50 bonus
-                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 ¨ 110-350 range
+                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 ?N 110-350 range
                 Assert.True(player.MaxHp <= 350, $"Mage should have lower HP, got {player.MaxHp}");
                 // But very high attack due to 1.4x multiplier + 8 bonus
-                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 ¨ 22-50 range
+                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 ?N 22-50 range
                 Assert.True(player.Attack >= 22, $"Mage should have very high attack power, got {player.Attack}");
                 // And lower defense due to 0.7x multiplier and -3 bonus
-                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 ¨ 4-12 range
+                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 ?N 4-12 range
                 Assert.True(player.Defense <= 12, $"Mage should have lower defense, got {player.Defense}");
             }
         }
@@ -228,7 +224,7 @@ public class JobModifierTests
         var archerPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !archerPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
             var status = battleState.GetStatus();
 
             var archerPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Archer);
@@ -240,10 +236,10 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Archer, player.PlayerJob);
                 // Archer should have high speed due to 1.4x multiplier + 1 bonus
-                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 ¨ 3-6 range
+                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 ?N 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
                 // Good attack due to 1.3x multiplier + 3 bonus
-                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 ¨ 35-47 range
+                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 ?N 35-47 range
                 Assert.True(player.Attack >= 35, $"Archer should have good attack power, got {player.Attack}");
             }
         }
@@ -268,7 +264,7 @@ public class JobModifierTests
             ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
         };
 
-        var battleState = new BattleState(battleId, group, _logger);
+        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         var status = battleState.GetStatus();
 
         // Check that enemies have valid jobs assigned
@@ -331,7 +327,7 @@ public class JobModifierTests
         // Act - Run multiple times to collect evasion data for different jobs
         for (int attempt = 0; attempt < 500 && jobsFound.Count < 4; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger);
+            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
             var status = battleState.GetStatus();
 
             foreach (var player in status.Players)

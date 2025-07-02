@@ -1,10 +1,10 @@
 ﻿using BattleLogic.Constans;
+using BattleLogic.Infrastructures.BattleReplayWriter;
 using BattleLogic.Models;
 using BattleLogic.Services;
 using Microsoft.Extensions.Logging;
 using Shared.Contracts;
 using System.Collections.Concurrent;
-using System.Text.Json;
 
 namespace BattleLogic.Battle;
 
@@ -37,6 +37,8 @@ public class BattleState
     private readonly BattleCombat _battleCombat;
     private readonly BattleUtilities _battleUtilities;
 
+    private readonly BattleReplayWriterFactory _replayWriterFactory;
+
     private int _currentTurn = 0;
     private int _totalTurns;
     private bool _isCompleted = false;
@@ -64,11 +66,12 @@ public class BattleState
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger)
+    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger, BattleReplayWriterFactory replayWriterFactory)
     {
         _battleId = battleId;
         _group = group;
         _logger = logger;
+        _replayWriterFactory = replayWriterFactory;
 
         // Use battleId to generate seed if no explicit seed is provided
         _battleSeed = new BattleSeed(battleId);
@@ -190,78 +193,77 @@ public class BattleState
         _logger.LogInformation("Battle {BattleId}: Starting pre-computation of battle simulation with {PlayerCount} players and {EnemyCount} enemies", _battleId, _players.Count, _enemies.Count);
         var startTime = DateTime.UtcNow;
 
-        // Create directory for battle replays if it doesn't exist
-        Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
-
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
         var allTurnData = new List<BattleStatus>(_totalTurns + 1);
 
-        // Open file for battle replay
-        using (var replayFile = File.CreateText(Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")))
+        // Initialize and use battle replay writer
+        await using var replayWriter = _replayWriterFactory.Create(_battleId);
+        await replayWriter.InitializeAsync(_battleId);
+
+        // Write initial state
+        await WriteReplayFrameAsync(replayWriter);
+        allTurnData.Add(GetStatusSnapshot()); // Store initial state with deep copies
+
+        // Process each turn
+        while (_currentTurn < _totalTurns && !_isCompleted)
         {
-            // Write initial state
-            await WriteReplayFrameAsync(replayFile);
-            allTurnData.Add(GetStatusSnapshot()); // Store initial state with deep copies
+            _currentTurn++;
+            await ProcessTurnAsync();
 
-            // Process each turn
-            while (_currentTurn < _totalTurns && !_isCompleted)
-            {
-                _currentTurn++;
-                await ProcessTurnAsync();
+            // Write turn state to replay file
+            await WriteReplayFrameAsync(replayWriter);
+            allTurnData.Add(GetStatusSnapshot()); // Store turn data with deep copies
 
-                // Write turn state to replay file
-                await WriteReplayFrameAsync(replayFile);
-                allTurnData.Add(GetStatusSnapshot()); // Store turn data with deep copies
-
-                // Check if battle is over
-                var (isOver, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
-                if (isOver)
-                {
-                    _isCompleted = true;
-                    // Store the battle result (for final log display)
-                    _playerVictory = isPlayerVictory;
-                    break;
-                }
-
-                // Periodically clear logs to reduce memory pressure
-                if (_currentTurn % 25 == 0)
-                {
-                    // Keep only the most recent logs
-                    if (_battleLogs.Count > 20)
-                    {
-                        _battleLogs.RemoveRange(0, _battleLogs.Count - 20);
-                    }
-                }
-            }
-
-            // If battle ended due to turn limit, determine final result
-            if (!_isCompleted)
+            // Check if battle is over
+            var (isOver, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+            if (isOver)
             {
                 _isCompleted = true;
-                var (_, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+                // Store the battle result (for final log display)
                 _playerVictory = isPlayerVictory;
+                break;
             }
 
-            // Add final battle log
-            if (_playerVictory)
+            // Periodically clear logs to reduce memory pressure
+            if (_currentTurn % 25 == 0)
             {
-                _battleLogs.Add("Victory! All enemies have been defeated!");
+                // Keep only the most recent logs
+                if (_battleLogs.Count > 20)
+                {
+                    _battleLogs.RemoveRange(0, _battleLogs.Count - 20);
+                }
             }
-            else
-            {
-                _battleLogs.Add("❌ Defeat! All players defeated! ❌");
-            }
-
-            // Write final state
-            await WriteReplayFrameAsync(replayFile);
-            allTurnData.Add(GetStatusSnapshot()); // Store final state with deep copies
         }
+
+        // If battle ended due to turn limit, determine final result
+        if (!_isCompleted)
+        {
+            _isCompleted = true;
+            var (_, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+            _playerVictory = isPlayerVictory;
+        }
+
+        // Add final battle log
+        if (_playerVictory)
+        {
+            _battleLogs.Add("Victory! All enemies have been defeated!");
+        }
+        else
+        {
+            _battleLogs.Add("❌ Defeat! All players defeated! ❌");
+        }
+
+        // Write final state
+        await WriteReplayFrameAsync(replayWriter);
+        allTurnData.Add(GetStatusSnapshot()); // Store final state with deep copies
+
+        // Finalize the replay writer
+        await replayWriter.FinalizeAsync();
 
         var endTime = DateTime.UtcNow;
         var duration = endTime - startTime;
         _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
         _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_playerVictory ? "Victory" : "Defeat")}");
-        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
 
         // Store all turn data for client transmission
         _allTurnData = allTurnData;
@@ -366,9 +368,9 @@ public class BattleState
     }
 
     /// <summary>
-    /// Write a frame to the battle replay file
+    /// Write a frame to the battle replay writer
     /// </summary>
-    private async Task WriteReplayFrameAsync(StreamWriter writer)
+    private async Task WriteReplayFrameAsync(IBattleReplayWriter writer)
     {
         var frame = new BattleStatus
         {
@@ -384,7 +386,6 @@ public class BattleState
             IsPlayerVictory = _isCompleted ? _playerVictory : null
         };
 
-        await writer.WriteLineAsync(JsonSerializer.Serialize(frame));
-        await writer.FlushAsync();
+        await writer.WriteFrameAsync(frame);
     }
 }

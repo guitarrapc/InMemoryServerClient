@@ -1,14 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using NSubstitute;
-using BattleLogic.Battle;
-using BattleLogic.Models;
 using Shared.Contracts;
 using Shared.Battle;
-using Shared.Constants;
-using BattleLogic.Constans;
-using Shared.Models;
 
-namespace Tests;
+namespace BattleLogic.Tests;
 
 /// <summary>
 /// Tests for BattleState
@@ -16,11 +10,12 @@ namespace Tests;
 public class BattleStateTests
 {
     private readonly ILogger<BattleState> _logger;
-
+    private readonly ILoggerFactory _loggerFactory;
     private readonly IBattleGroupContext _mockGroup;
 
     public BattleStateTests()
     {
+        _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = Substitute.For<ILogger<BattleState>>();
 
         var groupInfo = new GroupInfo
@@ -40,6 +35,7 @@ public class BattleStateTests
         _mockGroup.MaxClients.Returns(groupInfo.MaxConnections);
         _mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
     }
+
     [Fact]
     public void BattleState_ShouldInitialize_WithProvidedGroup()
     {
@@ -47,7 +43,7 @@ public class BattleStateTests
         var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
 
         // Act
-        var battleState = new BattleState(battleId, _mockGroup, _logger);
+        var battleState = new BattleState(battleId, _mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         var status = battleState.GetStatus();
 
         // Assert
@@ -73,7 +69,7 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battleState = new BattleState(battleId, mockGroup, _logger);
+        var battleState = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         await battleState.RunBattleAsync();
         var status = battleState.GetStatus();
 
@@ -107,7 +103,7 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2" });
 
         // Act
-        var battleState = new BattleState(battleId, mockGroup, _logger);
+        var battleState = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         var status = battleState.GetStatus();
 
         // Assert
@@ -141,7 +137,7 @@ public class BattleStateTests
         };
 
         // Act
-        var battleState = new BattleState(battleId, group, _logger);
+        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         var status = battleState.GetStatus();
 
         // Assert
@@ -176,8 +172,8 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act - Create two battles with the same battleId
-        var battle1 = new BattleState(battleId, mockGroup, _logger);
-        var battle2 = new BattleState(battleId, mockGroup, _logger);
+        var battle1 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle2 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
         var status1 = battle1.GetStatus();
         var status2 = battle2.GetStatus();
@@ -237,8 +233,8 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battle1 = new BattleState(battleId1, mockGroup, _logger);
-        var battle2 = new BattleState(battleId2, mockGroup, _logger);
+        var battle1 = new BattleState(battleId1, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle2 = new BattleState(battleId2, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
         var status1 = battle1.GetStatus();
         var status2 = battle2.GetStatus();
@@ -306,8 +302,8 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act - Execute full battles with the same battleId
-        var battle1 = new BattleState(battleId, mockGroup, _logger);
-        var battle2 = new BattleState(battleId, mockGroup, _logger);
+        var battle1 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle2 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
         // Execute the battles to completion
         await battle1.RunBattleAsync();
@@ -377,8 +373,8 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battle1 = new BattleState(battleId1, mockGroup, _logger);
-        var battle2 = new BattleState(battleId2, mockGroup, _logger);
+        var battle1 = new BattleState(battleId1, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle2 = new BattleState(battleId2, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
         var status1 = battle1.GetStatus();
         var status2 = battle2.GetStatus();

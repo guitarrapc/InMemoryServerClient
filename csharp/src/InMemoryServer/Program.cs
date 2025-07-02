@@ -2,6 +2,7 @@
 using InMemoryServer.BattleAbstraction;
 using Shared.Constants;
 using BattleLogic.Constans;
+using BattleLogic.Infrastructures.BattleReplayWriter;
 
 // Create a WebApplication builder
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +29,9 @@ builder.Services.AddSingleton<InMemoryHub>();
 // Register BattleLogic dependencies
 builder.Services.AddSingleton<IBattleReplayStorage, FileBattleReplayStorage>();
 builder.Services.AddSingleton<IBattleNotificationService, SignalRBattleNotificationService>();
+
+// Register BattleReplayWriterFactory and options
+builder.Services.AddSingleton<BattleReplayWriterFactory>();
 
 // Build the app
 var app = builder.Build();

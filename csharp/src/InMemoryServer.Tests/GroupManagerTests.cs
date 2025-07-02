@@ -1,9 +1,4 @@
-﻿using InMemoryServer;
-using Microsoft.Extensions.Logging;
-using NSubstitute;
-using Shared.Constants;
-
-namespace Tests;
+﻿namespace Tests;
 
 /// <summary>
 /// Tests for GroupManager

@@ -1,6 +1,4 @@
-﻿using InMemoryServer;
-
-namespace Tests;
+﻿namespace Tests;
 
 /// <summary>
 /// Tests for InMemoryState

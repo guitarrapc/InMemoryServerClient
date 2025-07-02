@@ -1,0 +1,113 @@
+﻿using BattleLogic.Models;
+using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+
+namespace BattleLogic.Infrastructures.BattleReplayWriter;
+
+/// <summary>
+/// Memory-based implementation of IBattleReplayWriter
+/// Stores battle replay data in memory for testing purposes
+/// </summary>
+internal class MemoryBattleReplayWriter : IBattleReplayWriter
+{
+    private readonly ILogger<MemoryBattleReplayWriter> _logger;
+    private readonly bool _enableLogging;
+    private readonly List<BattleStatus> _frames;
+    private string? _battleId;
+
+    // Static storage to allow access from tests
+    private static readonly ConcurrentDictionary<string, List<BattleStatus>> _battleReplays = new();
+
+    public MemoryBattleReplayWriter(BattleReplayOptions options, ILogger<MemoryBattleReplayWriter> logger)
+    {
+        _enableLogging = options.EnableLogging;
+        _logger = logger;
+        _frames = new List<BattleStatus>();
+    }
+
+    /// <summary>
+    /// Get stored replay data for a specific battle (for testing)
+    /// </summary>
+    public static List<BattleStatus>? GetStoredReplay(string battleId)
+    {
+        return _battleReplays.TryGetValue(battleId, out var replay) ? replay : null;
+    }
+
+    /// <summary>
+    /// Clear all stored replay data (for testing cleanup)
+    /// </summary>
+    public static void ClearAllReplays()
+    {
+        _battleReplays.Clear();
+    }
+
+    /// <summary>
+    /// Get all stored battle IDs (for testing)
+    /// </summary>
+    public static IEnumerable<string> GetStoredBattleIds()
+    {
+        return _battleReplays.Keys;
+    }
+
+    public Task InitializeAsync(string battleId)
+    {
+        _battleId = battleId;
+        _frames.Clear();
+
+        if (_enableLogging)
+        {
+            _logger.LogDebug("Memory battle replay writer initialized for battle: {BattleId}", battleId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task WriteFrameAsync(BattleStatus frame)
+    {
+        if (_battleId == null)
+        {
+            throw new InvalidOperationException("Writer not initialized. Call InitializeAsync first.");
+        }
+
+        // Store a deep copy to avoid reference issues
+        var frameCopy = new BattleStatus
+        {
+            BattleId = frame.BattleId,
+            IsInProgress = frame.IsInProgress,
+            CurrentTurn = frame.CurrentTurn,
+            TotalTurns = frame.TotalTurns,
+            Players = frame.Players.ToList(),
+            Enemies = frame.Enemies.ToList(),
+            FieldWidth = frame.FieldWidth,
+            FieldHeight = frame.FieldHeight,
+            RecentLogs = frame.RecentLogs.ToList(),
+            IsPlayerVictory = frame.IsPlayerVictory
+        };
+
+        _frames.Add(frameCopy);
+        return Task.CompletedTask;
+    }
+
+    public Task FinalizeAsync()
+    {
+        if (_battleId != null)
+        {
+            // Store the complete replay data
+            _battleReplays[_battleId] = new List<BattleStatus>(_frames);
+
+            if (_enableLogging)
+            {
+                _logger.LogDebug("Memory battle replay completed for battle: {BattleId}, {FrameCount} frames stored", 
+                    _battleId, _frames.Count);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _frames.Clear();
+        return ValueTask.CompletedTask;
+    }
+}
