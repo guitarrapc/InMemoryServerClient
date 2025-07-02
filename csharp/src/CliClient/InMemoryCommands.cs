@@ -2,8 +2,19 @@
 using Microsoft.Extensions.Logging;
 using Shared.Battle;
 using Shared.Constants;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace CliClient;
+
+/// <summary>
+/// Connection configuration for battle reproduction
+/// </summary>
+internal readonly record struct ConnectionOptions
+{
+    public string ServerUrl { get; init; }
+    public string? GroupName { get; init; }
+    public int? BattleSeed { get; init; }
+}
 
 /// <summary>
 /// CLI commands for InMemory server
@@ -725,6 +736,91 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                 logger.LogInformation($"Error during cleanup: {ex.Message}");
             }
         }
+    }
+
+    /// <summary>Reproduce a battle with specific seed</summary>
+    [Command("battle-reproduce")]
+    public async Task ReproduceBattleAsync(
+        int seed,
+        string? groupName = null,
+        int connectionCount = 5,
+        string? serverUrl = null)
+    {
+        var finalServerUrl = serverUrl ?? "http://localhost:5000";
+        logger.LogInformation("指定されたシード {Seed} でバトルを再現します...", seed);
+        logger.LogInformation("{Count}つの接続を作成中...", connectionCount);
+
+        var connections = new List<HubConnection>();
+        try
+        {
+            var finalGroupName = groupName ?? $"reproduce-{seed}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+
+            for (int i = 0; i < connectionCount; i++)
+            {
+                var connection = await ConnectWithOptionsAsync(new ConnectionOptions
+                {
+                    ServerUrl = finalServerUrl,
+                    GroupName = finalGroupName,
+                    BattleSeed = seed
+                });
+                connections.Add(connection);
+
+                logger.LogInformation("接続 {Current}/{Total} 完了", i + 1, connectionCount);
+                await Task.Delay(100); // Avoid overwhelming the server
+            }
+
+            logger.LogInformation("全ての接続が完了しました。シード {Seed} でバトルが開始されます。", seed);
+            logger.LogInformation("バトル完了まで待機中...");
+
+            // Wait for battle completion
+            await Task.Delay(TimeSpan.FromMinutes(5));
+        }
+        finally
+        {
+            logger.LogInformation("接続をクリーンアップ中...");
+            foreach (var connection in connections)
+            {
+                try
+                {
+                    await connection.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning("接続のクリーンアップ中にエラーが発生: {Message}", ex.Message);
+                }
+            }
+        }
+    }
+
+    private async Task<HubConnection> ConnectWithOptionsAsync(ConnectionOptions options)
+    {
+        var connection = new HubConnectionBuilder()
+            .WithUrl(options.ServerUrl)
+            .Build();
+
+        await connection.StartAsync();
+
+        if (options.BattleSeed.HasValue)
+        {
+            // Send seed information to server if supported
+            try
+            {
+                await connection.InvokeAsync("SetBattleSeed", options.BattleSeed.Value);
+                logger.LogDebug("バトルシード {Seed} をサーバーに送信しました", options.BattleSeed.Value);
+            }
+            catch
+            {
+                // Seed setting not supported by server, continue without it
+                logger.LogDebug("サーバーはバトルシード設定をサポートしていません");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(options.GroupName))
+        {
+            await connection.InvokeAsync("JoinGroup", options.GroupName);
+        }
+
+        return connection;
     }
 
     private static void ShowInteractiveHelp()
