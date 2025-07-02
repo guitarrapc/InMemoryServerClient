@@ -80,7 +80,7 @@ public class BattleStateTests
 
         foreach (var player in status.Players)
         {
-            Assert.Equal(EntityType.Player, player.Type);
+            Assert.True(player.Type.IsPlayer);
             // Players have job modifiers applied, so we need to check wider ranges
             Assert.True(player.MaxHp >= 150 && player.MaxHp <= 700, $"Player HP {player.MaxHp} is outside expected range");
             Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
@@ -117,11 +117,14 @@ public class BattleStateTests
 
         foreach (var enemy in status.Enemies)
         {
-            // EntityType is an enum, not a string, so we use enemy.Type directly
-            Assert.True(enemy.Type == EntityType.Enemy);
+            // Check that enemy is indeed an enemy with specific size
+            Assert.True(enemy.Type.IsEnemy);
+            Assert.True(enemy.Type.EnemySize.HasValue);
+            Assert.True(enemy.Type.EnemySize == EnemySize.Small ||
+                       enemy.Type.EnemySize == EnemySize.Medium ||
+                       enemy.Type.EnemySize == EnemySize.Large);
 
-            // Since EntityInfo.Type is EntityType (not EnemyType), we cannot directly check EnemyType ranges
-            // We'll verify basic HP/Attack/Defense/Speed ranges instead
+            // Verify basic HP/Attack/Defense/Speed ranges
             Assert.True(enemy.CurrentHp >= 50); // Minimum possible HP after job modifiers
             Assert.True(enemy.CurrentHp <= 500); // Maximum possible HP after job modifiers
             Assert.True(enemy.Attack >= 1);

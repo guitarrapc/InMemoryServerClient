@@ -56,61 +56,61 @@ public static class BattleBasicDefines
     /// <summary>
     /// Enemy types and their HP ranges
     /// </summary>
-    public static readonly Dictionary<EntityType, StatusRange> EnemyHpByType = new Dictionary<EntityType, StatusRange>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyHpByType = new Dictionary<EnemySize, StatusRange>
     {
-        { EntityType.SmallEnemy, new (55, 85) },
-        { EntityType.MediumEnemy, new (110, 160) },
-        { EntityType.LargeEnemy, new (265, 350) }
+        { EnemySize.Small, new (55, 85) },
+        { EnemySize.Medium, new (110, 160) },
+        { EnemySize.Large, new (265, 350) }
     };
 
     /// <summary>
     /// Attack power range for enemy
     /// </summary>
-    public static readonly Dictionary<EntityType, StatusRange> EnemyAttackPower = new Dictionary<EntityType, StatusRange>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyAttackPower = new Dictionary<EnemySize, StatusRange>
     {
-        { EntityType.SmallEnemy, new (11, 16) },
-        { EntityType.MediumEnemy, new (16, 24) },
-        { EntityType.LargeEnemy, new (24, 32) }
+        { EnemySize.Small, new (11, 16) },
+        { EnemySize.Medium, new (16, 24) },
+        { EnemySize.Large, new (24, 32) }
     };
 
     /// <summary>
     /// Defense power range for enemy
     /// </summary>
-    public static readonly Dictionary<EntityType, StatusRange> EnemyDefencePower = new Dictionary<EntityType, StatusRange>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyDefencePower = new Dictionary<EnemySize, StatusRange>
     {
-        { EntityType.SmallEnemy, new (5, 10) },
-        { EntityType.MediumEnemy, new (8, 13) },
-        { EntityType.LargeEnemy, new (15, 20) }
+        { EnemySize.Small, new (5, 10) },
+        { EnemySize.Medium, new (8, 13) },
+        { EnemySize.Large, new (15, 20) }
     };
 
     /// <summary>
     /// Movement speed range for enemy
     /// </summary>
-    public static readonly Dictionary<EntityType, StatusRange> EnemyMoveSpeed = new Dictionary<EntityType, StatusRange>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyMoveSpeed = new Dictionary<EnemySize, StatusRange>
     {
-        { EntityType.SmallEnemy, new (1, 1) },
-        { EntityType.MediumEnemy, new (1, 2) },
-        { EntityType.LargeEnemy, new (1, 3) }
+        { EnemySize.Small, new (1, 1) },
+        { EnemySize.Medium, new (1, 2) },
+        { EnemySize.Large, new (1, 3) }
     };
 
     /// <summary>
     /// Accuracy range for enemy
     /// </summary>
-    public static readonly Dictionary<EntityType, StatusRange> EnemyAccuracy = new Dictionary<EntityType, StatusRange>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyAccuracy = new Dictionary<EnemySize, StatusRange>
     {
-        { EntityType.SmallEnemy, new (65, 80) },
-        { EntityType.MediumEnemy, new (70, 85) },
-        { EntityType.LargeEnemy, new (75, 90) }
+        { EnemySize.Small, new (65, 80) },
+        { EnemySize.Medium, new (70, 85) },
+        { EnemySize.Large, new (75, 90) }
     };
 
     /// <summary>
     /// Evasion range for enemy (small enemies have higher evasion)
     /// </summary>
-    public static readonly Dictionary<EntityType, StatusRange> EnemyEvasion = new Dictionary<EntityType, StatusRange>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyEvasion = new Dictionary<EnemySize, StatusRange>
     {
-        { EntityType.SmallEnemy, new (25, 40) },   // 高回避
-        { EntityType.MediumEnemy, new (15, 30) },  // 中回避
-        { EntityType.LargeEnemy, new (5, 20) }     // 低回避
+        { EnemySize.Small, new (25, 40) },   // 高回避
+        { EnemySize.Medium, new (15, 30) },  // 中回避
+        { EnemySize.Large, new (5, 20) }     // 低回避
     };
 
     /// <summary>

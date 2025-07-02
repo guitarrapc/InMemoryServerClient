@@ -1,4 +1,4 @@
-﻿using BattleLogic.Models;
+using BattleLogic.Models;
 using Microsoft.Extensions.Logging;
 
 namespace BattleLogic.Battle;
@@ -41,7 +41,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
     /// </summary>
     private void EvaluateAttackAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies)
     {
-        var targets = entity.Type == EntityType.Player ?
+        var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
             players.Where(p => p.CurrentHp > 0);
 
@@ -62,7 +62,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
             }
 
             // Increase attack reward if this entity is the only survivor
-            var allies = entity.Type == EntityType.Player ?
+            var allies = entity.Type.IsPlayer ?
                 players.Where(p => p.CurrentHp > 0) :
                 enemies.Where(e => e.CurrentHp > 0);
 
@@ -81,14 +81,20 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
             reward += (1 - hpRatio) * BattleAIDefines.AttackLowHpBonus;
 
             // Priority based on enemy type
-            switch (adjacentTarget.Value.Type)
+            if (adjacentTarget.Value.Type.IsEnemy && adjacentTarget.Value.Type.EnemySize.HasValue)
             {
-                case EntityType.SmallEnemy:
-                    reward *= BattleAIDefines.SmallEnemyAttackMultiplier;
-                    break;
-                case EntityType.LargeEnemy:
-                    reward *= BattleAIDefines.LargeEnemyAttackMultiplier;
-                    break;
+                switch (adjacentTarget.Value.Type.EnemySize.Value)
+                {
+                    case EnemySize.Small:
+                        reward *= BattleAIDefines.SmallEnemyAttackMultiplier;
+                        break;
+                    case EnemySize.Large:
+                        reward *= BattleAIDefines.LargeEnemyAttackMultiplier;
+                        break;
+                    case EnemySize.Medium:
+                        // Default case, no additional multiplier
+                        break;
+                }
             }
 
             // Check if attack can potentially defeat the enemy
@@ -108,7 +114,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
             }
 
             // Adjust aggressiveness based on entity type
-            if (entity.Type != EntityType.Player)
+            if (!entity.Type.IsPlayer)
             {
                 reward *= BattleAIDefines.NonPlayerAttackMultiplier;
             }
@@ -126,7 +132,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
     /// </summary>
     private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
     {
-        var targets = entity.Type == EntityType.Player ?
+        var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
             players.Where(p => p.CurrentHp > 0);
 
@@ -144,7 +150,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
         }
 
         // When this entity is the only survivor, prioritize attack over defense
-        var allies = entity.Type == EntityType.Player ?
+        var allies = entity.Type.IsPlayer ?
             players.Where(p => p.CurrentHp > 0) :
             enemies.Where(e => e.CurrentHp > 0);
 
@@ -190,7 +196,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
         }
 
         // Adjust defense probability based on entity type
-        if (entity.Type != EntityType.Player)
+        if (!entity.Type.IsPlayer)
         {
             reward *= BattleAIDefines.NonPlayerDefendMultiplier;
         }
@@ -203,7 +209,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
     /// </summary>
     private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies)
     {
-        var targets = entity.Type == EntityType.Player ?
+        var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
             players.Where(p => p.CurrentHp > 0);
 
@@ -214,7 +220,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
         }
 
         bool isLastEnemy = targets.Count() == 1;
-        var allies = entity.Type == EntityType.Player ?
+        var allies = entity.Type.IsPlayer ?
             players.Where(p => p.CurrentHp > 0) :
             enemies.Where(e => e.CurrentHp > 0);
         bool isLastAlly = allies.Count() == 1;
@@ -273,7 +279,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
                 reward += BattleAIDefines.MoveToSurroundReward;
             }
 
-            if (entity.Type != EntityType.Player)
+            if (!entity.Type.IsPlayer)
             {
                 reward *= BattleAIDefines.NonPlayerMoveMultiplier;
             }
@@ -301,7 +307,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
                 reward *= (5.0f / (distanceToLowest + 1));
             }
 
-            if (entity.Type != EntityType.Player)
+            if (!entity.Type.IsPlayer)
             {
                 reward *= BattleAIDefines.NonPlayerMoveMultiplier;
             }

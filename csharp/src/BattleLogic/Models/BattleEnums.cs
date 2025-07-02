@@ -5,7 +5,7 @@
 /// </summary>
 public enum EnemyType
 {
-    Small = EntityType.SmallEnemy,
-    Medium = EntityType.MediumEnemy,
-    Large = EntityType.LargeEnemy
+    Small = 0,
+    Medium = 1,
+    Large = 2
 }

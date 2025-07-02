@@ -16,9 +16,9 @@ public readonly record struct EntityInfo
     public required string Name { get; init; }
 
     /// <summary>
-    /// Entity type (player or enemy)
+    /// Entity type information (player or enemy with size)
     /// </summary>
-    public required EntityType Type { get; init; }
+    public required EntityTypeInfo Type { get; init; }
 
     /// <summary>
     /// Job type (unified for players and enemies)
