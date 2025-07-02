@@ -3,7 +3,7 @@
 /// <summary>
 /// Handles entity movement logic
 /// </summary>
-public class BattleMovement(Random random, BattleField battleField, BattleUtilities utilities)
+internal class BattleMovement(Random random, BattleField battleField, BattleUtilities utilities)
 {
     /// <summary>
     /// Move entity towards target or in random direction

@@ -3,7 +3,7 @@
 /// <summary>
 /// Handles combat calculations and damage processing
 /// </summary>
-public class BattleCombat(Random random, BattleField battleField, BattleUtilities utilities)
+internal class BattleCombat(Random random, BattleField battleField, BattleUtilities utilities)
 {
     /// <summary>
     /// Execute attack between entities

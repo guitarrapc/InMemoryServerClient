@@ -3,7 +3,7 @@
 /// <summary>
 /// Battle calculation utilities and helper methods
 /// </summary>
-public static class BattleCalculations
+internal static class BattleCalculations
 {
     /// <summary>
     /// Apply random flavor variation to attack power

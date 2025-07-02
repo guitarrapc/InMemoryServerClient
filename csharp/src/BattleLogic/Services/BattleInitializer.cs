@@ -3,7 +3,7 @@
 /// <summary>
 /// Handles battle initialization logic
 /// </summary>
-public class BattleInitializer(Random random)
+internal class BattleInitializer(Random random)
 {
     /// <summary>
     /// Initialize players for battle

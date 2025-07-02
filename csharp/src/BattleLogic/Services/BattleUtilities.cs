@@ -3,7 +3,7 @@
 /// <summary>
 /// Utility functions for battle operations
 /// </summary>
-public class BattleUtilities
+internal class BattleUtilities
 {
     /// <summary>
     /// Update entity position in the appropriate list

@@ -6,7 +6,7 @@ namespace BattleLogic.Services;
 /// <summary>
 /// Handles AI decision making for battle entities
 /// </summary>
-public class BattleAI(BattleUtilities utilities, ILogger logger)
+internal class BattleAI(BattleUtilities utilities, ILogger logger)
 {
     /// <summary>
     /// Decide what action an entity should take

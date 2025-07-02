@@ -3,7 +3,7 @@
 /// <summary>
 /// Handles battle field management
 /// </summary>
-public class BattleField
+internal class BattleField
 {
     private readonly string?[,] _field;
     private readonly Random _random;
