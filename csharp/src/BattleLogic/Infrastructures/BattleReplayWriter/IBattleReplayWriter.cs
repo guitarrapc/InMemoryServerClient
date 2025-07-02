@@ -1,8 +1,8 @@
 ﻿namespace BattleLogic.Infrastructures.BattleReplayWriter;
 
 /// <summary>
-/// Interface for writing battle replay data
-/// Supports different output destinations (file, memory, cloud storage, etc.)
+/// Interface for writing and reading battle replay data
+/// Supports different storage destinations (file, memory, cloud storage, etc.)
 /// </summary>
 public interface IBattleReplayWriter : IAsyncDisposable
 {
@@ -17,6 +17,19 @@ public interface IBattleReplayWriter : IAsyncDisposable
     /// </summary>
     /// <param name="frame">The battle status frame to write</param>
     Task WriteFrameAsync(BattleStatus frame);
+
+    /// <summary>
+    /// Write all battle frames at once (for pre-calculated battles)
+    /// </summary>
+    /// <param name="frames">All battle frames to write</param>
+    Task WriteAllFramesAsync(IEnumerable<BattleStatus> frames);
+
+    /// <summary>
+    /// Load battle replay data
+    /// </summary>
+    /// <param name="battleId">The battle ID to load</param>
+    /// <returns>List of battle status frames</returns>
+    Task<List<BattleStatus>> LoadReplayAsync(string battleId);
 
     /// <summary>
     /// Finalize the writing process

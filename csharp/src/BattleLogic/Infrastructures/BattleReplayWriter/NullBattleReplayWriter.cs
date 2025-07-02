@@ -34,6 +34,18 @@ internal class NullBattleReplayWriter : IBattleReplayWriter
         return Task.CompletedTask;
     }
 
+    public Task WriteAllFramesAsync(IEnumerable<BattleStatus> frames)
+    {
+        // Do nothing - this is the null implementation
+        return Task.CompletedTask;
+    }
+
+    public Task<List<BattleStatus>> LoadReplayAsync(string battleId)
+    {
+        // Return empty list - no data is stored
+        return Task.FromResult(new List<BattleStatus>());
+    }
+
     public Task FinalizeAsync()
     {
         return Task.CompletedTask;

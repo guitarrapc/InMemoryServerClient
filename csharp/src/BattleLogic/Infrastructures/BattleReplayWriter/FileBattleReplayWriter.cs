@@ -52,12 +52,75 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
         await _writer.FlushAsync();
     }
 
+    public async Task WriteAllFramesAsync(IEnumerable<BattleStatus> frames)
+    {
+        if (_writer == null)
+        {
+            throw new InvalidOperationException("Writer not initialized. Call InitializeAsync first.");
+        }
+
+        foreach (var frame in frames)
+        {
+            var json = JsonSerializer.Serialize(frame);
+            await _writer.WriteLineAsync(json);
+        }
+        await _writer.FlushAsync();
+
+        if (_enableLogging && _battleId != null)
+        {
+            _logger.LogInformation("All battle frames written for battle {BattleId}", _battleId);
+        }
+    }
+
+    public async Task<List<BattleStatus>> LoadReplayAsync(string battleId)
+    {
+        try
+        {
+            var filePath = Path.Combine(_outputDirectory, $"{battleId}.jsonl");
+
+            if (!File.Exists(filePath))
+            {
+                if (_enableLogging)
+                {
+                    _logger.LogWarning("Battle replay file not found for battle {BattleId}", battleId);
+                }
+                return new List<BattleStatus>();
+            }
+
+            var replayData = new List<BattleStatus>();
+            var lines = await File.ReadAllLinesAsync(filePath);
+
+            foreach (var line in lines)
+            {
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    var status = JsonSerializer.Deserialize<BattleStatus>(line);
+                    if (status != null)
+                    {
+                        replayData.Add(status);
+                    }
+                }
+            }
+
+            if (_enableLogging)
+            {
+                _logger.LogInformation("Battle replay loaded for battle {BattleId}, {Count} entries", battleId, replayData.Count);
+            }
+            return replayData;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load battle replay for battle {BattleId}", battleId);
+            throw;
+        }
+    }
+
     public async Task FinalizeAsync()
     {
         if (_writer != null)
         {
             await _writer.FlushAsync();
-            
+
             if (_enableLogging && _battleId != null)
             {
                 var filePath = Path.Combine(_outputDirectory, $"{_battleId}.jsonl");

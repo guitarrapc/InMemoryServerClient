@@ -3,14 +3,6 @@
 // IBattleGroupContext is now defined in Shared project
 
 /// <summary>
-/// Service for battle replay storage operations
-/// </summary>
-public interface IBattleReplayStorage
-{
-    Task SaveBattleReplayAsync(string battleId, IEnumerable<string> replayData);
-}
-
-/// <summary>
 /// Service for battle notifications and communication
 /// </summary>
 public interface IBattleNotificationService

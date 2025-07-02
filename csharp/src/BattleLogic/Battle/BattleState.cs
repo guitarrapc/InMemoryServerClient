@@ -196,12 +196,7 @@ public class BattleState
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
         var allTurnData = new List<BattleStatus>(_totalTurns + 1);
 
-        // Initialize and use battle replay writer
-        await using var replayWriter = _replayWriterFactory.Create(_battleId);
-        await replayWriter.InitializeAsync(_battleId);
-
-        // Write initial state
-        await WriteReplayFrameAsync(replayWriter);
+        // Store initial state
         allTurnData.Add(GetStatusSnapshot()); // Store initial state with deep copies
 
         // Process each turn
@@ -210,9 +205,8 @@ public class BattleState
             _currentTurn++;
             await ProcessTurnAsync();
 
-            // Write turn state to replay file
-            await WriteReplayFrameAsync(replayWriter);
-            allTurnData.Add(GetStatusSnapshot()); // Store turn data with deep copies
+            // Store turn data with deep copies
+            allTurnData.Add(GetStatusSnapshot());
 
             // Check if battle is over
             var (isOver, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
@@ -253,11 +247,13 @@ public class BattleState
             _battleLogs.Add("❌ Defeat! All players defeated! ❌");
         }
 
-        // Write final state
-        await WriteReplayFrameAsync(replayWriter);
-        allTurnData.Add(GetStatusSnapshot()); // Store final state with deep copies
+        // Store final state with deep copies
+        allTurnData.Add(GetStatusSnapshot());
 
-        // Finalize the replay writer
+        // Write all replay data at once for efficiency
+        await using var replayWriter = _replayWriterFactory.Create(_battleId);
+        await replayWriter.InitializeAsync(_battleId);
+        await replayWriter.WriteAllFramesAsync(allTurnData);
         await replayWriter.FinalizeAsync();
 
         var endTime = DateTime.UtcNow;
@@ -367,25 +363,4 @@ public class BattleState
         return _readyClientsCount == _connectedClientsCount;
     }
 
-    /// <summary>
-    /// Write a frame to the battle replay writer
-    /// </summary>
-    private async Task WriteReplayFrameAsync(IBattleReplayWriter writer)
-    {
-        var frame = new BattleStatus
-        {
-            BattleId = _battleId,
-            IsInProgress = !_isCompleted,
-            CurrentTurn = _currentTurn,
-            TotalTurns = _totalTurns,
-            Players = _players,
-            Enemies = _enemies,
-            FieldHeight = BattleSystemDefines.BattleFieldHeight,
-            FieldWidth = BattleSystemDefines.BattleFieldWidth,
-            RecentLogs = _battleLogs.TakeLast(10).ToList(),
-            IsPlayerVictory = _isCompleted ? _playerVictory : null
-        };
-
-        await writer.WriteFrameAsync(frame);
-    }
 }

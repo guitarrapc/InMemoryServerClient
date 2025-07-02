@@ -88,6 +88,42 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
         return Task.CompletedTask;
     }
 
+    public Task WriteAllFramesAsync(IEnumerable<BattleStatus> frames)
+    {
+        if (_battleId == null)
+        {
+            throw new InvalidOperationException("Writer not initialized. Call InitializeAsync first.");
+        }
+
+        _frames.Clear();
+        foreach (var frame in frames)
+        {
+            // Store a deep copy to avoid reference issues
+            var frameCopy = new BattleStatus
+            {
+                BattleId = frame.BattleId,
+                IsInProgress = frame.IsInProgress,
+                CurrentTurn = frame.CurrentTurn,
+                TotalTurns = frame.TotalTurns,
+                Players = frame.Players.ToList(),
+                Enemies = frame.Enemies.ToList(),
+                FieldWidth = frame.FieldWidth,
+                FieldHeight = frame.FieldHeight,
+                RecentLogs = frame.RecentLogs.ToList(),
+                IsPlayerVictory = frame.IsPlayerVictory
+            };
+
+            _frames.Add(frameCopy);
+        }
+
+        if (_enableLogging)
+        {
+            _logger.LogDebug("All battle frames written for battle {BattleId}, {FrameCount} frames", _battleId, _frames.Count);
+        }
+
+        return Task.CompletedTask;
+    }
+
     public Task FinalizeAsync()
     {
         if (_battleId != null)
@@ -97,12 +133,18 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
 
             if (_enableLogging)
             {
-                _logger.LogDebug("Memory battle replay completed for battle: {BattleId}, {FrameCount} frames stored", 
+                _logger.LogDebug("Memory battle replay completed for battle: {BattleId}, {FrameCount} frames stored",
                     _battleId, _frames.Count);
             }
         }
 
         return Task.CompletedTask;
+    }
+
+    public Task<List<BattleStatus>> LoadReplayAsync(string battleId)
+    {
+        var replay = GetStoredReplay(battleId);
+        return Task.FromResult(replay ?? new List<BattleStatus>());
     }
 
     public ValueTask DisposeAsync()

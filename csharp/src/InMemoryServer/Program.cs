@@ -27,7 +27,6 @@ builder.Services.AddSingleton<GroupManager>();
 builder.Services.AddSingleton<InMemoryHub>();
 
 // Register BattleLogic dependencies
-builder.Services.AddSingleton<IBattleReplayStorage, FileBattleReplayStorage>();
 builder.Services.AddSingleton<IBattleNotificationService, SignalRBattleNotificationService>();
 
 // Register BattleReplayWriterFactory and options
