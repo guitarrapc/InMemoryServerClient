@@ -13,7 +13,7 @@ internal readonly record struct ConnectionOptions
 {
     public string ServerUrl { get; init; }
     public string? GroupName { get; init; }
-    public int? BattleSeed { get; init; }
+    public string? ReproduceBattleId { get; init; }
 }
 
 /// <summary>
@@ -736,40 +736,49 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                 logger.LogInformation($"Error during cleanup: {ex.Message}");
             }
         }
-    }
-
-    /// <summary>Reproduce a battle with specific seed</summary>
+    }    /// <summary>Reproduce a battle with specific battle ID</summary>
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
-        int seed,
+        string battleId,
         string? groupName = null,
         int connectionCount = 5,
         string? serverUrl = null)
     {
+        // Validate parameters
+        if (string.IsNullOrEmpty(battleId))
+        {
+            logger.LogError("バトルIDは必須パラメーターです");
+            return;
+        }
+
         var finalServerUrl = serverUrl ?? "http://localhost:5000";
-        logger.LogInformation("指定されたシード {Seed} でバトルを再現します...", seed);
+
+        logger.LogInformation("指定されたバトルID {BattleId} でバトルを再現します...", battleId);
         logger.LogInformation("{Count}つの接続を作成中...", connectionCount);
 
         var connections = new List<HubConnection>();
         try
         {
-            var finalGroupName = groupName ?? $"reproduce-{seed}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            // Generate group name based on what's being reproduced
+            var finalGroupName = groupName ?? $"reproduce-battle-{battleId}-{DateTime.UtcNow:yyyyMMddHHmmss}";
 
             for (int i = 0; i < connectionCount; i++)
             {
-                var connection = await ConnectWithOptionsAsync(new ConnectionOptions
+                var connectionOptions = new ConnectionOptions
                 {
                     ServerUrl = finalServerUrl,
                     GroupName = finalGroupName,
-                    BattleSeed = seed
-                });
+                    ReproduceBattleId = battleId
+                };
+
+                var connection = await ConnectWithOptionsAsync(connectionOptions);
                 connections.Add(connection);
 
                 logger.LogInformation("接続 {Current}/{Total} 完了", i + 1, connectionCount);
                 await Task.Delay(100); // Avoid overwhelming the server
             }
 
-            logger.LogInformation("全ての接続が完了しました。シード {Seed} でバトルが開始されます。", seed);
+            logger.LogInformation($"全ての接続が完了しました。バトルID {battleId} でバトルが開始されます。");
             logger.LogInformation("バトル完了まで待機中...");
 
             // Wait for battle completion
@@ -800,18 +809,18 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
 
         await connection.StartAsync();
 
-        if (options.BattleSeed.HasValue)
+        if (!string.IsNullOrEmpty(options.ReproduceBattleId))
         {
-            // Send seed information to server if supported
+            // Send battle ID information to server for reproduction
             try
             {
-                await connection.InvokeAsync("SetBattleSeed", options.BattleSeed.Value);
-                logger.LogDebug("バトルシード {Seed} をサーバーに送信しました", options.BattleSeed.Value);
+                await connection.InvokeAsync("SetReproduceBattleId", options.ReproduceBattleId);
+                logger.LogDebug("再現バトルID {BattleId} をサーバーに送信しました", options.ReproduceBattleId);
             }
             catch
             {
-                // Seed setting not supported by server, continue without it
-                logger.LogDebug("サーバーはバトルシード設定をサポートしていません");
+                // Battle ID setting not supported by server, continue without it
+                logger.LogDebug("サーバーはバトルID設定をサポートしていません");
             }
         }
 
@@ -840,8 +849,10 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
           join <group_name>      - Join a group
           broadcast <message>    - Broadcast message to current group
           groups                 - List available groups
-          mygroup                - Show current group information          battle-status          - Show battle status
+          mygroup                - Show current group information
+          battle-status          - Show battle status
           battle-replay <id>     - Play battle replay at 5fps speed
+          battle-reproduce <battleId> [groupName] [connectionCount] [serverUrl] - Reproduce battle with specific battle ID
           battle-complete        - Notify server that battle replay is complete
           exit, quit             - Exit the program
           help                   - Show this help

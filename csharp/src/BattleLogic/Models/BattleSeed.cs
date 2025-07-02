@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 
 namespace BattleLogic.Models;
 
@@ -17,12 +17,15 @@ public sealed class BattleSeed
     public int Seed { get; }
 
     /// <summary>
-    /// Initializes a new instance of BattleSeed with the specified or randomly generated seed
+    /// Initializes a new instance of BattleSeed using a battle ID as the seed source
     /// </summary>
-    /// <param name="seed">Optional seed value. If null, a cryptographically secure random seed will be generated</param>
-    public BattleSeed(int? seed = null)
+    /// <param name="battleId">The battle ID to generate a deterministic seed from</param>
+    public BattleSeed(string battleId)
     {
-        Seed = seed ?? GenerateRandomSeed();
+        if (string.IsNullOrEmpty(battleId))
+            throw new ArgumentException("Battle ID cannot be null or empty", nameof(battleId));
+
+        Seed = GenerateSeedFromBattleId(battleId);
         _random = new Random(Seed);
         _guidCounter = 0;
     }
@@ -95,6 +98,27 @@ public sealed class BattleSeed
 
         // Ensure we don't return 0 (which could cause issues with some Random implementations)
         return combinedSeed == 0 ? 1 : combinedSeed;
+    }
+
+    /// <summary>
+    /// Generate a deterministic seed from a battle ID using a consistent hash algorithm
+    /// </summary>
+    /// <param name="battleId">The battle ID to generate seed from</param>
+    /// <returns>A deterministic 32-bit integer seed</returns>
+    private static int GenerateSeedFromBattleId(string battleId)
+    {
+        // Use a simple but effective hash algorithm that's consistent across platforms
+        unchecked
+        {
+            var hash = 17;
+            foreach (var c in battleId)
+            {
+                hash = hash * 31 + c;
+            }
+
+            // Ensure we don't return 0 (which could cause issues with some Random implementations)
+            return hash == 0 ? 1 : hash;
+        }
     }
 
     /// <summary>

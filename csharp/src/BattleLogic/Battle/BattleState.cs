@@ -64,17 +64,19 @@ public class BattleState
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger, int? seed = null)
+    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger)
     {
         _battleId = battleId;
         _group = group;
         _logger = logger;
-        _battleSeed = new BattleSeed(seed);
+
+        // Use battleId to generate seed if no explicit seed is provided
+        _battleSeed = new BattleSeed(battleId);
 
         // Log the seed for reproducibility
         _logger.LogInformation("Battle {BattleId} initialized with seed {Seed}. " +
-            "To reproduce this battle, use seed: {Seed}",
-            battleId, _battleSeed.Seed, _battleSeed.Seed);
+            "To reproduce this battle, use battleId: {BattleId} or seed: {Seed}",
+            battleId, _battleSeed.Seed, battleId, _battleSeed.Seed);
 
         // Initialize battle components with deterministic random
         _battleField = new BattleField(_battleSeed.Random);
