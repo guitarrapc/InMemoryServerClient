@@ -1,7 +1,7 @@
 ﻿using BattleLogic.Models;
 using Microsoft.Extensions.Logging;
 
-namespace BattleLogic.Battle;
+namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles AI decision making for battle entities
@@ -271,7 +271,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
             float hpRatio = (float)nearestTarget.Value.CurrentHp / nearestTarget.Value.MaxHp;
             if (hpRatio < BattleAIDefines.SufficientHpRatio)
             {
-                reward *= (1.0f + (1.0f - hpRatio));
+                reward *= 1.0f + (1.0f - hpRatio);
             }
 
             if (utilities.CanSurroundEnemy(entity, nearestTarget.Value, players, enemies))
@@ -304,7 +304,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
             int distanceToLowest = utilities.CalculateManhattanDistance(entity.Position, lowestHpTarget.Value.Position);
             if (distanceToLowest <= 3)
             {
-                reward *= (5.0f / (distanceToLowest + 1));
+                reward *= 5.0f / (distanceToLowest + 1);
             }
 
             if (!entity.Type.IsPlayer)

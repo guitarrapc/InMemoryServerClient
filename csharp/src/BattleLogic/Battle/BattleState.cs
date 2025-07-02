@@ -1,10 +1,10 @@
-﻿using BattleLogic.Battle;
-using BattleLogic.Interfaces;
+﻿using BattleLogic.Interfaces;
+using BattleLogic.Services;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Text.Json;
 
-namespace BattleLogic;
+namespace BattleLogic.Battle;
 
 /// <summary>
 /// Represents a battle state
@@ -98,7 +98,7 @@ public partial class BattleState
         _enemies.AddRange(enemies);
 
         // Set total turns for battle
-        _totalTurns = _random.Next(BattleBasicDefines.MinBattleTurns, BattleBasicDefines.MaxBattleTurns + 1);
+        _totalTurns = _random.Next(BattleSystemDefines.MinBattleTurns, BattleSystemDefines.MaxBattleTurns + 1);
 
         // Place entities on battle field
         _battleField.PlaceEntities(_players, _enemies);
@@ -176,13 +176,13 @@ public partial class BattleState
         var startTime = DateTime.UtcNow;
 
         // Create directory for battle replays if it doesn't exist
-        Directory.CreateDirectory(BattleBasicDefines.BattleReplayDirectory);
+        Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
 
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
         var allTurnData = new List<BattleStatus>(_totalTurns + 1);
 
         // Open file for battle replay
-        using (var replayFile = File.CreateText(Path.Combine(BattleBasicDefines.BattleReplayDirectory, $"{_battleId}.jsonl")))
+        using (var replayFile = File.CreateText(Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")))
         {
             // Write initial state
             await WriteReplayFrameAsync(replayFile);
@@ -238,7 +238,7 @@ public partial class BattleState
         var duration = endTime - startTime;
         _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
         _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_playerVictory ? "Victory" : "Defeat")}");
-        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(BattleBasicDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
+        _logger.LogInformation($"Battle {_battleId}: Replay file saved to {Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{_battleId}.jsonl")}");
 
         // Store all turn data for client transmission
         _allTurnData = allTurnData;
@@ -296,8 +296,8 @@ public partial class BattleState
             TotalTurns = _totalTurns,
             Players = [.. _players],
             Enemies = [.. _enemies],
-            FieldWidth = BattleBasicDefines.BattleFieldWidth,
-            FieldHeight = BattleBasicDefines.BattleFieldHeight,
+            FieldWidth = BattleSystemDefines.BattleFieldWidth,
+            FieldHeight = BattleSystemDefines.BattleFieldHeight,
             RecentLogs = [.. _battleLogs.TakeLast(10)]
         };
     }
@@ -315,8 +315,8 @@ public partial class BattleState
             TotalTurns = _totalTurns,
             Players = [.. _players], // structs automatically create copies
             Enemies = [.. _enemies], // structs automatically create copies
-            FieldWidth = BattleBasicDefines.BattleFieldWidth,
-            FieldHeight = BattleBasicDefines.BattleFieldHeight,
+            FieldWidth = BattleSystemDefines.BattleFieldWidth,
+            FieldHeight = BattleSystemDefines.BattleFieldHeight,
             RecentLogs = [.. _battleLogs.TakeLast(10)]
         };
     }
@@ -353,8 +353,8 @@ public partial class BattleState
             TotalTurns = _totalTurns,
             Players = _players,
             Enemies = _enemies,
-            FieldHeight = BattleBasicDefines.BattleFieldHeight,
-            FieldWidth = BattleBasicDefines.BattleFieldWidth,
+            FieldHeight = BattleSystemDefines.BattleFieldHeight,
+            FieldWidth = BattleSystemDefines.BattleFieldWidth,
             RecentLogs = _battleLogs.TakeLast(10).ToList()
         };
 

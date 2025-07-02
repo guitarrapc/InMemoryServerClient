@@ -1,5 +1,5 @@
 ﻿using System.Collections.Concurrent;
-using BattleLogic;
+using BattleLogic.Battle;
 
 namespace InMemoryServer;
 

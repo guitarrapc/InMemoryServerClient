@@ -40,7 +40,7 @@ app.MapHub<InMemoryHub>(SystemDefines.HubRoute);
 app.MapGet("/health", () => "Healthy");
 
 // Create directory for battle replays
-Directory.CreateDirectory(BattleBasicDefines.BattleReplayDirectory);
+Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
 
 // Start the server
 Console.WriteLine($"InMemory Server starting on port {SystemDefines.DefaultServerPort}...");

@@ -13,7 +13,7 @@ public class FileBattleReplayStorage : IBattleReplayStorage
     private readonly string _replayDirectory;
     private readonly ILogger<FileBattleReplayStorage> _logger;
 
-    public FileBattleReplayStorage(ILogger<FileBattleReplayStorage> logger, string replayDirectory = BattleBasicDefines.BattleReplayDirectory)
+    public FileBattleReplayStorage(ILogger<FileBattleReplayStorage> logger, string replayDirectory = BattleSystemDefines.BattleReplayDirectory)
     {
         _logger = logger;
         _replayDirectory = replayDirectory;

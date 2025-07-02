@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using BattleLogic.Interfaces;
 using Shared;
+using BattleLogic.Battle;
 
 namespace Tests;
 
@@ -55,10 +56,10 @@ public class BattleStateTests
         Assert.NotNull(status);
         Assert.Equal(battleId, status.BattleId);
         Assert.Equal(_mockGroup.ConnectedCount, status.Players.Count);
-        Assert.True(status.Enemies.Count >= BattleBasicDefines.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= BattleBasicDefines.MaxEnemyCount);
-        Assert.Equal(BattleBasicDefines.BattleFieldWidth, status.FieldWidth);
-        Assert.Equal(BattleBasicDefines.BattleFieldHeight, status.FieldHeight);
+        Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
+        Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+        Assert.Equal(BattleSystemDefines.BattleFieldWidth, status.FieldWidth);
+        Assert.Equal(BattleSystemDefines.BattleFieldHeight, status.FieldHeight);
     }
 
     [Fact]
@@ -111,8 +112,8 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.True(status.Enemies.Count >= BattleBasicDefines.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= BattleBasicDefines.MaxEnemyCount);
+        Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
+        Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
 
         foreach (var enemy in status.Enemies)
         {

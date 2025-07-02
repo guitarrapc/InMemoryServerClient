@@ -2,7 +2,7 @@
 
 namespace BattleLogic;
 
-public static class BattleBasicDefines
+public static class BattleSystemDefines
 {
     /// <summary>
     /// Battle replay directory

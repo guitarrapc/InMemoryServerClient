@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Collections.Concurrent;
 using Shared;
+using BattleLogic.Battle;
 
 namespace Tests;
 
@@ -131,7 +132,7 @@ public class BattleBalanceTests
 
         // 分析用のデータ構造 (敵の数別勝率を記録)
         var enemyCountWinRates = new Dictionary<int, List<bool>>();
-        for (int i = BattleBasicDefines.MinEnemyCount; i <= BattleBasicDefines.MaxEnemyCount; i++)
+        for (int i = BattleSystemDefines.MinEnemyCount; i <= BattleSystemDefines.MaxEnemyCount; i++)
         {
             enemyCountWinRates[i] = new List<bool>();
         }

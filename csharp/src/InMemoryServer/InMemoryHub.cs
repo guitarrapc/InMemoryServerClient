@@ -3,6 +3,7 @@ using BattleLogic;
 using BattleLogic.Interfaces;
 using InMemoryServer.BattleAbstraction;
 using Shared;
+using BattleLogic.Battle;
 
 namespace InMemoryServer;
 
@@ -187,8 +188,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             return new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = BattleBasicDefines.BattleFieldWidth,
-                FieldHeight = BattleBasicDefines.BattleFieldHeight
+                FieldWidth = BattleSystemDefines.BattleFieldWidth,
+                FieldHeight = BattleSystemDefines.BattleFieldHeight
             };
         }
 
@@ -197,8 +198,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             : new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = BattleBasicDefines.BattleFieldWidth,
-                FieldHeight = BattleBasicDefines.BattleFieldHeight
+                FieldWidth = BattleSystemDefines.BattleFieldWidth,
+                FieldHeight = BattleSystemDefines.BattleFieldHeight
             };
     }
 
@@ -220,11 +221,11 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     {
         _logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 
-        var replayPath = Path.Combine(BattleBasicDefines.BattleReplayDirectory, $"{battleId}.jsonl");
+        var replayPath = Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{battleId}.jsonl");
         if (File.Exists(replayPath))
         {
             // Ensure directory exists for battle replays
-            Directory.CreateDirectory(BattleBasicDefines.BattleReplayDirectory);
+            Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
 
             try
             {
