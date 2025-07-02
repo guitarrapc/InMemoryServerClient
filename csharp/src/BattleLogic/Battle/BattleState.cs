@@ -1,4 +1,5 @@
 ﻿using BattleLogic.Constans;
+using BattleLogic.Models;
 using BattleLogic.Services;
 using Microsoft.Extensions.Logging;
 using Shared.Contracts;
@@ -10,7 +11,7 @@ namespace BattleLogic.Battle;
 /// <summary>
 /// Represents a battle state
 /// </summary>
-public partial class BattleState
+public class BattleState
 {
     public enum State
     {
@@ -21,7 +22,7 @@ public partial class BattleState
 
     private readonly string _battleId;
     private readonly IBattleGroupContext _group;
-    private readonly Random _random = new Random();
+    private readonly BattleSeed _battleSeed;
     private readonly List<EntityInfo> _players = new(5); // Pre-allocate for max players
     private readonly List<EntityInfo> _enemies = new(15); // Pre-allocate for max enemies
     private readonly List<string> _battleLogs = new(60); // Pre-allocate for battle logs with limit
@@ -49,6 +50,11 @@ public partial class BattleState
     public string GroupId => _group.Id;
 
     /// <summary>
+    /// Gets the battle seed used for reproducible random generation
+    /// </summary>
+    public BattleSeed BattleSeed => _battleSeed;
+
+    /// <summary>
     /// Gets the battle ID
     /// </summary>
     public string BattleId => _battleId;
@@ -58,19 +64,25 @@ public partial class BattleState
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger)
+    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger, int? seed = null)
     {
         _battleId = battleId;
         _group = group;
         _logger = logger;
+        _battleSeed = new BattleSeed(seed);
 
-        // Initialize battle components
-        _battleField = new BattleField(_random);
+        // Log the seed for reproducibility
+        _logger.LogInformation("Battle {BattleId} initialized with seed {Seed}. " +
+            "To reproduce this battle, use seed: {Seed}",
+            battleId, _battleSeed.Seed, _battleSeed.Seed);
+
+        // Initialize battle components with deterministic random
+        _battleField = new BattleField(_battleSeed.Random);
         _battleUtilities = new BattleUtilities();
-        _battleInitializer = new BattleInitializer(_random);
+        _battleInitializer = new BattleInitializer(_battleSeed);
         _battleAI = new BattleAI(_battleUtilities, logger);
-        _battleMovement = new BattleMovement(_random, _battleField, _battleUtilities);
-        _battleCombat = new BattleCombat(_random, _battleField, _battleUtilities);
+        _battleMovement = new BattleMovement(_battleSeed.Random, _battleField, _battleUtilities);
+        _battleCombat = new BattleCombat(_battleSeed.Random, _battleField, _battleUtilities);
 
         // Store client IDs from the group
         foreach (var clientId in group.ClientIds)
@@ -99,7 +111,7 @@ public partial class BattleState
         _enemies.AddRange(enemies);
 
         // Set total turns for battle
-        _totalTurns = _random.Next(BattleSystemDefines.MinBattleTurns, BattleSystemDefines.MaxBattleTurns + 1);
+        _totalTurns = _battleSeed.Random.Next(BattleSystemDefines.MinBattleTurns, BattleSystemDefines.MaxBattleTurns + 1);
 
         // Place entities on battle field
         _battleField.PlaceEntities(_players, _enemies);

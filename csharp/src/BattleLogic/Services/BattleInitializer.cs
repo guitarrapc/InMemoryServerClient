@@ -1,11 +1,12 @@
 ﻿using BattleLogic.Constans;
+using BattleLogic.Models;
 
 namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles battle initialization logic
 /// </summary>
-internal class BattleInitializer(Random random)
+internal class BattleInitializer(BattleSeed battleSeed)
 {
     /// <summary>
     /// Initialize players for battle
@@ -30,7 +31,7 @@ internal class BattleInitializer(Random random)
     /// </summary>
     public List<EntityInfo> InitializeEnemies(List<string> battleLogs)
     {
-        int enemyCount = random.Next(BattleSystemDefines.MinEnemyCount, BattleSystemDefines.MaxEnemyCount);
+        int enemyCount = battleSeed.Random.Next(BattleSystemDefines.MinEnemyCount, BattleSystemDefines.MaxEnemyCount);
         var enemies = new List<EntityInfo>(enemyCount);
 
         var enemySizes = new[] { EnemySize.Small, EnemySize.Medium, EnemySize.Large };
@@ -53,16 +54,16 @@ internal class BattleInitializer(Random random)
     {
         // Randomly assign a player job
         var playerJobs = Enum.GetValues<PlayerJob>();
-        var assignedJob = playerJobs[random.Next(playerJobs.Length)];
+        var assignedJob = playerJobs[battleSeed.Random.Next(playerJobs.Length)];
         var jobModifier = BattleSystemDefines.PlayerJobModifiers[assignedJob];
 
         // Calculate base stats
-        var baseMaxHp = random.Next(BattleSystemDefines.PlayerHp.Min, BattleSystemDefines.PlayerHp.Max);
-        var baseAttack = random.Next(BattleSystemDefines.PlayerAttackPower.Min, BattleSystemDefines.PlayerAttackPower.Max);
-        var baseDefense = random.Next(BattleSystemDefines.PlayerDefencePower.Min, BattleSystemDefines.PlayerDefencePower.Max);
-        var baseSpeed = random.Next(BattleSystemDefines.PlayerMoveSpeed.Min, BattleSystemDefines.PlayerMoveSpeed.Max);
-        var baseAccuracy = random.Next(BattleSystemDefines.PlayerAccuracy.Min, BattleSystemDefines.PlayerAccuracy.Max);
-        var baseEvasion = random.Next(BattleSystemDefines.PlayerEvasion.Min, BattleSystemDefines.PlayerEvasion.Max);
+        var baseMaxHp = battleSeed.Random.Next(BattleSystemDefines.PlayerHp.Min, BattleSystemDefines.PlayerHp.Max);
+        var baseAttack = battleSeed.Random.Next(BattleSystemDefines.PlayerAttackPower.Min, BattleSystemDefines.PlayerAttackPower.Max);
+        var baseDefense = battleSeed.Random.Next(BattleSystemDefines.PlayerDefencePower.Min, BattleSystemDefines.PlayerDefencePower.Max);
+        var baseSpeed = battleSeed.Random.Next(BattleSystemDefines.PlayerMoveSpeed.Min, BattleSystemDefines.PlayerMoveSpeed.Max);
+        var baseAccuracy = battleSeed.Random.Next(BattleSystemDefines.PlayerAccuracy.Min, BattleSystemDefines.PlayerAccuracy.Max);
+        var baseEvasion = battleSeed.Random.Next(BattleSystemDefines.PlayerEvasion.Min, BattleSystemDefines.PlayerEvasion.Max);
 
         // Apply job modifiers
         var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -74,7 +75,7 @@ internal class BattleInitializer(Random random)
 
         return new EntityInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = battleSeed.NextGuid().ToString(), // Use deterministic GUID for players
             Name = $"{assignedJob}Player{playerIndex + 1}",
             Type = EntityTypeInfo.Player,
             PlayerJob = assignedJob,
@@ -95,20 +96,20 @@ internal class BattleInitializer(Random random)
     /// </summary>
     private EntityInfo CreateEnemy(int enemyIndex, EnemySize[] enemySizes)
     {
-        var enemySize = enemySizes[random.Next(enemySizes.Length)];
+        var enemySize = enemySizes[battleSeed.Random.Next(enemySizes.Length)];
 
         // Randomly assign an enemy job
         var enemyJobs = Enum.GetValues<EnemyJob>();
-        var assignedJob = enemyJobs[random.Next(enemyJobs.Length)];
+        var assignedJob = enemyJobs[battleSeed.Random.Next(enemyJobs.Length)];
         var jobModifier = BattleSystemDefines.EnemyJobModifiers[assignedJob];
 
         // Calculate base stats
-        var baseMaxHp = random.Next(BattleSystemDefines.EnemyHpByType[enemySize].Min, BattleSystemDefines.EnemyHpByType[enemySize].Max);
-        var baseAttack = random.Next(BattleSystemDefines.EnemyAttackPower[enemySize].Min, BattleSystemDefines.EnemyAttackPower[enemySize].Max);
-        var baseDefense = random.Next(BattleSystemDefines.EnemyDefencePower[enemySize].Min, BattleSystemDefines.EnemyDefencePower[enemySize].Max);
-        var baseSpeed = random.Next(BattleSystemDefines.EnemyMoveSpeed[enemySize].Min, BattleSystemDefines.EnemyMoveSpeed[enemySize].Max);
-        var baseAccuracy = random.Next(BattleSystemDefines.EnemyAccuracy[enemySize].Min, BattleSystemDefines.EnemyAccuracy[enemySize].Max);
-        var baseEvasion = random.Next(BattleSystemDefines.EnemyEvasion[enemySize].Min, BattleSystemDefines.EnemyEvasion[enemySize].Max);
+        var baseMaxHp = battleSeed.Random.Next(BattleSystemDefines.EnemyHpByType[enemySize].Min, BattleSystemDefines.EnemyHpByType[enemySize].Max);
+        var baseAttack = battleSeed.Random.Next(BattleSystemDefines.EnemyAttackPower[enemySize].Min, BattleSystemDefines.EnemyAttackPower[enemySize].Max);
+        var baseDefense = battleSeed.Random.Next(BattleSystemDefines.EnemyDefencePower[enemySize].Min, BattleSystemDefines.EnemyDefencePower[enemySize].Max);
+        var baseSpeed = battleSeed.Random.Next(BattleSystemDefines.EnemyMoveSpeed[enemySize].Min, BattleSystemDefines.EnemyMoveSpeed[enemySize].Max);
+        var baseAccuracy = battleSeed.Random.Next(BattleSystemDefines.EnemyAccuracy[enemySize].Min, BattleSystemDefines.EnemyAccuracy[enemySize].Max);
+        var baseEvasion = battleSeed.Random.Next(BattleSystemDefines.EnemyEvasion[enemySize].Min, BattleSystemDefines.EnemyEvasion[enemySize].Max);
 
         // Apply job modifiers
         var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -129,7 +130,7 @@ internal class BattleInitializer(Random random)
 
         return new EntityInfo
         {
-            Id = Guid.NewGuid().ToString(),
+            Id = battleSeed.NextGuid().ToString(), // Use deterministic GUID for enemies
             Name = $"Enemy{enemyIndex + 1}_{enemySize}",
             Type = entityTypeInfo,
             PlayerJob = null,
