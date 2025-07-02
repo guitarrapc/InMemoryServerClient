@@ -1,5 +1,4 @@
-﻿using BattleLogic.Interfaces;
-using Shared;
+﻿using Shared;
 
 namespace InMemoryServer.BattleAbstraction;
 

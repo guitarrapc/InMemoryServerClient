@@ -15,8 +15,6 @@ public class BattleStateTests
     private readonly ILogger<BattleState> _logger;
 
     private readonly IBattleGroupContext _mockGroup;
-    private readonly IBattleReplayStorage _mockReplayStorage;
-    private readonly IBattleNotificationService _mockNotificationService;
 
     public BattleStateTests()
     {
@@ -38,9 +36,6 @@ public class BattleStateTests
         _mockGroup.ConnectedCount.Returns(groupInfo.ConnectionCount);
         _mockGroup.MaxClients.Returns(groupInfo.MaxConnections);
         _mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
-
-        _mockReplayStorage = Substitute.For<IBattleReplayStorage>();
-        _mockNotificationService = Substitute.For<IBattleNotificationService>();
     }
     [Fact]
     public void BattleState_ShouldInitialize_WithProvidedGroup()
@@ -49,7 +44,7 @@ public class BattleStateTests
         var battleId = Guid.NewGuid().ToString();
 
         // Act
-        var battleState = new BattleState(battleId, _mockGroup, _logger, _mockReplayStorage, _mockNotificationService);
+        var battleState = new BattleState(battleId, _mockGroup, _logger);
         var status = battleState.GetStatus();
 
         // Assert
@@ -72,7 +67,7 @@ public class BattleStateTests
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2" });
 
         // Act
-        var battleState = new BattleState(battleId, mockGroup, _logger, _mockReplayStorage, _mockNotificationService);
+        var battleState = new BattleState(battleId, mockGroup, _logger);
         var status = battleState.GetStatus();
 
         // Assert
@@ -106,9 +101,7 @@ public class BattleStateTests
         };
 
         // Act
-        var mockReplayStorage = Substitute.For<IBattleReplayStorage>();
-        var mockNotificationService = Substitute.For<IBattleNotificationService>();
-        var battleState = new BattleState(battleId, group, _logger, mockReplayStorage, mockNotificationService);
+        var battleState = new BattleState(battleId, group, _logger);
         var status = battleState.GetStatus();
 
         // Assert

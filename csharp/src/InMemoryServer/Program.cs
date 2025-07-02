@@ -1,6 +1,5 @@
 ﻿using InMemoryServer;
 using InMemoryServer.BattleAbstraction;
-using BattleLogic.Interfaces;
 using Shared;
 using BattleLogic;
 

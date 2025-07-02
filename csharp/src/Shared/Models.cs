@@ -3,7 +3,7 @@
 /// <summary>
 /// Group information
 /// </summary>
-public class GroupInfo
+public class GroupInfo : IBattleGroupContext
 {
     /// <summary>
     /// Group unique identifier
@@ -26,6 +26,16 @@ public class GroupInfo
     public int MaxConnections { get; set; }
 
     /// <summary>
+    /// Gets the maximum number of clients (alias for MaxConnections)
+    /// </summary>
+    public int MaxClients => MaxConnections;
+
+    /// <summary>
+    /// Gets the connected client count (alias for ConnectionCount)
+    /// </summary>
+    public int ConnectedCount => ConnectionCount;
+
+    /// <summary>
     /// Group creation time
     /// </summary>
     public DateTime CreatedAt { get; set; }
@@ -45,6 +55,11 @@ public class GroupInfo
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public List<string> ClientIds { get; set; } = new(5); // Pre-allocate for max connections
+
+    /// <summary>
+    /// Gets the readonly list of client IDs
+    /// </summary>
+    IReadOnlyList<string> IBattleGroupContext.ClientIds => ClientIds;
 }
 
 /// <summary>
@@ -108,4 +123,3 @@ public readonly struct GroupSummary
     /// </summary>
     public string? BattleId { get; init; }
 }
-

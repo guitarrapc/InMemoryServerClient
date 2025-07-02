@@ -1,6 +1,5 @@
 ﻿using BattleLogic;
 using Microsoft.Extensions.Logging;
-using BattleLogic.Interfaces;
 using Shared;
 using InMemoryServer.BattleAbstraction;
 using BattleLogic.Battle;
@@ -53,7 +52,7 @@ public class JobModifierTests
         var tankPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !tankPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger, _battleReplayStorage);
+            var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
             var tankPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Tank);

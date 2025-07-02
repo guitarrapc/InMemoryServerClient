@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using BattleLogic;
-using BattleLogic.Interfaces;
 using InMemoryServer.BattleAbstraction;
 using Shared;
 using BattleLogic.Battle;
