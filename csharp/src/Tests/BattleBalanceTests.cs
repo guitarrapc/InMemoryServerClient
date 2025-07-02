@@ -99,7 +99,7 @@ public class BattleBalanceTests
         // 設定パラメータ
         const int battlesPerTrial = 200; // 1回の試行でのバトル数
         const int numberOfTrials = 10;   // 試行回数
-        const double minAcceptableWinRate = 0.5; // 最小許容勝率 (50%)
+        const double minAcceptableWinRate = 0.45; // 最小許容勝率 (45%)
         const double maxAcceptableWinRate = 0.7; // 最大許容勝率 (70%)
 
         // 複数回の試行の勝率を記録

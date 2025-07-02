@@ -45,7 +45,7 @@ public static class BattleSystemDefines
     /// <summary>
     /// Accuracy range for player (75-90%)
     /// </summary>
-    public static readonly StatusRange PlayerAccuracy = new(75, 90);
+    public static readonly StatusRange PlayerAccuracy = new(85, 100);
 
     /// <summary>
     /// Evasion range for player (15-30%)
@@ -60,7 +60,7 @@ public static class BattleSystemDefines
     /// </summary>
     public static readonly Dictionary<EnemySize, StatusRange> EnemyHpByType = new Dictionary<EnemySize, StatusRange>
     {
-        { EnemySize.Small, new (55, 85) },
+        { EnemySize.Small, new (65, 85) },
         { EnemySize.Medium, new (110, 160) },
         { EnemySize.Large, new (265, 350) }
     };
@@ -92,7 +92,7 @@ public static class BattleSystemDefines
     {
         { EnemySize.Small, new (1, 1) },
         { EnemySize.Medium, new (1, 2) },
-        { EnemySize.Large, new (1, 3) }
+        { EnemySize.Large, new (2, 3) }
     };
 
     /// <summary>
@@ -100,9 +100,9 @@ public static class BattleSystemDefines
     /// </summary>
     public static readonly Dictionary<EnemySize, StatusRange> EnemyAccuracy = new Dictionary<EnemySize, StatusRange>
     {
-        { EnemySize.Small, new (65, 80) },
-        { EnemySize.Medium, new (70, 85) },
-        { EnemySize.Large, new (75, 90) }
+        { EnemySize.Small, new (70, 85) },
+        { EnemySize.Medium, new (75, 90) },
+        { EnemySize.Large, new (85, 95) }
     };
 
     /// <summary>
@@ -110,9 +110,9 @@ public static class BattleSystemDefines
     /// </summary>
     public static readonly Dictionary<EnemySize, StatusRange> EnemyEvasion = new Dictionary<EnemySize, StatusRange>
     {
-        { EnemySize.Small, new (25, 40) },   // 高回避
-        { EnemySize.Medium, new (15, 30) },  // 中回避
-        { EnemySize.Large, new (5, 20) }     // 低回避
+        { EnemySize.Small, new (20, 30) },   // 高回避
+        { EnemySize.Medium, new (13, 20) },  // 中回避
+        { EnemySize.Large, new (10, 20) }     // 低回避
     };
 
     /// <summary>
@@ -182,7 +182,7 @@ public static class BattleSystemDefines
             PlayerJob.Tank,
             new JobStatModifier
             {
-                HpMultiplier = 1.3f,
+                HpMultiplier = 1.5f,
                 AttackMultiplier = 0.8f,
                 DefenseMultiplier = 1.5f,
                 SpeedMultiplier = 0.7f,
@@ -200,17 +200,17 @@ public static class BattleSystemDefines
             PlayerJob.Warrior,
             new JobStatModifier
             {
-                HpMultiplier = 1.1f,
+                HpMultiplier = 1.2f,
                 AttackMultiplier = 1.2f,
-                DefenseMultiplier = 1.0f,
+                DefenseMultiplier = 1.1f,
                 SpeedMultiplier = 1.2f,
                 AccuracyMultiplier = 1.0f,  // ウォリアーは標準的な命中率
                 EvasionMultiplier = 1.0f,   // ウォリアーは標準的な回避率
-                HpBonus = 30,
+                HpBonus = 50,
                 AttackBonus = 10,
                 DefenseBonus = 0,
                 SpeedBonus = 1,
-                AccuracyBonus = 0,
+                AccuracyBonus = 5,
                 EvasionBonus = 0
             }
         },
@@ -224,12 +224,12 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 0.9f,
                 AccuracyMultiplier = 1.2f,  // メイジは高い命中率（魔法の精密性）
                 EvasionMultiplier = 0.8f,   // メイジは低い回避率（運動性が低い）
-                HpBonus = -50,
+                HpBonus = -30,
                 AttackBonus = 8,
-                DefenseBonus = -3,
+                DefenseBonus = -5,
                 SpeedBonus = 0,
                 AccuracyBonus = 10,
-                EvasionBonus = -5
+                EvasionBonus = -15
             }
         },
         {
@@ -242,7 +242,7 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 1.4f,
                 AccuracyMultiplier = 1.3f,  // アーチャーは最高の命中率（弓術の精度）
                 EvasionMultiplier = 1.5f,   // アーチャーは最高の回避率（機動性重視）
-                HpBonus = -20,
+                HpBonus = -10,
                 AttackBonus = 3,
                 DefenseBonus = -2,
                 SpeedBonus = 1,
@@ -262,13 +262,13 @@ public static class BattleSystemDefines
             new JobStatModifier
             {
                 HpMultiplier = 1.2f,
-                AttackMultiplier = 1.1f,
+                AttackMultiplier = 1.2f,
                 DefenseMultiplier = 1.0f,
                 SpeedMultiplier = 1.0f,
                 AccuracyMultiplier = 1.0f,  // ブルーザーは標準的な命中率
                 EvasionMultiplier = 1.0f,    // ブルーザーは標準的な回避率
                 HpBonus = 30,
-                AttackBonus = 4,
+                AttackBonus = 6,
                 DefenseBonus = 1,
                 SpeedBonus = 0,
                 AccuracyBonus = 0,
@@ -287,7 +287,7 @@ public static class BattleSystemDefines
                 EvasionMultiplier = 0.6f,    // ガーディアンは最低回避率（重装備）
                 HpBonus = 100,
                 AttackBonus = -2,
-                DefenseBonus = 10,
+                DefenseBonus = 20,
                 SpeedBonus = -1,
                 AccuracyBonus = -8,
                 EvasionBonus = -10
@@ -300,7 +300,7 @@ public static class BattleSystemDefines
                 HpMultiplier = 0.7f,
                 AttackMultiplier = 1.2f,
                 DefenseMultiplier = 0.6f,
-                SpeedMultiplier = 1.5f,
+                SpeedMultiplier = 1.2f,
                 AccuracyMultiplier = 1.15f,  // アサシンは高い命中率（精密攻撃）
                 EvasionMultiplier = 1.4f,    // アサシンは高い回避率（機動性）
                 HpBonus = -30,
