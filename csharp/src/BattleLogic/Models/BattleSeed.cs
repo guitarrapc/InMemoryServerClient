@@ -9,7 +9,7 @@ namespace BattleLogic.Models;
 public sealed class BattleSeed
 {
     private readonly Random _random;
-    private uint _guidCounter;
+    private long _guidCounter;
 
     /// <summary>
     /// Gets the seed value used for this battle
@@ -35,12 +35,16 @@ public sealed class BattleSeed
     /// <summary>
     /// Generate a deterministic GUID based on the current seed and counter.
     /// This ensures reproducible entity IDs for the same battle seed.
+    ///
+    /// THREAD SAFETY: This method is thread-safe and uses atomic operations.
+    /// ORDER DEPENDENCY: The order of NextGuid() calls affects the results.
+    /// For reproducibility, ensure consistent calling patterns.
     /// </summary>
     /// <returns>A deterministic GUID that will be the same for the same seed and call order</returns>
     public Guid NextGuid()
     {
-        // Increment counter for each GUID generation
-        var currentCounter = ++_guidCounter;
+        // Use thread-safe atomic increment for counter
+        var currentCounter = Interlocked.Increment(ref _guidCounter);
 
         // Create deterministic byte array using seed and counter
         var guidBytes = new byte[16];
@@ -50,7 +54,7 @@ public sealed class BattleSeed
         Array.Copy(seedBytes, 0, guidBytes, 0, 4);
 
         // Use counter (next 4 bytes)
-        var counterBytes = BitConverter.GetBytes(currentCounter);
+        var counterBytes = BitConverter.GetBytes((uint)currentCounter);
         Array.Copy(counterBytes, 0, guidBytes, 4, 4);
 
         // Fill remaining 8 bytes with deterministic random data
@@ -96,5 +100,5 @@ public sealed class BattleSeed
     /// <summary>
     /// Returns a string representation of this BattleSeed
     /// </summary>
-    public override string ToString() => $"BattleSeed(Seed={Seed}, GuidCounter={_guidCounter})";
+    public override string ToString() => $"BattleSeed(Seed={Seed}, GuidCounter={Interlocked.Read(ref _guidCounter)})";
 }

@@ -619,4 +619,124 @@ public class BattleSeedReproducibilityTests
         public int ConnectedCount => 5;
         public IReadOnlyList<string> ClientIds => new List<string> { "client1", "client2", "client3", "client4", "client5" };
     }
+
+    /// <summary>
+    /// Test that NextGuid() is thread-safe and generates unique GUIDs across multiple threads
+    /// </summary>
+    [Fact]
+    public async Task NextGuid_ThreadSafety_ShouldGenerateUniqueGuidsAcrossThreadsAsync()
+    {
+        // Arrange
+        const int numberOfThreads = 10;
+        const int guidsPerThread = 100;
+        var seed = new BattleSeed(12345);
+        var allGuids = new ConcurrentBag<Guid>();
+        var tasks = new List<Task>();
+
+        // Act - Generate GUIDs from multiple threads simultaneously
+        for (int i = 0; i < numberOfThreads; i++)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                for (int j = 0; j < guidsPerThread; j++)
+                {
+                    var guid = seed.NextGuid();
+                    allGuids.Add(guid);
+                }
+            }, TestContext.Current.CancellationToken));
+        }
+
+        await Task.WhenAll(tasks);
+
+        // Assert
+        var guidList = allGuids.ToList();
+
+        // Should have exactly the expected number of GUIDs
+        Assert.Equal(numberOfThreads * guidsPerThread, guidList.Count);
+
+        // All GUIDs should be unique
+        var uniqueGuids = guidList.Distinct().ToList();
+        Assert.Equal(guidList.Count, uniqueGuids.Count);
+
+        // All GUIDs should contain the seed in their first 4 bytes
+        var seedBytes = BitConverter.GetBytes(12345);
+        foreach (var guid in guidList)
+        {
+            var guidBytes = guid.ToByteArray();
+            Assert.Equal(seedBytes, guidBytes.Take(4).ToArray());
+        }
+    }
+
+    /// <summary>
+    /// Test that NextGuid() maintains order-dependency even with thread safety
+    /// </summary>
+    [Fact]
+    public void NextGuid_OrderDependency_ShouldProduceDifferentResultsWithDifferentCallOrders()
+    {
+        // Arrange & Act
+        var seed1 = new BattleSeed(54321);
+        var seed2 = new BattleSeed(54321);
+
+        // Generate GUIDs in different orders
+        var guid1_a = seed1.NextGuid();
+        var guid1_b = seed1.NextGuid();
+        var guid1_c = seed1.NextGuid();
+
+        var guid2_a = seed2.NextGuid();
+        var guid2_c = seed2.NextGuid(); // Skip the second call
+        var guid2_b = seed2.NextGuid();
+
+        // Assert - Same call order produces same results
+        Assert.Equal(guid1_a, guid2_a);
+
+        // Different call order produces different results
+        Assert.NotEqual(guid1_b, guid2_b);
+        Assert.NotEqual(guid1_c, guid2_c);
+    }
+
+    /// <summary>
+    /// Test that counter increments atomically across multiple threads
+    /// </summary>
+    [Fact]
+    public async Task NextGuid_CounterIncrement_ShouldBeAtomicAcrossThreadsAsync()
+    {
+        // Arrange
+        const int numberOfThreads = 5;
+        const int guidsPerThread = 20;
+        var seed = new BattleSeed(98765);
+        var allGuids = new ConcurrentBag<Guid>();
+        var tasks = new List<Task>();
+
+        // Act
+        for (int i = 0; i < numberOfThreads; i++)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                for (int j = 0; j < guidsPerThread; j++)
+                {
+                    allGuids.Add(seed.NextGuid());
+                }
+            }, TestContext.Current.CancellationToken));
+        }
+
+        await Task.WhenAll(tasks);
+
+        // Assert
+        var guidList = allGuids.ToList();
+        var counters = new HashSet<uint>();
+
+        // Extract counter values from GUIDs
+        foreach (var guid in guidList)
+        {
+            var guidBytes = guid.ToByteArray();
+            var counter = BitConverter.ToUInt32(guidBytes, 4);
+            counters.Add(counter);
+        }
+
+        // Should have unique counter values (1 to totalCount)
+        var expectedCount = numberOfThreads * guidsPerThread;
+        Assert.Equal(expectedCount, counters.Count);
+        Assert.Equal(1u, counters.Min());
+        Assert.Equal((uint)expectedCount, counters.Max());
+    }
 }
