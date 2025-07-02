@@ -416,7 +416,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var player in status.Players)
                 {
                     var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
-                    var jobInfo = player.Job.HasValue ? $" ({player.Job})" : "";
+                    var jobInfo = player.PlayerJob.HasValue ? $" ({player.PlayerJob})" : "";
                     _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {player.Name}{jobInfo}: HP {player.CurrentHp}/{player.MaxHp} {healthBar} ATK:{player.Attack} DEF:{player.Defense} SPD:{player.Speed} Pos:{player.Position}");
                 }
 
@@ -426,7 +426,7 @@ public class InMemoryClient(int clientIndex, ILogger<InMemoryClient> logger)
                 foreach (var enemy in status.Enemies.Where(x => x.CurrentHp > 0).Take(2)) // Show first 2 enemies to avoid spam
                 {
                     var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 10);
-                    var jobInfo = enemy.Job.HasValue ? $" ({enemy.Job})" : "";
+                    var jobInfo = enemy.EnemyJob.HasValue ? $" ({enemy.EnemyJob})" : "";
                     _logger.LogInformation($"Client {_clientIndex}: [BATTLE REPLAY] {enemy.Name}{jobInfo}: HP {enemy.CurrentHp}/{enemy.MaxHp} {healthBar} ATK:{enemy.Attack} DEF:{enemy.Defense} SPD:{enemy.Speed} Pos:{enemy.Position}");
                 }
 

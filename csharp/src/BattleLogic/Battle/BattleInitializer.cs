@@ -19,7 +19,7 @@ public class BattleInitializer(Random random)
             var player = CreatePlayer(i);
             players.Add(player);
 
-            battleLogs.Add($"{player.Name} (Job: {player.Job}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%, EVA: {player.Evasion}%");
+            battleLogs.Add($"{player.Name} (Job: {player.PlayerJob}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%, EVA: {player.Evasion}%");
         }
 
         return players;
@@ -40,7 +40,7 @@ public class BattleInitializer(Random random)
             var enemy = CreateEnemy(i, enemySizes);
             enemies.Add(enemy);
 
-            battleLogs.Add($"{enemy.Name} (Job: {enemy.Job}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%, EVA: {enemy.Evasion}%");
+            battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%, EVA: {enemy.Evasion}%");
         }
 
         return enemies;
@@ -51,9 +51,9 @@ public class BattleInitializer(Random random)
     /// </summary>
     private EntityInfo CreatePlayer(int playerIndex)
     {
-        // Randomly assign a job
-        var jobTypes = new[] { JobType.Tank, JobType.Warrior, JobType.Mage, JobType.Archer };
-        var assignedJob = jobTypes[random.Next(jobTypes.Length)];
+        // Randomly assign a player job
+        var playerJobs = Enum.GetValues<PlayerJob>();
+        var assignedJob = playerJobs[random.Next(playerJobs.Length)];
         var jobModifier = BattleBasicDefines.PlayerJobModifiers[assignedJob];
 
         // Calculate base stats
@@ -77,7 +77,8 @@ public class BattleInitializer(Random random)
             Id = Guid.NewGuid().ToString(),
             Name = $"{assignedJob}Player{playerIndex + 1}",
             Type = EntityTypeInfo.Player,
-            Job = assignedJob,
+            PlayerJob = assignedJob,
+            EnemyJob = null,
             CurrentHp = modifiedMaxHp,
             MaxHp = modifiedMaxHp,
             Attack = modifiedAttack,
@@ -97,8 +98,8 @@ public class BattleInitializer(Random random)
         var enemySize = enemySizes[random.Next(enemySizes.Length)];
 
         // Randomly assign an enemy job
-        var jobTypes = new[] { JobType.Bruiser, JobType.Guardian, JobType.Assassin, JobType.Caster };
-        var assignedJob = jobTypes[random.Next(jobTypes.Length)];
+        var enemyJobs = Enum.GetValues<EnemyJob>();
+        var assignedJob = enemyJobs[random.Next(enemyJobs.Length)];
         var jobModifier = BattleBasicDefines.EnemyJobModifiers[assignedJob];
 
         // Calculate base stats
@@ -131,7 +132,8 @@ public class BattleInitializer(Random random)
             Id = Guid.NewGuid().ToString(),
             Name = $"Enemy{enemyIndex + 1}_{enemySize}",
             Type = entityTypeInfo,
-            Job = assignedJob,
+            PlayerJob = null,
+            EnemyJob = assignedJob,
             MaxHp = modifiedMaxHp,
             CurrentHp = modifiedMaxHp,
             Attack = modifiedAttack,

@@ -80,24 +80,3 @@ public readonly record struct JobStatModifier
     /// </summary>
     public int EvasionBonus { get; init; }
 }
-
-/// <summary>
-/// Battle field information
-/// </summary>
-public readonly struct BattleFieldInfo
-{
-    /// <summary>
-    /// Field width
-    /// </summary>
-    public int Width { get; init; }
-
-    /// <summary>
-    /// Field height
-    /// </summary>
-    public int Height { get; init; }
-
-    /// <summary>
-    /// Field cells
-    /// </summary>
-    public ReadOnlyMemory<ReadOnlyMemory<string?>> Cells { get; init; }
-}

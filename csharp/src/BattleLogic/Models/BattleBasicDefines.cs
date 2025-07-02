@@ -174,10 +174,10 @@ public static class BattleBasicDefines
     /// <summary>
     /// Player job stat modifiers
     /// </summary>
-    public static readonly Dictionary<JobType, JobStatModifier> PlayerJobModifiers = new Dictionary<JobType, JobStatModifier>
+    public static readonly Dictionary<PlayerJob, JobStatModifier> PlayerJobModifiers = new Dictionary<PlayerJob, JobStatModifier>
     {
         {
-            JobType.Tank,
+            PlayerJob.Tank,
             new JobStatModifier
             {
                 HpMultiplier = 1.3f,
@@ -195,7 +195,7 @@ public static class BattleBasicDefines
             }
         },
         {
-            JobType.Warrior,
+            PlayerJob.Warrior,
             new JobStatModifier
             {
                 HpMultiplier = 1.1f,
@@ -213,7 +213,7 @@ public static class BattleBasicDefines
             }
         },
         {
-            JobType.Mage,
+            PlayerJob.Mage,
             new JobStatModifier
             {
                 HpMultiplier = 0.8f,
@@ -231,7 +231,7 @@ public static class BattleBasicDefines
             }
         },
         {
-            JobType.Archer,
+            PlayerJob.Archer,
             new JobStatModifier
             {
                 HpMultiplier = 0.9f,
@@ -253,10 +253,10 @@ public static class BattleBasicDefines
     /// <summary>
     /// Enemy job stat modifiers
     /// </summary>
-    public static readonly Dictionary<JobType, JobStatModifier> EnemyJobModifiers = new Dictionary<JobType, JobStatModifier>
+    public static readonly Dictionary<EnemyJob, JobStatModifier> EnemyJobModifiers = new Dictionary<EnemyJob, JobStatModifier>
     {
         {
-            JobType.Bruiser,
+            EnemyJob.Bruiser,
             new JobStatModifier
             {
                 HpMultiplier = 1.2f,
@@ -274,7 +274,7 @@ public static class BattleBasicDefines
             }
         },
         {
-            JobType.Guardian,
+            EnemyJob.Guardian,
             new JobStatModifier
             {
                 HpMultiplier = 1.4f,
@@ -292,7 +292,7 @@ public static class BattleBasicDefines
             }
         },
         {
-            JobType.Assassin,
+            EnemyJob.Assassin,
             new JobStatModifier
             {
                 HpMultiplier = 0.7f,
@@ -310,7 +310,7 @@ public static class BattleBasicDefines
             }
         },
         {
-            JobType.Caster,
+            EnemyJob.Caster,
             new JobStatModifier
             {
                 HpMultiplier = 0.8f,

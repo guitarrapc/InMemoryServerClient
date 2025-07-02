@@ -56,7 +56,7 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger, _battleReplayStorage);
             var status = battleState.GetStatus();
 
-            var tankPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Tank);
+            var tankPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Tank);
             if (!tankPlayer.Equals(default))
             {
                 tankPlayerFound = true;
@@ -90,7 +90,7 @@ public class JobModifierTests
                 var expectedAccuracyMax = (int)(baseAccuracyMax * tankModifier.AccuracyMultiplier) + tankModifier.AccuracyBonus;
 
                 // Assert Tank-specific modifiers
-                Assert.Equal(PlayerJob.Tank, player.Job);
+                Assert.Equal(PlayerJob.Tank, player.PlayerJob);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Tank HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
 
@@ -132,7 +132,7 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var warriorPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Warrior);
+            var warriorPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Warrior);
             if (!warriorPlayer.Equals(default))
             {
                 warriorPlayerFound = true;
@@ -149,7 +149,7 @@ public class JobModifierTests
                 var expectedAccuracyMin = Math.Max(0, (int)(BattleBasicDefines.PlayerAccuracy.Min * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus);
                 var expectedAccuracyMax = (int)(BattleBasicDefines.PlayerAccuracy.Max * warriorModifier.AccuracyMultiplier) + warriorModifier.AccuracyBonus;
 
-                Assert.Equal(PlayerJob.Warrior, player.Job);
+                Assert.Equal(PlayerJob.Warrior, player.PlayerJob);
                 Assert.True(player.MaxHp >= expectedHpMin && player.MaxHp <= expectedHpMax,
                     $"Warrior HP {player.MaxHp} should be in range [{expectedHpMin}-{expectedHpMax}]");
 
@@ -186,14 +186,14 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var magePlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Mage);
+            var magePlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Mage);
             if (!magePlayer.Equals(default))
             {
                 magePlayerFound = true;
                 var player = magePlayer;
                 var mageModifier = BattleBasicDefines.PlayerJobModifiers[PlayerJob.Mage];
 
-                Assert.Equal(PlayerJob.Mage, player.Job);
+                Assert.Equal(PlayerJob.Mage, player.PlayerJob);
                 // Mage should have lower HP due to 0.8x multiplier and -50 bonus
                 // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 → 110-350 range
                 Assert.True(player.MaxHp <= 350, $"Mage should have lower HP, got {player.MaxHp}");
@@ -232,14 +232,14 @@ public class JobModifierTests
             var battleState = new BattleState(battleId + attempt, group, _logger);
             var status = battleState.GetStatus();
 
-            var archerPlayer = status.Players.FirstOrDefault(p => p.Job == PlayerJob.Archer);
+            var archerPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Archer);
             if (!archerPlayer.Equals(default))
             {
                 archerPlayerFound = true;
                 var player = archerPlayer;
                 var archerModifier = BattleBasicDefines.PlayerJobModifiers[PlayerJob.Archer];
 
-                Assert.Equal(PlayerJob.Archer, player.Job);
+                Assert.Equal(PlayerJob.Archer, player.PlayerJob);
                 // Archer should have high speed due to 1.4x multiplier + 1 bonus
                 // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 → 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
@@ -337,20 +337,20 @@ public class JobModifierTests
 
             foreach (var player in status.Players)
             {
-                if (player.Job.HasValue && !jobsFound.Contains(player.Job.Value))
+                if (player.PlayerJob.HasValue && !jobsFound.Contains(player.PlayerJob.Value))
                 {
-                    jobsFound.Add(player.Job.Value);
-                    if (!jobEvasionData.ContainsKey(player.Job.Value))
+                    jobsFound.Add(player.PlayerJob.Value);
+                    if (!jobEvasionData.ContainsKey(player.PlayerJob.Value))
                     {
-                        jobEvasionData[player.Job.Value] = new List<int>();
+                        jobEvasionData[player.PlayerJob.Value] = new List<int>();
                     }
                 }
 
-                if (player.Job.HasValue)
+                if (player.PlayerJob.HasValue)
                 {
-                    if (jobEvasionData.ContainsKey(player.Job.Value))
+                    if (jobEvasionData.ContainsKey(player.PlayerJob.Value))
                     {
-                        jobEvasionData[player.Job.Value].Add(player.Evasion);
+                        jobEvasionData[player.PlayerJob.Value].Add(player.Evasion);
                     }
                 }
             }

@@ -474,7 +474,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     foreach (var player in battleStatus.Players)
                     {
                         var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
-                        var jobInfo = player.Job.HasValue ? $" (Job: {player.Job})" : "";
+                        var jobInfo = player.PlayerJob.HasValue ? $" (Job: {player.PlayerJob})" : "";
                         logger.LogInformation($"[BATTLE] - {player.Name}{jobInfo}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, Position: ({player.Position})");
                     }
 
@@ -484,7 +484,7 @@ public class InMemoryCommands(InMemoryClient client, MultiClientManager multiCli
                     foreach (var enemy in battleStatus.Enemies.Take(3)) // Show first 3 enemies to avoid spam
                     {
                         var status = enemy.CurrentHp > 0 ? "Alive" : "Defeated";
-                        var jobInfo = enemy.Job.HasValue ? $" (Job: {enemy.Job})" : "";
+                        var jobInfo = enemy.EnemyJob.HasValue ? $" (Job: {enemy.EnemyJob})" : "";
                         logger.LogInformation($"[BATTLE] - {enemy.Name}{jobInfo}: {status}, HP: {enemy.CurrentHp}/{enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, Position: ({enemy.Position})");
                     }
 
