@@ -1,0 +1,79 @@
+﻿using Shared.Common;
+
+namespace Shared.Battle;
+
+/// <summary>
+/// Entity information for client-server communication
+/// </summary>
+public readonly record struct EntityInfo
+{
+    /// <summary>
+    /// Entity unique identifier
+    /// </summary>
+    public required string Id { get; init; }
+
+    /// <summary>
+    /// Entity name
+    /// </summary>
+    public required string Name { get; init; }
+
+    /// <summary>
+    /// Entity type information (player or enemy with size)
+    /// </summary>
+    public required EntityTypeInfo Type { get; init; }
+
+    /// <summary>
+    /// Player job type (only set for players)
+    /// </summary>
+    public PlayerJob? PlayerJob { get; init; }
+
+    /// <summary>
+    /// Enemy job type (only set for enemies)
+    /// </summary>
+    public EnemyJob? EnemyJob { get; init; }
+
+    /// <summary>
+    /// Current HP
+    /// </summary>
+    public int CurrentHp { get; init; }
+
+    /// <summary>
+    /// Maximum HP
+    /// </summary>
+    public int MaxHp { get; init; }
+
+    /// <summary>
+    /// Attack power
+    /// </summary>
+    public int Attack { get; init; }
+
+    /// <summary>
+    /// Defense power
+    /// </summary>
+    public int Defense { get; init; }
+
+    /// <summary>
+    /// Movement speed
+    /// </summary>
+    public int Speed { get; init; }
+
+    /// <summary>
+    /// Accuracy (hit rate, 0-100)
+    /// </summary>
+    public int Accuracy { get; init; }
+
+    /// <summary>
+    /// Evasion (dodge rate, 0-100)
+    /// </summary>
+    public int Evasion { get; init; }
+
+    /// <summary>
+    /// Position on the battle field
+    /// </summary>
+    public Vector2 Position { get; init; }
+
+    /// <summary>
+    /// Is defending (damage reduction)
+    /// </summary>
+    public bool IsDefending { get; init; }
+}
