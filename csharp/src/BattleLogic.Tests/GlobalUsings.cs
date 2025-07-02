@@ -1,0 +1,9 @@
+global using Xunit;
+global using Shared.Models;
+global using Shared.Constants;
+global using BattleLogic.Models;
+global using BattleLogic.Services;
+global using BattleLogic.Battle;
+global using BattleLogic.Constans;
+global using Microsoft.Extensions.Logging;
+global using NSubstitute;
