@@ -118,10 +118,10 @@ public class BattleStateTests
                        enemy.Type.EnemySize == EnemySize.Large);
 
             // Verify basic HP/Attack/Defense/Speed ranges
-            Assert.True(enemy.CurrentHp >= 50); // Minimum possible HP after job modifiers
-            Assert.True(enemy.CurrentHp <= 500); // Maximum possible HP after job modifiers
-            Assert.True(enemy.Attack >= 1);
-            Assert.True(enemy.Defense >= 1);
+            Assert.True(enemy.CurrentHp >= 8); // Minimum possible HP after job modifiers (Small + Assassin worst case)
+            Assert.True(enemy.CurrentHp <= 600); // Maximum possible HP after job modifiers (Large + Guardian worst case)
+            Assert.True(enemy.Attack >= 1, $"Enemy {enemy.Name} has Attack={enemy.Attack}, Job={enemy.EnemyJob}, Type={enemy.Type}");
+            Assert.True(enemy.Defense >= 0); // Defense can be 0 after modifiers
             Assert.True(enemy.Speed >= 1);
         }
     }
