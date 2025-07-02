@@ -1,5 +1,4 @@
-﻿using BattleLogic.Models;
-using BattleLogic.Battle;
+﻿using BattleLogic.Battle;
 using BattleLogic.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;

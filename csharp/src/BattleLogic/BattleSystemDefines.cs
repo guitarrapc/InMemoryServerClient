@@ -1,4 +1,6 @@
-﻿namespace BattleLogic.Models;
+﻿using BattleLogic.Models;
+
+namespace BattleLogic;
 
 public static class BattleBasicDefines
 {

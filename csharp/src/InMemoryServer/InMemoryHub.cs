@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using BattleLogic.Models;
 using BattleLogic;
 using BattleLogic.Interfaces;
 using InMemoryServer.BattleAbstraction;

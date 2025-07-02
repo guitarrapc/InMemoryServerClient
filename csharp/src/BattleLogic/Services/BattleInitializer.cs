@@ -1,6 +1,4 @@
-﻿using BattleLogic.Models;
-
-namespace BattleLogic.Battle;
+﻿namespace BattleLogic.Battle;
 
 /// <summary>
 /// Handles battle initialization logic

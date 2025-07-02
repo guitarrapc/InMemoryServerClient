@@ -13,7 +13,7 @@ public static class BattleCalculations
     /// <returns>Attack value with random flavor applied</returns>
     public static int ApplyAttackFlavor(int baseAttack, Random random)
     {
-        var variation = Math.Max(Models.BattleBasicDefines.MinAbsoluteFlavor, (int)(baseAttack * Models.BattleBasicDefines.AttackFlavorPercent));
+        var variation = Math.Max(BattleBasicDefines.MinAbsoluteFlavor, (int)(baseAttack * BattleBasicDefines.AttackFlavorPercent));
         var flavorRange = variation * 2 + 1; // -variation to +variation
         var flavor = random.Next(flavorRange) - variation;
         return Math.Max(1, baseAttack + flavor); // Ensure minimum 1 attack
@@ -27,7 +27,7 @@ public static class BattleCalculations
     /// <returns>Defense value with random flavor applied</returns>
     public static int ApplyDefenseFlavor(int baseDefense, Random random)
     {
-        var variation = Math.Max(Models.BattleBasicDefines.MinAbsoluteFlavor, (int)(baseDefense * Models.BattleBasicDefines.DefenseFlavorPercent));
+        var variation = Math.Max(BattleBasicDefines.MinAbsoluteFlavor, (int)(baseDefense * BattleBasicDefines.DefenseFlavorPercent));
         var flavorRange = variation * 2 + 1; // -variation to +variation
         var flavor = random.Next(flavorRange) - variation;
         return Math.Max(0, baseDefense + flavor); // Defense can be 0
@@ -41,8 +41,8 @@ public static class BattleCalculations
     /// <returns>Accuracy percentage with random flavor applied (minimum 0, no maximum limit)</returns>
     public static int ApplyAccuracyFlavor(int baseAccuracy, Random random)
     {
-        var flavorRange = Models.BattleBasicDefines.AccuracyFlavorRange * 2 + 1; // -range to +range
-        var flavor = random.Next(flavorRange) - Models.BattleBasicDefines.AccuracyFlavorRange;
+        var flavorRange = BattleBasicDefines.AccuracyFlavorRange * 2 + 1; // -range to +range
+        var flavor = random.Next(flavorRange) - BattleBasicDefines.AccuracyFlavorRange;
         return Math.Max(0, baseAccuracy + flavor); // Keep minimum 0, but allow exceeding 100%
     }
 
@@ -54,8 +54,8 @@ public static class BattleCalculations
     /// <returns>Evasion percentage with random flavor applied (minimum 0, no maximum limit)</returns>
     public static int ApplyEvasionFlavor(int baseEvasion, Random random)
     {
-        var flavorRange = Models.BattleBasicDefines.EvasionFlavorRange * 2 + 1; // -range to +range
-        var flavor = random.Next(flavorRange) - Models.BattleBasicDefines.EvasionFlavorRange;
+        var flavorRange = BattleBasicDefines.EvasionFlavorRange * 2 + 1; // -range to +range
+        var flavor = random.Next(flavorRange) - BattleBasicDefines.EvasionFlavorRange;
         return Math.Max(0, baseEvasion + flavor); // Keep minimum 0, but allow exceeding 100%
     }
 }

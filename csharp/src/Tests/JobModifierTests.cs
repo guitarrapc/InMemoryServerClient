@@ -1,6 +1,5 @@
 ﻿using BattleLogic;
 using Microsoft.Extensions.Logging;
-using BattleLogic.Models;
 using BattleLogic.Interfaces;
 using Shared;
 using InMemoryServer.BattleAbstraction;

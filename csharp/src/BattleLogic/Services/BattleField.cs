@@ -1,6 +1,4 @@
-using BattleLogic.Models;
-
-namespace BattleLogic.Battle;
+﻿namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles battle field management
@@ -12,7 +10,7 @@ public class BattleField
 
     public BattleField(Random random)
     {
-        _field = new string[BattleBasicDefines.BattleFieldHeight, BattleBasicDefines.BattleFieldWidth];
+        _field = new string[BattleSystemDefines.BattleFieldHeight, BattleSystemDefines.BattleFieldWidth];
         _random = random;
         ClearField();
     }
@@ -22,9 +20,9 @@ public class BattleField
     /// </summary>
     public void ClearField()
     {
-        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
+        for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
         {
-            for (int x = 0; x < BattleBasicDefines.BattleFieldWidth; x++)
+            for (int x = 0; x < BattleSystemDefines.BattleFieldWidth; x++)
             {
                 _field[y, x] = null;
             }
@@ -50,8 +48,8 @@ public class BattleField
             int attempts = 0;
             while (attempts < 100) // Prevent infinite loop
             {
-                int x = _random.Next(BattleBasicDefines.BattleFieldWidth);
-                int y = BattleBasicDefines.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
+                int x = _random.Next(BattleSystemDefines.BattleFieldWidth);
+                int y = BattleSystemDefines.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
 
                 if (IsValidPosition(x, y) && _field[y, x] == null)
                 {
@@ -74,7 +72,7 @@ public class BattleField
             int attempts = 0;
             while (attempts < 100) // Prevent infinite loop
             {
-                int x = _random.Next(BattleBasicDefines.BattleFieldWidth);
+                int x = _random.Next(BattleSystemDefines.BattleFieldWidth);
                 int y = _random.Next(0, 7); // Top 7 rows
 
                 if (IsValidPosition(x, y) && _field[y, x] == null)
@@ -93,8 +91,8 @@ public class BattleField
     /// </summary>
     public bool IsValidPosition(int x, int y)
     {
-        return x >= 0 && x < BattleBasicDefines.BattleFieldWidth &&
-               y >= 0 && y < BattleBasicDefines.BattleFieldHeight;
+        return x >= 0 && x < BattleSystemDefines.BattleFieldWidth &&
+               y >= 0 && y < BattleSystemDefines.BattleFieldHeight;
     }
 
     /// <summary>
@@ -149,18 +147,18 @@ public class BattleField
     /// </summary>
     public ReadOnlyMemory<ReadOnlyMemory<string?>> GetFieldSnapshot()
     {
-        var cells = new string?[BattleBasicDefines.BattleFieldHeight][];
-        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
+        var cells = new string?[BattleSystemDefines.BattleFieldHeight][];
+        for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
         {
-            cells[y] = new string?[BattleBasicDefines.BattleFieldWidth];
-            for (int x = 0; x < BattleBasicDefines.BattleFieldWidth; x++)
+            cells[y] = new string?[BattleSystemDefines.BattleFieldWidth];
+            for (int x = 0; x < BattleSystemDefines.BattleFieldWidth; x++)
             {
                 cells[y][x] = _field[y, x];
             }
         }
 
-        var rowMemories = new ReadOnlyMemory<string?>[BattleBasicDefines.BattleFieldHeight];
-        for (int y = 0; y < BattleBasicDefines.BattleFieldHeight; y++)
+        var rowMemories = new ReadOnlyMemory<string?>[BattleSystemDefines.BattleFieldHeight];
+        for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
         {
             rowMemories[y] = cells[y].AsMemory();
         }

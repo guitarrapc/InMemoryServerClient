@@ -214,3 +214,66 @@ public readonly struct BattleReplayData
     /// </summary>
     public bool IsLastChunk { get; init; }
 }
+
+/// <summary>
+/// Battle summary information
+/// </summary>
+public readonly struct BattleSummary
+{
+    /// <summary>
+    /// Battle ID
+    /// </summary>
+    public required string Id { get; init; }
+
+    /// <summary>
+    /// Associated group ID
+    /// </summary>
+    public required string GroupId { get; init; }
+
+    /// <summary>
+    /// Current turn
+    /// </summary>
+    public int CurrentTurn { get; init; }
+
+    /// <summary>
+    /// Number of players
+    /// </summary>
+    public int PlayerCount { get; init; }
+
+    /// <summary>
+    /// Number of enemies
+    /// </summary>
+    public int EnemyCount { get; init; }
+
+    /// <summary>
+    /// Battle started time
+    /// </summary>
+    public DateTime StartedAt { get; init; }
+}
+
+
+
+/// <summary>
+/// Battle log item
+/// </summary>
+public readonly struct BattleLogItem
+{
+    /// <summary>
+    /// Log message
+    /// </summary>
+    public readonly string Message { get; init; }
+
+    /// <summary>
+    /// Timestamp
+    /// </summary>
+    public readonly DateTime Timestamp { get; init; }
+
+    /// <summary>
+    /// Creates a new battle log item
+    /// </summary>
+    public BattleLogItem(string message)
+    {
+        Message = message;
+        Timestamp = DateTime.UtcNow;
+    }
+}

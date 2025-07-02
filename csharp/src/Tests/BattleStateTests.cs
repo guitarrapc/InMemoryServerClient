@@ -1,7 +1,6 @@
 ﻿using BattleLogic;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using BattleLogic.Models;
 using BattleLogic.Interfaces;
 using Shared;
 

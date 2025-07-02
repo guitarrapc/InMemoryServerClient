@@ -1,4 +1,4 @@
-using BattleLogic.Models;
+﻿using BattleLogic.Models;
 using Microsoft.Extensions.Logging;
 
 namespace BattleLogic.Battle;
@@ -104,7 +104,7 @@ public class BattleAI(BattleUtilities utilities, ILogger logger)
 
             if (adjacentTarget.Value.IsDefending)
             {
-                expectedDamage = expectedDamage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100.0f;
+                expectedDamage = expectedDamage * (100 - BattleSystemDefines.DefenseDamageReductionPercent) / 100.0f;
                 expectedDamage = Math.Max(1.0f, expectedDamage);
             }
 

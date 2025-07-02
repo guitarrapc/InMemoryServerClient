@@ -1,7 +1,4 @@
-﻿using BattleLogic.Models;
-using BattleLogic.Services;
-
-namespace BattleLogic.Battle;
+﻿namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles combat calculations and damage processing
@@ -36,7 +33,7 @@ public class BattleCombat(Random random, BattleField battleField, BattleUtilitie
         // Apply damage reduction if target is defending
         if (target.IsDefending)
         {
-            damage = damage * (100 - BattleBasicDefines.DefenseDamageReductionPercent) / 100;
+            damage = damage * (100 - BattleSystemDefines.DefenseDamageReductionPercent) / 100;
             damage = Math.Max(1, damage); // Minimum 1 damage
         }
 
@@ -77,6 +74,6 @@ public class BattleCombat(Random random, BattleField battleField, BattleUtilitie
     public void ExecuteDefend(EntityInfo entity, List<EntityInfo> players, List<EntityInfo> enemies, List<string> battleLogs)
     {
         utilities.UpdateEntityDefending(entity, true, players, enemies);
-        battleLogs.Add($"{entity.Name} takes a defensive stance, reducing incoming damage by {BattleBasicDefines.DefenseDamageReductionPercent}%.");
+        battleLogs.Add($"{entity.Name} takes a defensive stance, reducing incoming damage by {BattleSystemDefines.DefenseDamageReductionPercent}%.");
     }
 }

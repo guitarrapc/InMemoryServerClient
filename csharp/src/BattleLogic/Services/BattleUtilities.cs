@@ -1,6 +1,4 @@
-using BattleLogic.Models;
-
-namespace BattleLogic.Battle;
+﻿namespace BattleLogic.Services;
 
 /// <summary>
 /// Utility functions for battle operations
@@ -229,8 +227,8 @@ public class BattleUtilities
                 int checkY = target.Position.Y + dy;
 
                 // Check if position is valid
-                if (checkX >= 0 && checkX < BattleBasicDefines.BattleFieldWidth &&
-                    checkY >= 0 && checkY < BattleBasicDefines.BattleFieldHeight)
+                if (checkX >= 0 && checkX < BattleSystemDefines.BattleFieldWidth &&
+                    checkY >= 0 && checkY < BattleSystemDefines.BattleFieldHeight)
                 {
                     // Check if an ally is at that position
                     foreach (var ally in allies)

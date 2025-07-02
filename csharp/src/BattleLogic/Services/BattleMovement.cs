@@ -1,6 +1,6 @@
 ﻿using BattleLogic.Models;
 
-namespace BattleLogic.Battle;
+namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles entity movement logic
@@ -80,7 +80,7 @@ public class BattleMovement(Random random, BattleField battleField, BattleUtilit
         else if (xDistance > yDistance)
         {
             // Prioritize horizontal movement
-            if (dx == 0) dx = xDistance == 0 ? (random.Next(2) == 0 ? 1 : -1) : Math.Sign(xDistance);
+            if (dx == 0) dx = xDistance == 0 ? random.Next(2) == 0 ? 1 : -1 : Math.Sign(xDistance);
 
             directions.Add((dx, 0, 1));
             directions.Add((dx, dy, 2));
@@ -89,7 +89,7 @@ public class BattleMovement(Random random, BattleField battleField, BattleUtilit
         else
         {
             // Prioritize vertical movement
-            if (dy == 0) dy = yDistance == 0 ? (random.Next(2) == 0 ? 1 : -1) : Math.Sign(yDistance);
+            if (dy == 0) dy = yDistance == 0 ? random.Next(2) == 0 ? 1 : -1 : Math.Sign(yDistance);
 
             directions.Add((0, dy, 1));
             directions.Add((dx, dy, 2));
