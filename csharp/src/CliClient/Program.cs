@@ -2,8 +2,6 @@
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts;
-using Shared.Models;
 
 // Create ConsoleApp with dependency injection
 var app = ConsoleApp.Create()
@@ -24,19 +22,7 @@ var app = ConsoleApp.Create()
     })
     .ConfigureServices((context, services) =>
     {
-        // Protocol-independent client registration
-        services.AddSingleton<IBattleClient>(provider =>
-        {
-            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
-
-            // Read connection type from configuration with fallback to SignalR
-            var connectionTypeString = "SignalR";
-            var connectionType = Enum.Parse<ConnectionType>(connectionTypeString);
-
-            return BattleClientFactory.Create(connectionType, loggerFactory);
-        });
-
-        services.AddSingleton<MultiClientManager>();
+        services.AddSingleton<MultiBattleClientManager>();
     });
 
 // Add commands

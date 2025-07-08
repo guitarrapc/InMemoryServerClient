@@ -8,9 +8,9 @@ namespace CliClient;
 /// Service to manage multiple independent client instances
 /// Protocol-independent implementation
 /// </summary>
-public class MultiClientManager(ILoggerFactory loggerFactory)
+public class MultiBattleClientManager(ILoggerFactory loggerFactory)
 {
-    private readonly ILogger<MultiClientManager> _logger = loggerFactory.CreateLogger<MultiClientManager>();
+    private readonly ILogger<MultiBattleClientManager> _logger = loggerFactory.CreateLogger<MultiBattleClientManager>();
     private readonly List<IBattleClient> _clients = [];
 
     /// <summary>

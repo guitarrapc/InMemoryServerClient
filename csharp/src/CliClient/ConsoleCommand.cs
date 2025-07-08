@@ -1,6 +1,7 @@
 ﻿using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Shared.Contracts;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CliClient;
 
@@ -19,8 +20,10 @@ internal readonly record struct ConnectionOptions
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class ConsoleCommand(IBattleClient client, MultiClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
+public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
 {
+    private IBattleClient? _client;
+
     /// <summary>Start interactive mode</summary>
     [Command("")]
     public async Task InteractiveAsync()
@@ -72,7 +75,7 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
                         break;
 
                     case "status":
-                        Status();
+                        await StatusAsync();
                         break;
 
                     case "server-status":
@@ -172,10 +175,9 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             }
         }
 
-        // Ensure disconnection on exit
-        if (client.IsConnected)
+        if (_client is not null)
         {
-            await client.DisconnectAsync();
+            await _client.DisposeAsync();
         }
     }
 
@@ -188,7 +190,8 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     {
         try
         {
-            if (await client.ConnectAsync(url, group))
+            _client = BattleClientFactory.Create(loggerFactory);
+            if (await _client.ConnectAsync(url, group))
             {
                 logger.LogInformation($"Connected to server: {url}");
                 if (!string.IsNullOrEmpty(group))
@@ -210,9 +213,10 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     }
 
     /// <summary>Check connection status</summary>
-    private void Status()
+    private async Task StatusAsync()
     {
-        logger.LogInformation($"Connection status: {(client.IsConnected ? "Connected" : "Disconnected")}");
+        EnsureConnected();
+        logger.LogInformation($"Connection status: {(_client.IsConnected ? "Connected" : "Disconnected")}");
     }
 
     /// <summary>Get value by key</summary>
@@ -226,9 +230,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
-            var value = await client.GetAsync(key);
+            var value = await _client.GetAsync(key);
             if (value != null)
             {
                 logger.LogInformation($"{key} = {value}");
@@ -264,9 +270,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
-            if (await client.SetAsync(key, value))
+            if (await _client.SetAsync(key, value))
             {
                 logger.LogInformation($"Key {key} set to: {value}");
             }
@@ -294,9 +302,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
-            if (await client.DeleteAsync(key))
+            if (await _client.DeleteAsync(key))
             {
                 logger.LogInformation($"Key deleted: {key}");
             }
@@ -317,9 +327,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     /// <param name="pattern">-p, The pattern to match</param>
     private async Task ListAsync(string pattern = "*")
     {
+        EnsureConnected();
+
         try
         {
-            var keys = await client.ListAsync(pattern);
+            var keys = await _client.ListAsync(pattern);
             logger.LogInformation($"Keys matching pattern '{pattern}':");
             foreach (var key in keys)
             {
@@ -344,9 +356,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
-            await client.WatchAsync(key);
+            await _client.WatchAsync(key);
             logger.LogInformation($"Watching key: {key}");
         }
         catch (Exception ex)
@@ -367,9 +381,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
-            if (await client.JoinGroupAsync(groupName))
+            if (await _client.JoinGroupAsync(groupName))
             {
                 logger.LogInformation($"Joined group: {groupName}");
             }
@@ -397,9 +413,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
-            if (await client.BroadcastAsync(message))
+            if (await _client.BroadcastAsync(message))
             {
                 logger.LogInformation($"Message broadcasted: {message}");
             }
@@ -419,9 +437,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     /// <summary>Get list of available groups</summary>
     private async Task GroupsAsync()
     {
+        EnsureConnected();
+
         try
         {
-            var groups = await client.GetGroupsAsync();
+            var groups = await _client.GetGroupsAsync();
             logger.LogInformation("Available groups:");
             foreach (var group in groups)
             {
@@ -438,9 +458,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     /// <summary>Get current group information</summary>
     private async Task MyGroupAsync()
     {
+        EnsureConnected();
+
         try
         {
-            var currentGroup = await client.GetMyGroupAsync();
+            var currentGroup = await _client.GetMyGroupAsync();
             if (currentGroup != null)
             {
                 logger.LogInformation($"Current group: {currentGroup}");
@@ -460,9 +482,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     /// <summary>Get battle status</summary>
     private async Task BattleStatusAsync()
     {
+        EnsureConnected();
+
         try
         {
-            var battleStatus = await client.GetBattleStatusAsync();
+            var battleStatus = await _client.GetBattleStatusAsync();
             if (battleStatus != null)
             {
                 if (battleStatus.IsInProgress)
@@ -531,10 +555,12 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             return;
         }
 
+        EnsureConnected();
+
         try
         {
             logger.LogInformation($"Requesting battle replay for battle {battleId}...");
-            var replayData = await client.GetBattleReplayAsync(battleId);
+            var replayData = await _client.GetBattleReplayAsync(battleId);
             if (replayData is null)
             {
                 logger.LogInformation($"Replay data not found for battle: {battleId}");
@@ -557,7 +583,7 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
             else
             {
                 // Play the battle replay using InMemoryClient's replay functionality
-                await client.PlayBattleReplayAsync(replayData.Value);
+                await _client.PlayBattleReplayAsync(replayData.Value);
             }
         }
         catch (Exception ex)
@@ -570,9 +596,11 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     /// <summary>Disconnect from server</summary>
     private async Task DisconnectAsync()
     {
+        EnsureConnected();
+
         try
         {
-            await client.DisconnectAsync();
+            await _client.DisconnectAsync();
             logger.LogInformation("Disconnected from server");
         }
         catch (Exception ex)
@@ -585,15 +613,17 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
     /// <summary>Get server status</summary>
     private async Task ServerStatusAsync()
     {
+        EnsureConnected();
+
         try
         {
-            if (!client.IsConnected)
+            if (!_client.IsConnected)
             {
                 logger.LogInformation("Not connected to server. Connect first.");
                 Environment.ExitCode = 1;
                 return;
             }
-            var serverStatus = await client.GetServerStatusAsync();
+            var serverStatus = await _client.GetServerStatusAsync();
             logger.LogInformation("============ SERVER STATUS ============");
             logger.LogInformation($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
             logger.LogInformation($"Total Connections: {serverStatus.TotalConnections}");
@@ -650,10 +680,10 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
                 logger.LogInformation($"If this completes the group (5 sessions), a battle should start automatically!");
 
                 // バトルの完了を待機
-                logger.LogInformation("Waiting for pre-compute battle complete...");
-
+                logger.LogInformation("Waiting for battle complete...");
                 await multiClientManager.WaitForBattleCompletionAsync();
-                logger.LogInformation("Pre-compute battle completed successfully!");
+
+                logger.LogInformation("Battle completed successfully!");
             }
             else
             {
@@ -799,4 +829,14 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
           help                   - Show this help
         """);
     }
+
+    [MemberNotNull(nameof(_client))]
+    private void EnsureConnected()
+    {
+        if (_client is null)
+        {
+            throw new InvalidOperationException("Not connected to server");
+        }
+    }
+
 }
