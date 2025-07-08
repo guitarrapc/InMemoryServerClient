@@ -650,10 +650,10 @@ public class ConsoleCommand(IBattleClient client, MultiClientManager multiClient
                 logger.LogInformation($"If this completes the group (5 sessions), a battle should start automatically!");
 
                 // バトルの完了を待機
-                logger.LogInformation("Waiting for battle to complete...");
+                logger.LogInformation("Waiting for pre-compute battle complete...");
 
                 await multiClientManager.WaitForBattleCompletionAsync();
-                logger.LogInformation("Battle completed successfully!");
+                logger.LogInformation("Pre-compute battle completed successfully!");
             }
             else
             {
