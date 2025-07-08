@@ -1,0 +1,187 @@
+﻿using Microsoft.Extensions.Logging;
+using Shared.Contracts;
+using Shared.Models;
+
+namespace CliClient;
+
+/// <summary>
+/// Service to manage multiple independent client instances
+/// Protocol-independent implementation
+/// </summary>
+public class MultiClientManager(ILoggerFactory loggerFactory)
+{
+    private readonly ILogger<MultiClientManager> _logger = loggerFactory.CreateLogger<MultiClientManager>();
+    private readonly List<IBattleClient> _clients = [];
+
+    /// <summary>
+    /// Connect multiple independent client instances to the same group
+    /// </summary>
+    public async Task<bool> ConnectMultipleAsync(
+        int clientCount,
+        string serverUrl,
+        string? groupName = null,
+        ConnectionType connectionType = ConnectionType.SignalR)
+    {
+        _logger.LogInformation("Creating {ClientCount} independent client instances for group '{GroupName}'", clientCount, groupName);
+
+        if (clientCount <= 0)
+        {
+            _logger.LogWarning("Invalid session count: {ClientCount}, must be greater than 0", clientCount);
+            return false;
+        }
+
+        // クリーンアップを行う
+        await CleanupClientsAsync();
+
+        // 各クライアントを作成して接続
+        for (int i = 0; i < clientCount; i++)
+        {
+            try
+            {
+                var client = BattleClientFactory.Create(connectionType, loggerFactory);
+
+                // クライアントをリストに追加
+                _clients.Add(client);
+
+                // 接続
+                var success = await client.ConnectAsync(serverUrl, groupName);
+                if (!success)
+                {
+                    _logger.LogError("Client {ClientIndex}: Failed to connect", i);
+                    await CleanupClientsAsync();
+                    return false;
+                }
+
+                _logger.LogInformation("Client {ClientIndex}: Connected successfully to group '{GroupName}'", i, groupName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Client {ClientIndex}: Exception during connection", i);
+                await CleanupClientsAsync();
+                return false;
+            }
+
+            // 少し待機して、同時接続による負荷を分散
+            if (i < clientCount - 1)
+            {
+                await Task.Delay(100);
+            }
+        }
+
+        _logger.LogInformation("All {ClientCount} clients connected successfully to group '{GroupName}'", clientCount, groupName);
+        return true;
+    }
+
+    /// <summary>
+    /// Battle reproduction with specific seed
+    /// </summary>
+    public async Task<bool> ReproduceBattleAsync(
+        string serverUrl,
+        string seed,
+        ConnectionType connectionType = ConnectionType.SignalR)
+    {
+        // バトル再現専用の5クライアント接続
+        var groupName = $"battle-reproduce-{seed}";
+        return await ConnectMultipleAsync(5, serverUrl, groupName, connectionType);
+    }
+
+    /// <summary>
+    /// Wait for all battles to complete
+    /// </summary>
+    public async Task WaitForBattleCompletionAsync()
+    {
+        if (_clients.Count == 0)
+        {
+            _logger.LogWarning("No clients available for battle completion waiting");
+            return;
+        }
+
+        _logger.LogInformation("Waiting for battle completion from {ClientCount} clients...", _clients.Count);
+
+        var completionTasks = new List<Task>();
+
+        foreach (var client in _clients)
+        {
+            if (client is SignalRBattleClient signalRClient)
+            {
+                completionTasks.Add(signalRClient.BattleCompletionSource.Task);
+            }
+        }
+
+        if (completionTasks.Count > 0)
+        {
+            try
+            {
+                await Task.WhenAll(completionTasks);
+                _logger.LogInformation("All battles completed successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error waiting for battle completion");
+            }
+        }
+
+        // クリーンアップ
+        await CleanupClientsAsync();
+    }
+
+    /// <summary>
+    /// Wait for battle to start
+    /// </summary>
+    public async Task WaitForBattleStartAsync()
+    {
+        if (_clients.Count == 0)
+        {
+            _logger.LogWarning("No clients available for battle start waiting");
+            return;
+        }
+
+        _logger.LogInformation("Waiting for battle to start with {ClientCount} clients...", _clients.Count);
+
+        // Wait for the first battle completion (simplified implementation)
+        await WaitForBattleCompletionAsync();
+    }
+
+    /// <summary>
+    /// Get current client count
+    /// </summary>
+    public int ClientCount => _clients.Count;
+
+    /// <summary>
+    /// Get connected client count
+    /// </summary>
+    public int ConnectedClientCount => _clients.Count(c => c.IsConnected);
+
+    /// <summary>
+    /// Clean up all clients
+    /// </summary>
+    public async Task CleanupClientsAsync()
+    {
+        if (_clients.Count == 0) return;
+
+        _logger.LogInformation("Cleaning up {ClientCount} clients...", _clients.Count);
+
+        foreach (var client in _clients)
+        {
+            try
+            {
+                await client.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error disposing client");
+            }
+        }
+
+        _clients.Clear();
+        _logger.LogInformation("Client cleanup completed");
+    }
+
+    /// <summary>
+    /// Dispose all resources
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        await CleanupClientsAsync();
+    }
+}

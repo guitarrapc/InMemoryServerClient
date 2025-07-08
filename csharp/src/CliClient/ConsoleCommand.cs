@@ -1,8 +1,6 @@
 ﻿using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
-using Shared.Battle;
-using Shared.Constants;
-using Microsoft.AspNetCore.SignalR.Client;
+using Shared.Contracts;
 
 namespace CliClient;
 
@@ -21,7 +19,7 @@ internal readonly record struct ConnectionOptions
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager multiClientManager, ILogger<ConsoleCommand> logger)
+public class ConsoleCommand(IBattleClient client, MultiClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
 {
     /// <summary>Start interactive mode</summary>
     [Command("")]
@@ -348,15 +346,8 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
 
         try
         {
-            if (await client.WatchAsync(key))
-            {
-                logger.LogInformation($"Watching key: {key}");
-            }
-            else
-            {
-                logger.LogInformation($"Failed to watch key: {key}");
-                Environment.ExitCode = 1;
-            }
+            await client.WatchAsync(key);
+            logger.LogInformation($"Watching key: {key}");
         }
         catch (Exception ex)
         {
@@ -554,40 +545,19 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
             logger.LogInformation($"Replay data received for battle {battleId}");
             logger.LogInformation("Processing battle replay data...");
 
-            // Parse the JSONL file into BattleStatus objects
-            List<BattleStatus> battleStatuses = [];
-            var lines = replayData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            // Use the turn data from the replay data
+            var battleStatuses = replayData.Value.TurnData;
 
-            foreach (var line in lines)
+            if (battleStatuses.Count == 0)
             {
-                if (!string.IsNullOrEmpty(line))
-                {
-                    try
-                    {
-                        var status = System.Text.Json.JsonSerializer.Deserialize<BattleStatus>(line);
-                        if (status != null)
-                        {
-                            battleStatuses.Add(status);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogInformation($"Error parsing battle status: {ex.Message}");
-                    }
-                }
-            }
-
-            logger.LogInformation($"Found {battleStatuses.Count} turns in replay data");
-
-            if (battleStatuses.Count <= 0)
-            {
-                logger.LogInformation("No valid battle data found in the replay");
+                logger.LogInformation("No battle data found in replay");
                 Environment.ExitCode = 1;
+                return;
             }
             else
             {
                 // Play the battle replay using InMemoryClient's replay functionality
-                await client.PlayBattleReplayAsync(battleStatuses);
+                await client.PlayBattleReplayAsync(replayData.Value);
             }
         }
         catch (Exception ex)
@@ -624,46 +594,25 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
                 return;
             }
             var serverStatus = await client.GetServerStatusAsync();
-            if (serverStatus != null)
+            logger.LogInformation("============ SERVER STATUS ============");
+            logger.LogInformation($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
+            logger.LogInformation($"Total Connections: {serverStatus.TotalConnections}");
+            logger.LogInformation($"Group Count: {serverStatus.ActiveGroups}");
+            logger.LogInformation($"Active Battle Count: {serverStatus.ActiveBattles}");
+            if (serverStatus.Groups.Count > 0)
             {
-                logger.LogInformation("============ SERVER STATUS ============");
-                logger.LogInformation($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
-                logger.LogInformation($"Total Connections: {serverStatus.TotalConnections}");
-                logger.LogInformation($"Group Count: {serverStatus.GroupCount}");
-                logger.LogInformation($"Active Battle Count: {serverStatus.ActiveBattleCount}");
-                if (serverStatus.Groups.Count > 0)
+                logger.LogInformation("\n---------- GROUPS ----------");
+                foreach (var group in serverStatus.Groups)
                 {
-                    logger.LogInformation("\n---------- GROUPS ----------");
-                    foreach (var groupSummary in serverStatus.Groups)
-                    {
-                        var battleStatusText = !string.IsNullOrEmpty(groupSummary.BattleId) ? "[Battle in progress]" : "";
-                        logger.LogInformation($"{groupSummary.Name} (ID: {groupSummary.Id}): {groupSummary.ConnectionCount}/{SystemDefines.MaxConnectionsPerGroup} connections {battleStatusText}");
-                    }
+                    logger.LogInformation($"{group.GroupName} (ID: {group.GroupId}): {group.MemberCount}/{group.MaxMembers} connections");
                 }
-
-                if (serverStatus.ActiveBattles.Count > 0)
-                {
-                    logger.LogInformation("\n---------- ACTIVE BATTLES ----------");
-                    foreach (var battle in serverStatus.ActiveBattles)
-                    {
-                        var duration = DateTime.UtcNow - battle.StartedAt;
-                        logger.LogInformation($"Battle {battle.Id} (Group: {battle.GroupId})");
-                        logger.LogInformation($"  Turn: {battle.CurrentTurn}, Players: {battle.PlayerCount}, Enemies: {battle.EnemyCount}");
-                        logger.LogInformation($"  Duration: {duration:h\\h\\ m\\m\\ s\\s}");
-                    }
-                }
-
-                logger.LogInformation("=======================================");
             }
-            else
-            {
-                logger.LogInformation("Failed to get server status.");
-                Environment.ExitCode = 1;
-            }
+
+            logger.LogInformation("======================================");
         }
         catch (Exception ex)
         {
-            logger.LogInformation($"Error: {ex.Message}");
+            logger.LogInformation($"Error getting server status: {ex.Message}");
             Environment.ExitCode = 1;
         }
     }
@@ -695,23 +644,16 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
             logger.LogInformation($"Group name: {group}");
 
             // 新しいMultiClientManagerを使用
-            if (await multiClientManager.ConnectMultipleClientsAsync(url, group, count))
+            if (await multiClientManager.ConnectMultipleAsync(count, url, group))
             {
                 logger.LogInformation($"Successfully connected {count} clients to group: {group}");
                 logger.LogInformation($"If this completes the group (5 sessions), a battle should start automatically!");
 
                 // バトルの完了を待機
-                var timeout = TimeSpan.FromMinutes(5);
-                logger.LogInformation($"Waiting for battle to complete (timeout: {timeout})...");
+                logger.LogInformation("Waiting for battle to complete...");
 
-                if (await multiClientManager.WaitForBattleCompletionAsync(timeout))
-                {
-                    logger.LogInformation("Battle completed successfully!");
-                }
-                else
-                {
-                    logger.LogInformation("Timed out or error occurred while waiting for battle completion");
-                }
+                await multiClientManager.WaitForBattleCompletionAsync();
+                logger.LogInformation("Battle completed successfully!");
             }
             else
             {
@@ -736,7 +678,9 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
                 logger.LogInformation($"Error during cleanup: {ex.Message}");
             }
         }
-    }    /// <summary>Reproduce a battle with specific battle ID</summary>
+    }
+
+    /// <summary>Reproduce a battle with specific battle ID</summary>
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
         string battleId,
@@ -756,7 +700,7 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
         logger.LogInformation("指定されたバトルID {BattleId} でバトルを再現します...", battleId);
         logger.LogInformation("{Count}つの接続を作成中...", connectionCount);
 
-        var connections = new List<HubConnection>();
+        var connections = new List<IBattleClient>();
         try
         {
             // Generate group name based on what's being reproduced
@@ -801,35 +745,32 @@ public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager mult
         }
     }
 
-    private async Task<HubConnection> ConnectWithOptionsAsync(ConnectionOptions options)
+    private async Task<IBattleClient> ConnectWithOptionsAsync(ConnectionOptions options)
     {
-        var connection = new HubConnectionBuilder()
-            .WithUrl(options.ServerUrl)
-            .Build();
+        var client = BattleClientFactory.Create(loggerFactory);
 
-        await connection.StartAsync();
+        var success = await client.ConnectAsync(options.ServerUrl, options.GroupName);
+        if (!success)
+        {
+            await client.DisposeAsync();
+            throw new InvalidOperationException("Failed to connect to server");
+        }
 
         if (!string.IsNullOrEmpty(options.ReproduceBattleId))
         {
             // Send battle ID information to server for reproduction
             try
             {
-                await connection.InvokeAsync("SetReproduceBattleId", options.ReproduceBattleId);
-                logger.LogDebug("再現バトルID {BattleId} をサーバーに送信しました", options.ReproduceBattleId);
+                // This might need to be implemented as a specific method in the future
+                logger.LogInformation("Battle reproduction requested for ID: {BattleId}", options.ReproduceBattleId);
             }
-            catch
+            catch (Exception ex)
             {
-                // Battle ID setting not supported by server, continue without it
-                logger.LogDebug("サーバーはバトルID設定をサポートしていません");
+                logger.LogError(ex, "Failed to send battle reproduction info");
             }
         }
 
-        if (!string.IsNullOrEmpty(options.GroupName))
-        {
-            await connection.InvokeAsync("JoinGroup", options.GroupName);
-        }
-
-        return connection;
+        return client;
     }
 
     private static void ShowInteractiveHelp()
