@@ -247,6 +247,7 @@ internal class SignalRBattleClient : IBattleClient
         }
 
         _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS", battleStatuses.Count, BattleReplayFps);
+        _logger.LogInformation("[BATTLE REPLAY] ========== Starting Battle Replay ==========");
 
         // Play battle replay
         for (int i = 0; i < battleStatuses.Count; i++)
@@ -255,6 +256,41 @@ internal class SignalRBattleClient : IBattleClient
             DisplayBattleStatus(status, i + 1, battleStatuses.Count);
             await Task.Delay(BattleReplayFrameTimeMs);
         }
+
+        // Display final results
+        var finalStatus = battleStatuses.Last();
+        var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
+        var finalAliveEnemies = finalStatus.Enemies.Count(e => e.CurrentHp > 0);
+
+        _logger.LogInformation("[BATTLE REPLAY] ========== Battle Replay Completed! ==========");
+
+        if (finalAliveEnemies == 0)
+        {
+            _logger.LogInformation("[BATTLE REPLAY] 🎉 Victory! All enemies defeated! 🎉");
+            _logger.LogInformation("[BATTLE REPLAY] Surviving players: {AlivePlayers}/{TotalPlayers}", finalAlivePlayers, finalStatus.Players.Count);
+
+            // Show surviving players stats
+            foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
+            {
+                var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                _logger.LogInformation("[BATTLE REPLAY] {PlayerName}: HP {CurrentHp}/{MaxHp} {HealthBar}", player.Name, player.CurrentHp, player.MaxHp, healthBar);
+            }
+        }
+        else
+        {
+            _logger.LogInformation("[BATTLE REPLAY] ❌ Defeat! All players defeated! ❌");
+            _logger.LogInformation("[BATTLE REPLAY] Remaining enemies: {AliveEnemies}/{TotalEnemies}", finalAliveEnemies, finalStatus.Enemies.Count);
+
+            // Show surviving enemy stats
+            foreach (var enemy in finalStatus.Enemies.Where(p => p.CurrentHp > 0))
+            {
+                var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 20);
+                _logger.LogInformation("[BATTLE REPLAY] {EnemyName}: HP {CurrentHp}/{MaxHp} {HealthBar}", enemy.Name, enemy.CurrentHp, enemy.MaxHp, healthBar);
+            }
+        }
+        _logger.LogInformation("[BATTLE REPLAY] Total turns: {TotalTurns}", finalStatus.CurrentTurn);
+        _logger.LogInformation("[BATTLE REPLAY] Battle ID: {BattleId} (replay completed)", finalStatus.BattleId);
+        _logger.LogInformation("[BATTLE REPLAY] ===============================================");
 
         // Notify completion
         try
@@ -275,11 +311,191 @@ internal class SignalRBattleClient : IBattleClient
 
     private void DisplayBattleStatus(BattleStatus status, int currentTurn, int totalTurns)
     {
-        // Display battle status (simplified)
-        var alivePlayerCount = status.Players.Count(e => e.CurrentHp > 0);
-        var aliveEnemyCount = status.Enemies.Count(e => e.CurrentHp > 0);
-        _logger.LogInformation("[BATTLE] Turn {CurrentTurn}/{TotalTurns} - Players: {AlivePlayerCount}, Enemies: {AliveEnemyCount}",
-            currentTurn, totalTurns, alivePlayerCount, aliveEnemyCount);
+        // Display only every 5th turn, plus the first and last turns
+        bool shouldDisplay = currentTurn == 1 || currentTurn == totalTurns || status.CurrentTurn % 5 == 0;
+
+        if (shouldDisplay)
+        {
+            // Display turn information
+            _logger.LogInformation("[BATTLE] ===== Turn {CurrentTurn}/{TotalTurns} =====", status.CurrentTurn, status.TotalTurns);
+
+            // Display visual battle field first for better overview
+            RenderBattleField(status);
+
+            // Display players info
+            var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+            _logger.LogInformation("[BATTLE] Players alive: {AlivePlayers}/{TotalPlayers}", alivePlayers, status.Players.Count);
+            foreach (var player in status.Players)
+            {
+                var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
+                var jobInfo = player.PlayerJob.HasValue ? $" ({player.PlayerJob})" : "";
+                _logger.LogInformation("[BATTLE] {PlayerName}{JobInfo}: HP {CurrentHp}/{MaxHp} {HealthBar} ATK:{Attack} DEF:{Defense} SPD:{Speed} Pos:{Position}",
+                    player.Name, jobInfo, player.CurrentHp, player.MaxHp, healthBar, player.Attack, player.Defense, player.Speed, player.Position);
+            }
+
+            // Display enemies info
+            var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+            _logger.LogInformation("[BATTLE] Enemies alive: {AliveEnemies}/{TotalEnemies}", aliveEnemies, status.Enemies.Count);
+            foreach (var enemy in status.Enemies.Where(x => x.CurrentHp > 0).Take(2)) // Show first 2 enemies to avoid spam
+            {
+                var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 10);
+                var jobInfo = enemy.EnemyJob.HasValue ? $" ({enemy.EnemyJob})" : "";
+                _logger.LogInformation("[BATTLE] {EnemyName}{JobInfo}: HP {CurrentHp}/{MaxHp} {HealthBar} ATK:{Attack} DEF:{Defense} SPD:{Speed} Pos:{Position}",
+                    enemy.Name, jobInfo, enemy.CurrentHp, enemy.MaxHp, healthBar, enemy.Attack, enemy.Defense, enemy.Speed, enemy.Position);
+            }
+
+            // Display recent logs
+            if (status.RecentLogs.Count > 0)
+            {
+                _logger.LogInformation("[BATTLE] Recent actions:");
+                foreach (var log in status.RecentLogs)
+                {
+                    _logger.LogInformation("[BATTLE] > {Log}", log);
+                }
+            }
+
+            _logger.LogInformation("[BATTLE] ========================================");
+        }
+        // else
+        // {
+        //     // Always show simple progress for every turn
+        //     var alivePlayerCount = status.Players.Count(e => e.CurrentHp > 0);
+        //     var aliveEnemyCount = status.Enemies.Count(e => e.CurrentHp > 0);
+        //     _logger.LogInformation("[BATTLE] Turn {CurrentTurn}/{TotalTurns} - Players: {AlivePlayerCount}, Enemies: {AliveEnemyCount}",
+        //         currentTurn, totalTurns, alivePlayerCount, aliveEnemyCount);
+        // }
+    }
+
+    /// <summary>
+    /// Generate a text-based health bar
+    /// </summary>
+    private string GenerateHealthBar(int current, int max, int length)
+    {
+        int filledLength = (int)Math.Round((double)current / max * length);
+
+        // ASCII-compatible characters for better Windows cmd.exe compatibility
+        string filled = new string('=', filledLength);
+        string empty = new string('-', length - filledLength);
+
+        return $"[{filled}{empty}]";
+    }
+
+    /// <summary>
+    /// Builds a 2D field array from player and enemy positions
+    /// </summary>
+    private string?[,] BuildBattleField(BattleStatus status)
+    {
+        var field = new string?[status.FieldHeight, status.FieldWidth];
+
+        // Place players on field
+        foreach (var player in status.Players)
+        {
+            if (player.CurrentHp > 0 &&
+                player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
+                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
+            {
+                field[player.Position.Y, player.Position.X] = player.Id;
+            }
+        }
+
+        // Place enemies on field
+        foreach (var enemy in status.Enemies)
+        {
+            if (enemy.CurrentHp > 0 &&
+                enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
+                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
+            {
+                field[enemy.Position.Y, enemy.Position.X] = enemy.Id;
+            }
+        }
+
+        return field;
+    }
+
+    /// <summary>
+    /// Renders a visual representation of the battle field using box-drawing characters
+    /// </summary>
+    private void RenderBattleField(BattleStatus status)
+    {
+        // First build the field with entity positions
+        var field = BuildBattleField(status);
+
+        // Calculate correct border width (each cell is 2 chars wide + separators)
+        // For a 20x20 field with 2 chars per cell and a space between: 20*2 + 19 = 59 chars total width
+        int borderWidth = status.FieldWidth * 2 + (status.FieldWidth - 1);
+
+        // Draw top border
+        _logger.LogInformation("[BATTLE FIELD] ┌{Border}┐", new string('─', borderWidth));
+
+        // Draw field rows
+        for (int y = 0; y < status.FieldHeight; y++)
+        {
+            var line = new System.Text.StringBuilder("│");
+
+            for (int x = 0; x < status.FieldWidth; x++)
+            {
+                var cellContent = field[y, x];
+
+                if (cellContent == null)
+                {
+                    // Empty cell
+                    line.Append("  ");
+                }
+                else
+                {
+                    // Determine if this is a player or enemy
+                    bool isPlayer = status.Players.Any(p => p.Id == cellContent);
+
+                    if (isPlayer)
+                    {
+                        // Player: P1, P2, etc.
+                        int playerIdx = status.Players.FindIndex(p => p.Id == cellContent) + 1;
+                        line.Append($"P{playerIdx}");
+                    }
+                    else
+                    {
+                        // Enemy: E1, E2, etc.
+                        int enemyIdx = status.Enemies.FindIndex(e => e.Id == cellContent) + 1;
+                        line.Append($"E{enemyIdx}");
+                    }
+                }
+
+                // Add separator except for the last column
+                if (x < status.FieldWidth - 1)
+                {
+                    line.Append(' ');
+                }
+            }
+
+            line.Append('│');
+            _logger.LogInformation("[BATTLE FIELD] {Line}", line.ToString());
+        }
+
+        // Draw bottom border with the same width as the top border
+        _logger.LogInformation("[BATTLE FIELD] └{Border}┘", new string('─', borderWidth));
+
+        // Add a legend for easier identification
+        var playerLegend = new System.Text.StringBuilder("Players: ");
+        for (int i = 0; i < status.Players.Count; i++)
+        {
+            var player = status.Players[i];
+            if (player.CurrentHp > 0)
+            {
+                playerLegend.Append($"P{i + 1}={player.Name}({player.CurrentHp}/{player.MaxHp}) ");
+            }
+        }
+        _logger.LogInformation("[BATTLE FIELD] {PlayerLegend}", playerLegend.ToString());
+
+        var enemyLegend = new System.Text.StringBuilder("Enemies: ");
+        for (int i = 0; i < status.Enemies.Count; i++)
+        {
+            var enemy = status.Enemies[i];
+            if (enemy.CurrentHp > 0)
+            {
+                enemyLegend.Append($"E{i + 1}={enemy.Name}({enemy.CurrentHp}/{enemy.MaxHp}) ");
+            }
+        }
+        _logger.LogInformation("[BATTLE FIELD] {EnemyLegend}", enemyLegend.ToString());
     }
 
     private void EnsureConnected()
@@ -298,50 +514,40 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<bool> JoinGroupAsync(string groupName)
     {
         EnsureConnected();
-        var groupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
-        if (!string.IsNullOrEmpty(groupId))
-        {
-            _currentGroupId = groupId;
-            return true;
-        }
-        return false;
+        _currentGroupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
+        _logger.LogInformation("Joined group: {GroupName} (ID: {GroupId})", groupName, _currentGroupId);
+        return !string.IsNullOrEmpty(_currentGroupId);
     }
 
     public async Task<bool> BroadcastMessageAsync(string message)
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("BroadcastMessageAsync", message);
-    }
-
-    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
+        return await _connection!.InvokeAsync<bool>("BroadcastAsync", message);
+    }    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
     {
         EnsureConnected();
-        var groups = await _connection!.InvokeAsync<GroupInfo[]>("GetGroupsAsync");
+        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
         return groups.Select(g => new ClientGroupInfo(
             g.Id,
             g.Name,
             g.ConnectionCount,
             g.MaxConnections,
-            g.ExpiresAt - DateTime.UtcNow // Remaining time
-        )).ToArray();
+            g.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
+        )).ToList();
     }
 
     public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
     {
-        if (string.IsNullOrEmpty(_currentGroupId))
-            return null;
-
         EnsureConnected();
-        var group = await _connection!.InvokeAsync<GroupInfo?>("GetGroupAsync", _currentGroupId);
-        if (group == null)
-            return null;
+        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
+        if (groupInfo == null) return null;
 
         return new ClientGroupInfo(
-            group.Id,
-            group.Name,
-            group.ConnectionCount,
-            group.MaxConnections,
-            group.ExpiresAt - DateTime.UtcNow // Remaining time
+            groupInfo.Id,
+            groupInfo.Name,
+            groupInfo.ConnectionCount,
+            groupInfo.MaxConnections,
+            groupInfo.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
         );
     }
 
@@ -366,22 +572,20 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<ServerStatusInfo> GetServerStatusAsync()
     {
         EnsureConnected();
-        var status = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
-
-        // Convert ServerStatus to ServerStatusInfo
-        var groups = status.Groups.Select(g => new ClientGroupInfo(
+        var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
+        var groups = serverStatus.Groups?.Select(g => new ClientGroupInfo(
             g.Id,
             g.Name,
             g.ConnectionCount,
-            5, // Max members (SystemDefines.MaxConnectionsPerGroup)
-            TimeSpan.Zero // RemainingTime - not available in current GroupSummary
-        )).ToArray();
+            5, // MaxMembers - hardcoded to 5 for battle groups
+            TimeSpan.Zero // RemainingTime - not available in GroupSummary
+        )).ToList() ?? [];
 
         return new ServerStatusInfo(
-            status.Uptime,
-            status.TotalConnections,
-            status.GroupCount,
-            status.ActiveBattleCount,
+            serverStatus.Uptime,
+            serverStatus.TotalConnections,
+            serverStatus.GroupCount,
+            serverStatus.ActiveBattleCount,
             groups
         );
     }
