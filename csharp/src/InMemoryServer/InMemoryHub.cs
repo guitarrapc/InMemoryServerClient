@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using BattleLogic.Battle;
 using BattleLogic.Models;
 using Shared.Battle;

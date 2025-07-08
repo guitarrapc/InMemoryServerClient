@@ -89,6 +89,7 @@ internal class SignalRBattleClient : IBattleClient
         {
             try
             {
+                _logger.LogInformation("Disconnecting from server");
                 await _connection.DisposeAsync();
                 _connection = null;
                 _currentGroupId = string.Empty;
@@ -291,19 +292,6 @@ internal class SignalRBattleClient : IBattleClient
         _logger.LogInformation("[BATTLE REPLAY] Total turns: {TotalTurns}", finalStatus.CurrentTurn);
         _logger.LogInformation("[BATTLE REPLAY] Battle ID: {BattleId} (replay completed)", finalStatus.BattleId);
         _logger.LogInformation("[BATTLE REPLAY] ===============================================");
-
-        // Notify completion
-        try
-        {
-            var result = await NotifyBattleReplayCompleteAsync();
-            _logger.LogInformation("[BATTLE] Replay completion notification sent. Result: {Result}", result);
-            _battleCompletionSource.TrySetResult(true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to notify battle replay completion");
-            _battleCompletionSource.TrySetException(ex);
-        }
 
         // Clean up
         _replayChunks.Clear();
@@ -561,12 +549,6 @@ internal class SignalRBattleClient : IBattleClient
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
-    }
-
-    public async Task<bool> NotifyBattleReplayCompleteAsync()
-    {
-        EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("NotifyBattleReplayCompleteAsync");
     }
 
     public async Task<ServerStatusInfo> GetServerStatusAsync()

@@ -1,4 +1,4 @@
-﻿using BattleLogic.Constans;
+using BattleLogic.Constans;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using BattleLogic.Models;
 using BattleLogic.Services;

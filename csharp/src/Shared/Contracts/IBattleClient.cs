@@ -111,11 +111,6 @@ public interface IBattleClient : IAsyncDisposable
     /// </summary>
     Task<BattleStatus?> GetBattleStatusAsync();
 
-    /// <summary>
-    /// Notify battle replay completion
-    /// </summary>
-    Task<bool> NotifyBattleReplayCompleteAsync();
-
     // Server status
     /// <summary>
     /// Get server status information

@@ -53,7 +53,6 @@ public interface IInMemoryServerClient : IAsyncDisposable
     // Battle operations
     Task<bool> ConfirmConnectionReadyAsync();
     Task<BattleStatus?> GetBattleStatusAsync();
-    Task<bool> NotifyBattleReplayCompleteAsync();
 
     // Server status
     Task<ServerStatusInfo> GetServerStatusAsync();
