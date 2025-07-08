@@ -21,7 +21,7 @@ internal readonly record struct ConnectionOptions
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class SignalRCommand(SignalRClient client, MultiSignalRClientManager multiClientManager, ILogger<SignalRCommand> logger)
+public class ConsoleCommand(SignalRClient client, MultiSignalRClientManager multiClientManager, ILogger<ConsoleCommand> logger)
 {
     /// <summary>Start interactive mode</summary>
     [Command("")]

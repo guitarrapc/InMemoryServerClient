@@ -27,7 +27,7 @@ var app = ConsoleApp.Create()
     });
 
 // Add commands
-app.Add<SignalRCommand>();
+app.Add<ConsoleCommand>();
 
 // Run the application
 app.Run(args);
