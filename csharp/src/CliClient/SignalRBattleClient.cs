@@ -295,6 +295,13 @@ internal class SignalRBattleClient : IBattleClient
 
         // Clean up
         _replayChunks.Clear();
+
+        // Signal that the battle is complete
+        _battleCompletionSource.TrySetResult(true);
+
+        // Auto-disconnect after replay completion
+        _logger.LogInformation("[BATTLE] Auto-disconnecting after battle replay completion");
+        await DisconnectAsync();
     }
 
     private void DisplayBattleStatus(BattleStatus status, int currentTurn, int totalTurns)
