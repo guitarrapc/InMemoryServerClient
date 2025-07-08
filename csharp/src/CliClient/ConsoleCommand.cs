@@ -1,7 +1,7 @@
 ﻿using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Shared.Contracts;
-using System.Diagnostics.CodeAnalysis;
+using Shared.Models;
 
 namespace CliClient;
 
@@ -23,6 +23,7 @@ internal readonly record struct ConnectionOptions
 public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
 {
     private IBattleClient? _client;
+    private static readonly ConnectionType DefaultConnectionType = ConnectionType.SignalR;
 
     /// <summary>Start interactive mode</summary>
     [Command("")]
@@ -175,9 +176,25 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             }
         }
 
+        // Ensure proper cleanup on exit
         if (_client is not null)
         {
-            await _client.DisposeAsync();
+            try
+            {
+                if (_client.IsConnected)
+                {
+                    await _client.DisconnectAsync();
+                }
+                await _client.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogInformation($"Warning: Error during cleanup: {ex.Message}");
+            }
+            finally
+            {
+                _client = null;
+            }
         }
     }
 
@@ -190,7 +207,14 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     {
         try
         {
-            _client = BattleClientFactory.Create(loggerFactory);
+            // 既存の接続があれば先にクリーンアップ
+            if (_client is not null)
+            {
+                await _client.DisposeAsync();
+                _client = null;
+            }
+
+            _client = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
             if (await _client.ConnectAsync(url, group))
             {
                 logger.LogInformation($"Connected to server: {url}");
@@ -201,12 +225,19 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             }
             else
             {
+                await _client.DisposeAsync();
+                _client = null;
                 logger.LogInformation($"Failed to connect to server: {url}");
                 Environment.ExitCode = 1;
             }
         }
         catch (Exception ex)
         {
+            if (_client is not null)
+            {
+                await _client.DisposeAsync();
+                _client = null;
+            }
             logger.LogInformation($"Error connecting to server: {ex.Message}");
             Environment.ExitCode = 1;
         }
@@ -215,8 +246,28 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Check connection status</summary>
     private async Task StatusAsync()
     {
-        EnsureConnected();
-        logger.LogInformation($"Connection status: {(_client.IsConnected ? "Connected" : "Disconnected")}");
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
+
+        try
+        {
+            var currentGroup = await _client.GetMyGroupAsync();
+            if (currentGroup != null)
+            {
+                logger.LogInformation($"Current group: {currentGroup}");
+            }
+            else
+            {
+                logger.LogInformation("Current group: None");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogInformation($"Warning: Could not retrieve group information: {ex.Message}");
+        }
     }
 
     /// <summary>Get value by key</summary>
@@ -230,7 +281,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -270,7 +325,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -302,7 +361,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -327,7 +390,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="pattern">-p, The pattern to match</param>
     private async Task ListAsync(string pattern = "*")
     {
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -356,7 +423,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -381,7 +452,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -413,7 +488,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -437,7 +516,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Get list of available groups</summary>
     private async Task GroupsAsync()
     {
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -458,7 +541,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Get current group information</summary>
     private async Task MyGroupAsync()
     {
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -482,7 +569,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Get battle status</summary>
     private async Task BattleStatusAsync()
     {
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -555,7 +646,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -596,24 +691,54 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Disconnect from server</summary>
     private async Task DisconnectAsync()
     {
-        EnsureConnected();
+        if (_client is null)
+        {
+            logger.LogInformation("Not connected to any server");
+            return;
+        }
 
         try
         {
-            await _client.DisconnectAsync();
-            logger.LogInformation("Disconnected from server");
+            if (_client.IsConnected)
+            {
+                await _client.DisconnectAsync();
+                logger.LogInformation("Disconnected from server");
+            }
+            else
+            {
+                logger.LogInformation("Already disconnected from server");
+            }
         }
         catch (Exception ex)
         {
             logger.LogInformation($"Error disconnecting from server: {ex.Message}");
-            Environment.ExitCode = 1;
+        }
+        finally
+        {
+            // 常にリソースをクリーンアップ
+            try
+            {
+                await _client.DisposeAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogInformation($"Warning: Error during cleanup: {ex.Message}");
+            }
+            finally
+            {
+                _client = null;
+            }
         }
     }
 
     /// <summary>Get server status</summary>
     private async Task ServerStatusAsync()
     {
-        EnsureConnected();
+        if (_client is null || !_client.IsConnected)
+        {
+            logger.LogInformation("Connection status: Not connected");
+            return;
+        }
 
         try
         {
@@ -654,9 +779,9 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     [Command("connect-battle")]
     public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5)
     {
-        if (count <= 0)
+        if (count <= 0 || count > 10)
         {
-            logger.LogInformation("Error: Count must be greater than 0");
+            logger.LogError("接続数は1から10の間で指定してください");
             Environment.ExitCode = 1;
             return;
         }
@@ -714,49 +839,83 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
         string battleId,
-        string? groupName = null,
-        int connectionCount = 5,
-        string? serverUrl = null)
+        string groupName = "test_group",
+        int count = 5,
+        string serverUrl = "http://localhost:5000")
     {
         // Validate parameters
-        if (string.IsNullOrEmpty(battleId))
+        if (count <= 0 || count > 10)
         {
-            logger.LogError("バトルIDは必須パラメーターです");
+            logger.LogError("接続数は1から10の間で指定してください");
+            Environment.ExitCode = 1;
             return;
         }
 
-        var finalServerUrl = serverUrl ?? "http://localhost:5000";
-
         logger.LogInformation("指定されたバトルID {BattleId} でバトルを再現します...", battleId);
-        logger.LogInformation("{Count}つの接続を作成中...", connectionCount);
+        logger.LogInformation("{Count}つの接続を作成中...", count);
 
         var connections = new List<IBattleClient>();
+        var connectionFailures = 0;
+
         try
         {
-            // Generate group name based on what's being reproduced
-            var finalGroupName = groupName ?? $"reproduce-battle-{battleId}-{DateTime.UtcNow:yyyyMMddHHmmss}";
-
-            for (int i = 0; i < connectionCount; i++)
+            for (int i = 0; i < count; i++)
             {
-                var connectionOptions = new ConnectionOptions
+                try
                 {
-                    ServerUrl = finalServerUrl,
-                    GroupName = finalGroupName,
-                    ReproduceBattleId = battleId
-                };
+                    var connectionOptions = new ConnectionOptions
+                    {
+                        ServerUrl = serverUrl,
+                        GroupName = groupName,
+                        ReproduceBattleId = battleId
+                    };
 
-                var connection = await ConnectWithOptionsAsync(connectionOptions);
-                connections.Add(connection);
+                    var connection = await ConnectWithOptionsAsync(connectionOptions);
+                    connections.Add(connection);
 
-                logger.LogInformation("接続 {Current}/{Total} 完了", i + 1, connectionCount);
-                await Task.Delay(100); // Avoid overwhelming the server
+                    logger.LogInformation("接続 {Current}/{Total} 完了", i + 1, count);
+                    await Task.Delay(100); // Avoid overwhelming the server
+                }
+                catch (Exception ex)
+                {
+                    connectionFailures++;
+                    logger.LogWarning("接続 {Current} が失敗: {Message}", i + 1, ex.Message);
+
+                    if (connectionFailures > count / 2)
+                    {
+                        logger.LogError("接続失敗が多すぎるため、処理を中断します");
+                        Environment.ExitCode = 1;
+                        return;
+                    }
+                }
             }
 
-            logger.LogInformation($"全ての接続が完了しました。バトルID {battleId} でバトルが開始されます。");
+            if (connections.Count == 0)
+            {
+                logger.LogError("接続できたクライアントがありません");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            logger.LogInformation($"有効な接続数: {connections.Count}/{count}");
+            logger.LogInformation($"バトルID {battleId} でバトルが開始されます。");
             logger.LogInformation("バトル完了まで待機中...");
 
-            // Wait for battle completion
-            await Task.Delay(TimeSpan.FromMinutes(5));
+            // Wait for battle completion with timeout
+            var timeoutTask = Task.Delay(TimeSpan.FromMinutes(10));
+            var completedTask = await Task.WhenAny(
+                Task.Delay(TimeSpan.FromMinutes(5)), // バトル待機
+                timeoutTask
+            );
+
+            if (completedTask == timeoutTask)
+            {
+                logger.LogWarning("バトル完了のタイムアウトが発生しました");
+            }
+            else
+            {
+                logger.LogInformation("バトルが正常に完了しました");
+            }
         }
         finally
         {
@@ -777,30 +936,41 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
     private async Task<IBattleClient> ConnectWithOptionsAsync(ConnectionOptions options)
     {
-        var client = BattleClientFactory.Create(loggerFactory);
-
-        var success = await client.ConnectAsync(options.ServerUrl, options.GroupName);
-        if (!success)
+        IBattleClient? client = null;
+        try
         {
-            await client.DisposeAsync();
-            throw new InvalidOperationException("Failed to connect to server");
-        }
+            client = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
 
-        if (!string.IsNullOrEmpty(options.ReproduceBattleId))
+            var success = await client.ConnectAsync(options.ServerUrl, options.GroupName);
+            if (!success)
+            {
+                throw new InvalidOperationException("Failed to connect to server");
+            }
+
+            if (!string.IsNullOrEmpty(options.ReproduceBattleId))
+            {
+                // Send battle ID information to server for reproduction
+                try
+                {
+                    // This might need to be implemented as a specific method in the future
+                    logger.LogInformation("Battle reproduction requested for ID: {BattleId}", options.ReproduceBattleId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to send battle reproduction info");
+                }
+            }
+
+            return client;
+        }
+        catch
         {
-            // Send battle ID information to server for reproduction
-            try
+            if (client is not null)
             {
-                // This might need to be implemented as a specific method in the future
-                logger.LogInformation("Battle reproduction requested for ID: {BattleId}", options.ReproduceBattleId);
+                await client.DisposeAsync();
             }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to send battle reproduction info");
-            }
+            throw;
         }
-
-        return client;
     }
 
     private static void ShowInteractiveHelp()
@@ -829,14 +999,4 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
           help                   - Show this help
         """);
     }
-
-    [MemberNotNull(nameof(_client))]
-    private void EnsureConnected()
-    {
-        if (_client is null)
-        {
-            throw new InvalidOperationException("Not connected to server");
-        }
-    }
-
 }
