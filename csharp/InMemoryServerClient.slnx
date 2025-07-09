@@ -12,6 +12,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="src/BattleLogic.Tests/BattleLogic.Tests.csproj" />
+    <Project Path="src/E2ETests/E2ETests.csproj" />
     <Project Path="src/InMemoryServer.Tests/InMemoryServer.Tests.csproj" />
     <Project Path="src/CliClient.Tests/CliClient.Tests.csproj" />
   </Folder>
