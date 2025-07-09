@@ -20,7 +20,7 @@ public class BattleStateTests
 
         var groupInfo = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
+            GroupId = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -29,7 +29,7 @@ public class BattleStateTests
         };
 
         _mockGroup = Substitute.For<IBattleGroupContext>();
-        _mockGroup.Id.Returns(groupInfo.Id);
+        _mockGroup.GroupId.Returns(groupInfo.GroupId);
         _mockGroup.Name.Returns(groupInfo.Name);
         _mockGroup.ConnectedCount.Returns(groupInfo.ConnectionCount);
         _mockGroup.MaxClients.Returns(groupInfo.MaxConnections);
@@ -132,7 +132,7 @@ public class BattleStateTests
         var seed = 12345; // Use fixed seed for testing
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
+            GroupId = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "test_group",
             ConnectionCount = 1,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,

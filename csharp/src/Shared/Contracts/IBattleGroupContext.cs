@@ -5,7 +5,7 @@
 /// </summary>
 public interface IBattleGroupContext
 {
-    string Id { get; }
+    string GroupId { get; }
     string Name { get; }
     int MaxClients { get; }
     int ConnectedCount { get; }

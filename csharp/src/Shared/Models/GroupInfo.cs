@@ -10,7 +10,7 @@ public class GroupInfo : IBattleGroupContext
     /// <summary>
     /// Group unique identifier
     /// </summary>
-    public required string Id { get; set; }
+    public required string GroupId { get; set; }
 
     /// <summary>
     /// Group name

@@ -62,7 +62,7 @@ public class BattleBalanceTests
         var groupId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for group ID
         var group = new GroupInfo
         {
-            Id = groupId,
+            GroupId = groupId,
             Name = $"test_group_{groupId}",
             ConnectionCount = playerCount,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -163,7 +163,7 @@ public class BattleBalanceTests
             var groupId = BattleSeed.NewTimestampId().ToString();
             var group = new GroupInfo
             {
-                Id = groupId,
+                GroupId = groupId,
                 Name = $"test_group_{groupId}",
                 ConnectionCount = playerCount,
                 MaxConnections = SystemDefines.MaxConnectionsPerGroup,

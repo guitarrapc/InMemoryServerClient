@@ -35,7 +35,7 @@ public class JobModifierTests
         // Arrange
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
+            GroupId = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "tank_test_group",
             ConnectionCount = 5, // Full group to ensure Tank might be selected
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -111,7 +111,7 @@ public class JobModifierTests
         // Similar pattern to Tank test but for Warrior
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(),
+            GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "warrior_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -164,7 +164,7 @@ public class JobModifierTests
     {
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(),
+            GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "mage_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -209,7 +209,7 @@ public class JobModifierTests
     {
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(),
+            GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "archer_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -251,7 +251,7 @@ public class JobModifierTests
     {
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(),
+            GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "enemy_job_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -307,7 +307,7 @@ public class JobModifierTests
         // Arrange
         var group = new GroupInfo
         {
-            Id = BattleSeed.NewTimestampId().ToString(),
+            GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "evasion_test_group",
             ConnectionCount = 5,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,

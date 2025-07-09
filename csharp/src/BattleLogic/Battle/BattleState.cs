@@ -50,7 +50,7 @@ public class BattleState
     /// <summary>
     /// Gets the group ID associated with this battle
     /// </summary>
-    public string GroupId => _group.Id;
+    public string GroupId => _group.GroupId;
 
     /// <summary>
     /// Gets the battle seed used for reproducible random generation

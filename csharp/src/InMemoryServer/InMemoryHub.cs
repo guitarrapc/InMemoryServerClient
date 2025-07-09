@@ -108,20 +108,20 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     {
         // Find or create group
         var group = await groupManager.JoinGroupAsync(Context.ConnectionId, groupName);
-        await Groups.AddToGroupAsync(Context.ConnectionId, group.Id);
+        await Groups.AddToGroupAsync(Context.ConnectionId, group.GroupId);
 
-        logger.LogInformation($"Client {Context.ConnectionId} joined group: {group.Name} (ID: {group.Id})");
+        logger.LogInformation($"Client {Context.ConnectionId} joined group: {group.Name} (ID: {group.GroupId})");
 
         // Notify other members
         var memberJoinedData = new MemberJoinedData
         {
             ConnectionId = Context.ConnectionId,
-            GroupId = group.Id,
+            GroupId = group.GroupId,
             GroupName = group.Name,
             CurrentMemberCount = group.ConnectionCount,
             MaxMembers = SystemDefines.MaxConnectionsPerGroup
         };
-        await Clients.OthersInGroup(group.Id).SendAsync("MemberJoined", memberJoinedData);
+        await Clients.OthersInGroup(group.GroupId).SendAsync("MemberJoined", memberJoinedData);
 
         // Check if group is full and battle should start
         if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
@@ -129,7 +129,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             await StartBattleAsync(group);
         }
 
-        return group.Id;
+        return group.GroupId;
     }
 
     /// <summary>
@@ -261,7 +261,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // Log both battle ID and seed for debugging/reproduce purposes
         logger.LogInformation("Battle started - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
         logger.LogInformation("Group {GroupId} has {ConnectionCount} members and will start a battle",
-            group.Id, group.ConnectionCount);
+            group.GroupId, group.ConnectionCount);
 
         // Create and store battle state
         var battleLogger = loggerFactory.CreateLogger<BattleState>();
@@ -272,7 +272,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
             battleId, seed);
         var connectionsReadyData = new ConnectionsReadyData { BattleId = battleId, Seed = seed };
-        await Clients.Group(group.Id).SendAsync("ConnectionsReady", connectionsReadyData);
+        await Clients.Group(group.GroupId).SendAsync("ConnectionsReady", connectionsReadyData);
 
         // 2. Start battle processing in background after all clients confirm readiness
         _ = Task.Run(async () =>
@@ -316,7 +316,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
             // 3. Send BattleStarted notification once all clients have confirmed
             var battleStartedData = new BattleStartedData { BattleId = battleId, Seed = seed };
-            await Clients.Group(group.Id).SendAsync("BattleStarted", battleStartedData);
+            await Clients.Group(group.GroupId).SendAsync("BattleStarted", battleStartedData);
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
@@ -352,7 +352,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                     IsLastChunk = isLastChunk,
                 };
 
-                await Clients.Group(group.Id).SendAsync("BattleReplayData", replayData);
+                await Clients.Group(group.GroupId).SendAsync("BattleReplayData", replayData);
 
                 // Clear chunk data immediately after sending to reduce memory pressure
                 turnDataList.Clear();
@@ -377,7 +377,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             }
 
             // 6. Battle completed notification
-            await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
+            await Clients.Group(group.GroupId).SendAsync("BattleCompleted", battle.GetStatus());
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
                 battleId, seed);
 
@@ -434,12 +434,12 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             var memberLeftData = new MemberLeftData
             {
                 ConnectionId = Context.ConnectionId,
-                GroupId = group.Id,
+                GroupId = group.GroupId,
                 GroupName = group.Name,
                 CurrentMemberCount = newCount,
                 MaxMembers = SystemDefines.MaxConnectionsPerGroup
             };
-            await Clients.OthersInGroup(group.Id).SendAsync("MemberLeft", memberLeftData);
+            await Clients.OthersInGroup(group.GroupId).SendAsync("MemberLeft", memberLeftData);
         }
 
         // Remove from watchers
@@ -478,7 +478,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         {
             status.Groups.Add(new GroupSummary
             {
-                Id = group.Id,
+                Id = group.GroupId,
                 Name = group.Name,
                 ConnectionCount = group.ConnectionCount,
                 BattleId = group.BattleId
@@ -555,10 +555,10 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
         // Get or create group for reproduction
         var group = await groupManager.JoinGroupAsync(clientId, groupName);
-        await Groups.AddToGroupAsync(clientId, group.Id);
+        await Groups.AddToGroupAsync(clientId, group.GroupId);
 
         logger.LogInformation("Client {ClientId} joined reproduction group: {GroupName} (ID: {GroupId})",
-            clientId, group.Name, group.Id);
+            clientId, group.Name, group.GroupId);
 
         // Check if group is full and battle should start with reproduction
         if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
@@ -579,7 +579,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // Log battle reproduction start with both battle ID and seed
         logger.LogInformation("Battle reproduction started - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
         logger.LogInformation("Group {GroupId} has {ConnectionCount} members and will start battle reproduction",
-            group.Id, group.ConnectionCount);
+            group.GroupId, group.ConnectionCount);
 
         // Create and store battle state with specific battle ID and seed
         var battleLogger = loggerFactory.CreateLogger<BattleState>();
@@ -590,7 +590,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
             battleId, seed);
         var connectionsReadyData = new ConnectionsReadyData { BattleId = battleId, Seed = seed };
-        await Clients.Group(group.Id).SendAsync("ConnectionsReady", connectionsReadyData);
+        await Clients.Group(group.GroupId).SendAsync("ConnectionsReady", connectionsReadyData);
 
         // 2. Start battle processing in background after all clients confirm readiness
         _ = Task.Run(async () =>
@@ -634,7 +634,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
             // 3. Send BattleStarted notification once all clients have confirmed
             var battleStartedData = new BattleStartedData { BattleId = battleId, Seed = seed };
-            await Clients.Group(group.Id).SendAsync("BattleStarted", battleStartedData);
+            await Clients.Group(group.GroupId).SendAsync("BattleStarted", battleStartedData);
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
@@ -670,7 +670,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                     IsLastChunk = isLastChunk,
                 };
 
-                await Clients.Group(group.Id).SendAsync("BattleReplayData", replayData);
+                await Clients.Group(group.GroupId).SendAsync("BattleReplayData", replayData);
 
                 // Clear chunk data immediately after sending to reduce memory pressure
                 turnDataList.Clear();
@@ -695,7 +695,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             }
 
             // 6. Battle completed notification
-            await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
+            await Clients.Group(group.GroupId).SendAsync("BattleCompleted", battle.GetStatus());
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
                 battleId, seed);
 
@@ -738,7 +738,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     public async Task<bool> ExtendGroupAsync(string? groupName = null)
     {
         var groupId = groupName != null ?
-            groupManager.GetAllGroups().FirstOrDefault(g => g.Name == groupName)?.Id :
+            groupManager.GetAllGroups().FirstOrDefault(g => g.Name == groupName)?.GroupId :
             groupManager.GetGroupIdForConnection(Context.ConnectionId);
 
         if (string.IsNullOrEmpty(groupId))

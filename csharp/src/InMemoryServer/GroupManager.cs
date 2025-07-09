@@ -33,9 +33,9 @@ public class GroupManager
             {
                 // Add connection to group
                 existingGroup.ConnectionCount++;
-                _connectionToGroup[connectionId] = existingGroup.Id;
+                _connectionToGroup[connectionId] = existingGroup.GroupId;
                 existingGroup.ClientIds.Add(connectionId);
-                _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.Id})");
+                _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.GroupId})");
 
                 // Check if group is full for battle start
                 if (existingGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
@@ -61,9 +61,9 @@ public class GroupManager
         {
             // Add connection to group
             availableGroup.ConnectionCount++;
-            _connectionToGroup[connectionId] = availableGroup.Id;
+            _connectionToGroup[connectionId] = availableGroup.GroupId;
             availableGroup.ClientIds.Add(connectionId);
-            _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.Id})");
+            _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.GroupId})");
 
             // Check if group is full for battle start
             if (availableGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
@@ -79,7 +79,7 @@ public class GroupManager
         var newGroupName = !string.IsNullOrEmpty(groupName) ? groupName : $"Group-{newGroupId[..8]}";
         var newGroup = new GroupInfo
         {
-            Id = newGroupId,
+            GroupId = newGroupId,
             Name = newGroupName,
             ConnectionCount = 1,
             MaxConnections = SystemDefines.MaxConnectionsPerGroup,
@@ -228,9 +228,9 @@ public class GroupManager
                 var expiredEmptyGroups = _groups.Values.Where(g => g.ExpiresAt < now && g.ConnectionCount == 0).ToList();
                 foreach (var group in expiredEmptyGroups)
                 {
-                    if (_groups.TryRemove(group.Id, out _))
+                    if (_groups.TryRemove(group.GroupId, out _))
                     {
-                        _logger.LogInformation($"Removed expired empty group {group.Name} (ID: {group.Id})");
+                        _logger.LogInformation($"Removed expired empty group {group.Name} (ID: {group.GroupId})");
                     }
                 }
 
@@ -244,17 +244,17 @@ public class GroupManager
                         if (group.ExtensionCount < SystemDefines.MaxGroupExtensions)
                         {
                             // Extend the group
-                            ExtendGroupWaitingTime(group.Id);
-                            _logger.LogInformation($"Auto-extended group {group.Name} (ID: {group.Id}) due to timeout. Members: {group.ConnectionCount}/{SystemDefines.MaxConnectionsPerGroup}");
+                            ExtendGroupWaitingTime(group.GroupId);
+                            _logger.LogInformation($"Auto-extended group {group.Name} (ID: {group.GroupId}) due to timeout. Members: {group.ConnectionCount}/{SystemDefines.MaxConnectionsPerGroup}");
                         }
                         else
                         {
                             // Dissolve the group - maximum extensions reached
-                            var clientIds = await DissolveGroupAsync(group.Id, "Maximum extensions reached");
-                            _logger.LogWarning($"Auto-dissolved group {group.Name} (ID: {group.Id}) - maximum extensions reached. Affected clients: {clientIds.Count}");
+                            var clientIds = await DissolveGroupAsync(group.GroupId, "Maximum extensions reached");
+                            _logger.LogWarning($"Auto-dissolved group {group.Name} (ID: {group.GroupId}) - maximum extensions reached. Affected clients: {clientIds.Count}");
 
                             // Notify the hub about the dissolution
-                            OnGroupDissolved?.Invoke(group.Id, group.Name, clientIds, "Maximum extensions reached");
+                            OnGroupDissolved?.Invoke(group.GroupId, group.Name, clientIds, "Maximum extensions reached");
                         }
                     }
                 }

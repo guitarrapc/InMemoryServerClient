@@ -570,7 +570,7 @@ internal class SignalRBattleClient : IBattleClient
         EnsureConnected();
         var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
         return groups.Select(g => new ClientGroupInfo(
-            g.Id,
+            g.GroupId,
             g.Name,
             g.ConnectionCount,
             g.MaxConnections,
@@ -585,7 +585,7 @@ internal class SignalRBattleClient : IBattleClient
         if (groupInfo == null) return null;
 
         return new ClientGroupInfo(
-            groupInfo.Id,
+            groupInfo.GroupId,
             groupInfo.Name,
             groupInfo.ConnectionCount,
             groupInfo.MaxConnections,

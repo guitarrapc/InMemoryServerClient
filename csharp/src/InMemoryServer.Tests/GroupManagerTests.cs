@@ -44,7 +44,7 @@ public class GroupManagerTests
         var group2 = await _groupManager.JoinGroupAsync(connectionId2, groupName);
 
         // Assert
-        Assert.Equal(group1.Id, group2.Id);
+        Assert.Equal(group1.GroupId, group2.GroupId);
         Assert.Equal(2, group2.ConnectionCount);
     }
 
@@ -60,7 +60,7 @@ public class GroupManagerTests
         await _groupManager.LeaveGroupAsync(connectionId);
 
         // Assert
-        var groupInfo = _groupManager.GetGroupInfo(group.Id);
+        var groupInfo = _groupManager.GetGroupInfo(group.GroupId);
         Assert.Null(groupInfo); // Group should be removed when empty
     }
 
