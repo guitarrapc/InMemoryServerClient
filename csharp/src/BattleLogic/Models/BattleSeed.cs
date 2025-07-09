@@ -142,24 +142,6 @@ public sealed class BattleSeed
     }
 
     /// <summary>
-    /// Create a deterministic seed from a user-provided string (for reproduce functionality)
-    /// </summary>
-    /// <param name="seedString">User-provided seed string</param>
-    /// <returns>Deterministic seed value</returns>
-    public static int CreateSeedFromString(string seedString)
-    {
-        if (string.IsNullOrWhiteSpace(seedString))
-            throw new ArgumentException("Seed string cannot be null, empty, or whitespace", nameof(seedString));
-
-        using var sha256 = SHA256.Create();
-        var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(seedString));
-        var seed = BitConverter.ToInt32(hash, 0);
-
-        // Ensure we don't return 0 (which could cause issues with some Random implementations)
-        return seed == 0 ? 1 : seed;
-    }
-
-    /// <summary>
     /// Creates a deterministic seed by combining BattleId and user seed.
     /// This ensures that the same BattleId + same user seed always produces the same result,
     /// but different BattleId + same user seed produces different results.
@@ -167,7 +149,7 @@ public sealed class BattleSeed
     /// <param name="battleId">The battle ID</param>
     /// <param name="userSeed">The user-provided seed</param>
     /// <returns>Combined deterministic seed value</returns>
-    private static int CreateCombinedSeed(Guid battleId, int userSeed)
+    public static int CreateCombinedSeed(Guid battleId, int userSeed)
     {
         using var sha256 = SHA256.Create();
 

@@ -838,29 +838,22 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
         string battleId,
-        string seedValue,
+        string seed,
         int count = 5,
-        string? groupName = null,
+        string groupName = "test-group",
         string serverUrl = "http://localhost:5000")
     {
         // Validate parameters
-        if (string.IsNullOrEmpty(battleId))
-        {
-            logger.LogError("バトルIDを指定してください");
-            Environment.ExitCode = 1;
-            return;
-        }
-
-        if (string.IsNullOrEmpty(seedValue))
-        {
-            logger.LogError("シード値を指定してください");
-            Environment.ExitCode = 1;
-            return;
-        }
-
         if (!Guid.TryParse(battleId, out var parsedBattleId))
         {
             logger.LogError("無効なバトルIDです: {BattleId}", battleId);
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        if (!int.TryParse(seed, out var parsedSeed))
+        {
+            logger.LogError("無効なシードです: {Seed}", seed);
             Environment.ExitCode = 1;
             return;
         }
@@ -872,7 +865,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        logger.LogInformation("指定されたバトルID '{BattleId}' とシード値 '{SeedValue}' でバトルを再現します...", battleId, seedValue);
+        logger.LogInformation("指定されたバトルID '{BattleId}' とシード値 '{SeedValue}' でバトルを再現します...", battleId, seed);
 
         logger.LogInformation("{Count}つの接続を作成中...", count);
 
@@ -882,8 +875,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         try
         {
             // Generate unique group name for this reproduction
-            var finalGroupName = groupName ?? $"reproduce-{battleId[..8]}-{DateTime.Now:yyyyMMdd-HHmmss}";
-            logger.LogInformation("グループ名: {GroupName}", finalGroupName);
+            logger.LogInformation("グループ名: {GroupName}", groupName);
 
             for (int i = 0; i < count; i++)
             {
@@ -891,14 +883,14 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                 {
                     var connection = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
 
-                    var success = await connection.ConnectAsync(serverUrl, finalGroupName);
+                    var success = await connection.ConnectAsync(serverUrl, groupName);
                     if (!success)
                     {
                         throw new InvalidOperationException("Failed to connect to server");
                     }
 
                     // Call the server's ReproduceBattleAsync method to start reproduction
-                    var reproduced = await connection.ReproduceBattleAsync(battleId, seedValue, finalGroupName);
+                    var reproduced = await connection.ReproduceBattleAsync(parsedBattleId, parsedSeed, groupName);
                     if (!reproduced)
                     {
                         logger.LogWarning("サーバーでのバトル再現リクエストが失敗しました");
@@ -931,7 +923,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             }
 
             logger.LogInformation("有効な接続数: {ConnectionCount}/{RequestedCount}", connections.Count, count);
-            logger.LogInformation("バトルID '{BattleId}' とシード値 '{SeedValue}' でバトルが再現されます。", battleId, seedValue);
+            logger.LogInformation("バトルID '{BattleId}' とシード値 '{SeedValue}' でバトルが再現されます。", battleId, seed);
             logger.LogInformation("バトル完了まで待機中...");
 
             // Wait for battle completion with timeout
@@ -947,7 +939,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             }
             else
             {
-                logger.LogInformation("バトルID '{BattleId}' とシード値 '{SeedValue}' のバトル再現が正常に完了しました", battleId, seedValue);
+                logger.LogInformation("バトルID '{BattleId}' とシード値 '{SeedValue}' のバトル再現が正常に完了しました", battleId, seed);
             }
         }
         finally

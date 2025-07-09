@@ -594,7 +594,7 @@ internal class SignalRBattleClient : IBattleClient
         );
     }
 
-    public async Task<bool> ReproduceBattleAsync(string battleId, string seedValue, string? groupName = null)
+    public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
     {
         EnsureConnected();
         _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",

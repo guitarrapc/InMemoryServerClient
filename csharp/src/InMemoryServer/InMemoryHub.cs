@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using BattleLogic.Battle;
 using BattleLogic.Models;
 using Shared.Battle;
@@ -484,25 +484,17 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// <summary>
     /// Reproduce a battle with specific battle ID and seed
     /// </summary>
-    public async Task<bool> ReproduceBattleAsync(string battleId, string seedValue, string? groupName = null)
+    public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
     {
-        // Validate battle ID
-        if (!Guid.TryParse(battleId, out var parsedBattleId))
-        {
-            logger.LogError("Invalid battle ID format: {BattleId}", battleId);
-            return false;
-        }
-
         // Convert seed value to numeric using server-side logic
-        var seed = BattleSeed.CreateSeedFromString(seedValue);
+        var seed = BattleSeed.CreateCombinedSeed(battleId, seedValue);
 
         var clientId = Context.ConnectionId;
         logger.LogInformation("Client {ClientId} requesting battle reproduction - BattleId: {BattleId}, SeedValue: {SeedValue}, NumericSeed: {NumericSeed}",
             clientId, battleId, seedValue, seed);
 
         // Get or create group for reproduction
-        string finalGroupName = groupName ?? $"reproduce-{battleId[..8]}-{DateTime.UtcNow:yyyyMMddHHmmss}";
-        var group = await groupManager.JoinGroupAsync(clientId, finalGroupName);
+        var group = await groupManager.JoinGroupAsync(clientId, groupName);
         await Groups.AddToGroupAsync(clientId, group.Id);
 
         logger.LogInformation("Client {ClientId} joined reproduction group: {GroupName} (ID: {GroupId})",
@@ -511,7 +503,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // Check if group is full and battle should start with reproduction
         if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
         {
-            await StartReproduceBattleAsync(group, parsedBattleId, seed);
+            await StartReproduceBattleAsync(group, battleId, seed);
         }
 
         return true;

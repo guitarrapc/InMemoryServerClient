@@ -119,7 +119,7 @@ public interface IBattleClient : IAsyncDisposable
     /// <param name="seedValue">String seed value (will be converted to numeric by server)</param>
     /// <param name="groupName">Optional group name for reproduction</param>
     /// <returns>True if reproduction request was successful</returns>
-    Task<bool> ReproduceBattleAsync(string battleId, string seedValue, string? groupName = null);
+    Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName);
 
     // Server status
     /// <summary>
