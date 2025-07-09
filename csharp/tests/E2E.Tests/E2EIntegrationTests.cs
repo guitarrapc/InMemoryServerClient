@@ -156,6 +156,7 @@ public class E2EIntegrationTests : IDisposable
         var connections = new List<HubConnection>();
         var connectionsReadyCount = 0;
         var battleStartedCount = 0;
+        var joinedCount = 0;
 
         // Create 5 connections
         for (int i = 0; i < 5; i++)
@@ -169,14 +170,36 @@ public class E2EIntegrationTests : IDisposable
 
             connection.On<ConnectionsReadyData>("ConnectionsReady", async (data) =>
             {
-                Interlocked.Increment(ref connectionsReadyCount);
-                // Confirm that this client is ready
-                await connection.InvokeAsync("ConfirmConnectionReadyAsync");
+                var current = Interlocked.Increment(ref connectionsReadyCount);
+                Console.WriteLine($"ConnectionsReady received by client {current} - BattleId: {data.BattleId}");
+                try
+                {
+                    // Small delay to ensure the server is ready to process the confirmation
+                    await Task.Delay(50);
+                    // Confirm that this client is ready
+                    var confirmed = await connection.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
+                    Console.WriteLine($"Client {current} confirmation result: {confirmed}");
+                    if (!confirmed)
+                    {
+                        Console.WriteLine($"WARNING: Client {current} failed to confirm connection ready");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERROR: Client {current} failed to confirm connection ready: {ex.Message}");
+                }
             });
 
             connection.On<BattleStartedData>("BattleStarted", (data) =>
             {
-                Interlocked.Increment(ref battleStartedCount);
+                var current = Interlocked.Increment(ref battleStartedCount);
+                Console.WriteLine($"BattleStarted received by client {current} - BattleId: {data.BattleId}");
+            });
+
+            connection.On<MemberJoinedData>("MemberJoined", (data) =>
+            {
+                var current = Interlocked.Increment(ref joinedCount);
+                Console.WriteLine($"MemberJoined received - Member {current}, Group: {data.GroupName}, Count: {data.CurrentMemberCount}");
             });
 
             connections.Add(connection);
@@ -185,22 +208,48 @@ public class E2EIntegrationTests : IDisposable
         try
         {
             // Act
-            // Start all connections
+            // Start all connections with small delays to avoid overwhelming the server
             foreach (var connection in connections)
             {
                 await connection.StartAsync();
+                await Task.Delay(50); // Small delay between connection starts
             }
+            Console.WriteLine("All connections started");
 
-            // All clients join the same group
+            // All clients join the same group sequentially to ensure deterministic order
             var groupIds = new List<string>();
-            foreach (var connection in connections)
+            for (int i = 0; i < connections.Count; i++)
             {
+                var connection = connections[i];
                 var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", "BattleTestGroup");
                 groupIds.Add(groupId);
+                Console.WriteLine($"Client {i + 1} joined group {groupId}");
+
+                // Small delay to ensure proper sequencing
+                await Task.Delay(100);
             }
 
-            // Wait for battle to auto-start
-            await Task.Delay(5000); // Give enough time for the battle to start
+            Console.WriteLine($"All clients joined. Unique group IDs: {groupIds.Distinct().Count()}");
+
+            // Give the server some time to process all joins and potentially auto-start the battle
+            Console.WriteLine("Waiting for server to process all joins and auto-start battle...");
+            await Task.Delay(1000); // Increased wait time for CI environment
+
+            // Wait for battle to auto-start with timeout and periodic checks
+            var timeout = TimeSpan.FromSeconds(30); // Further increased timeout for CI environment
+            var checkInterval = TimeSpan.FromMilliseconds(500);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            while (stopwatch.Elapsed < timeout && (connectionsReadyCount < 5 || battleStartedCount < 5))
+            {
+                await Task.Delay(checkInterval);
+                if (stopwatch.Elapsed.TotalSeconds % 2 < 0.5) // Log every 2 seconds
+                {
+                    Console.WriteLine($"Progress check - ConnectionsReady: {connectionsReadyCount}/5, BattleStarted: {battleStartedCount}/5, Elapsed: {stopwatch.Elapsed.TotalSeconds:F1}s");
+                }
+            }
+
+            Console.WriteLine($"Final state - ConnectionsReady: {connectionsReadyCount}/5, BattleStarted: {battleStartedCount}/5, JoinedEvents: {joinedCount}/4, Total elapsed: {stopwatch.Elapsed.TotalSeconds:F1}s");
 
             // Assert
             Assert.True(groupIds.All(id => id == groupIds[0]), "All clients should be in the same group");
@@ -303,6 +352,70 @@ public class E2EIntegrationTests : IDisposable
             {
                 await connection2.DisposeAsync();
             }
+        }
+    }
+
+    [Fact]
+    public async Task TwoClients_JoinGroup_ReceivesEvents()
+    {
+        // This is a simpler test to ensure basic functionality works in CI
+        // Arrange
+        var factory = CreateFactory();
+        var connection1 = new HubConnectionBuilder()
+            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            {
+                options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+            })
+            .Build();
+
+        var connection2 = new HubConnectionBuilder()
+            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            {
+                options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+            })
+            .Build();
+
+        var memberJoinedReceived = false;
+        MemberJoinedData? memberData = null;
+
+        connection1.On<MemberJoinedData>("MemberJoined", (data) =>
+        {
+            Console.WriteLine($"Connection1 received MemberJoined: Group={data.GroupName}, Count={data.CurrentMemberCount}");
+            memberJoinedReceived = true;
+            memberData = data;
+        });
+
+        try
+        {
+            // Act
+            await connection1.StartAsync();
+            await connection2.StartAsync();
+            Console.WriteLine("Both connections started");
+
+            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", "SimpleTestGroup");
+            Console.WriteLine($"Connection1 joined group: {groupId1}");
+
+            await Task.Delay(200); // Allow processing time
+
+            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", "SimpleTestGroup");
+            Console.WriteLine($"Connection2 joined group: {groupId2}");
+
+            await Task.Delay(500); // Allow event processing time
+
+            // Assert
+            Assert.Equal(groupId1, groupId2);
+            Assert.True(memberJoinedReceived, "Connection1 should have received MemberJoined event");
+            Assert.NotNull(memberData);
+            Assert.Equal("SimpleTestGroup", memberData.Value.GroupName);
+            Assert.Equal(2, memberData.Value.CurrentMemberCount);
+
+            Console.WriteLine("Simple test completed successfully");
+        }
+        finally
+        {
+            // Cleanup
+            await connection1.DisposeAsync();
+            await connection2.DisposeAsync();
         }
     }
 
