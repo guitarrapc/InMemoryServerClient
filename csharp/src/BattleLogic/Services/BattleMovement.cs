@@ -142,7 +142,7 @@ internal class BattleMovement(Random random, BattleField battleField, BattleUtil
                 var newPosition = new Vector2(newX, newY);
 
                 utilities.UpdateEntityPosition(entity, newPosition, players, enemies);
-                battleField.MoveEntity(entity.Id, oldPosition, newPosition);
+                battleField.MoveEntity(entity.EntityId, oldPosition, newPosition);
 
                 if (targetEntity != null)
                 {
@@ -176,7 +176,7 @@ internal class BattleMovement(Random random, BattleField battleField, BattleUtil
                 var newPosition = new Vector2(newX, newY);
 
                 utilities.UpdateEntityPosition(entity, newPosition, players, enemies);
-                battleField.MoveEntity(entity.Id, oldPosition, newPosition);
+                battleField.MoveEntity(entity.EntityId, oldPosition, newPosition);
 
                 battleLogs.Add($"{entity.Name} randomly moves from ({oldPosition.X},{oldPosition.Y}) to ({newX},{newY}).");
                 return true;

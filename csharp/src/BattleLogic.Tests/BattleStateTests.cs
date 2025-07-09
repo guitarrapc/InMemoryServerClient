@@ -193,7 +193,7 @@ public class BattleStateTests
             var player1 = status1.Players[i];
             var player2 = status2.Players[i];
 
-            Assert.Equal(player1.Id, player2.Id); // Entity IDs should be identical
+            Assert.Equal(player1.EntityId, player2.EntityId); // Entity IDs should be identical
             Assert.Equal(player1.Name, player2.Name);
             Assert.Equal(player1.PlayerJob, player2.PlayerJob);
             Assert.Equal(player1.MaxHp, player2.MaxHp);
@@ -211,7 +211,7 @@ public class BattleStateTests
             var enemy1 = status1.Enemies[i];
             var enemy2 = status2.Enemies[i];
 
-            Assert.Equal(enemy1.Id, enemy2.Id); // Entity IDs should be identical
+            Assert.Equal(enemy1.EntityId, enemy2.EntityId); // Entity IDs should be identical
             Assert.Equal(enemy1.Name, enemy2.Name);
             Assert.Equal(enemy1.EnemyJob, enemy2.EnemyJob);
             Assert.Equal(enemy1.MaxHp, enemy2.MaxHp);
@@ -261,7 +261,7 @@ public class BattleStateTests
             var player1 = status1.Players[i];
             var player2 = status2.Players[i];
 
-            if (player1.Id != player2.Id ||
+            if (player1.EntityId != player2.EntityId ||
                 player1.PlayerJob != player2.PlayerJob ||
                 player1.MaxHp != player2.MaxHp ||
                 player1.Attack != player2.Attack ||
@@ -281,7 +281,7 @@ public class BattleStateTests
             var enemy1 = status1.Enemies[i];
             var enemy2 = status2.Enemies[i];
 
-            if (enemy1.Id != enemy2.Id ||
+            if (enemy1.EntityId != enemy2.EntityId ||
                 enemy1.EnemyJob != enemy2.EnemyJob ||
                 enemy1.MaxHp != enemy2.MaxHp ||
                 enemy1.Attack != enemy2.Attack ||
@@ -340,7 +340,7 @@ public class BattleStateTests
                 var player1 = turn1.Players[playerIndex];
                 var player2 = turn2.Players[playerIndex];
 
-                Assert.Equal(player1.Id, player2.Id);
+                Assert.Equal(player1.EntityId, player2.EntityId);
                 Assert.Equal(player1.CurrentHp, player2.CurrentHp);
                 Assert.Equal(player1.Position.X, player2.Position.X);
                 Assert.Equal(player1.Position.Y, player2.Position.Y);
@@ -354,7 +354,7 @@ public class BattleStateTests
                 var enemy1 = turn1.Enemies[enemyIndex];
                 var enemy2 = turn2.Enemies[enemyIndex];
 
-                Assert.Equal(enemy1.Id, enemy2.Id);
+                Assert.Equal(enemy1.EntityId, enemy2.EntityId);
                 Assert.Equal(enemy1.CurrentHp, enemy2.CurrentHp);
                 Assert.Equal(enemy1.Position.X, enemy2.Position.X);
                 Assert.Equal(enemy1.Position.Y, enemy2.Position.Y);
@@ -399,11 +399,11 @@ public class BattleStateTests
             // Verify entity IDs are identical
             for (int i = 0; i < status1.Players.Count; i++)
             {
-                Assert.Equal(status1.Players[i].Id, status2.Players[i].Id);
+                Assert.Equal(status1.Players[i].EntityId, status2.Players[i].EntityId);
             }
             for (int i = 0; i < status1.Enemies.Count; i++)
             {
-                Assert.Equal(status1.Enemies[i].Id, status2.Enemies[i].Id);
+                Assert.Equal(status1.Enemies[i].EntityId, status2.Enemies[i].EntityId);
             }
         }
         else
@@ -414,7 +414,7 @@ public class BattleStateTests
 
             for (int i = 0; i < Math.Min(status1.Players.Count, status2.Players.Count); i++)
             {
-                if (status1.Players[i].Id != status2.Players[i].Id)
+                if (status1.Players[i].EntityId != status2.Players[i].EntityId)
                 {
                     playersAreDifferent = true;
                     break;
@@ -423,7 +423,7 @@ public class BattleStateTests
 
             for (int i = 0; i < Math.Min(status1.Enemies.Count, status2.Enemies.Count); i++)
             {
-                if (status1.Enemies[i].Id != status2.Enemies[i].Id)
+                if (status1.Enemies[i].EntityId != status2.Enemies[i].EntityId)
                 {
                     enemiesAreDifferent = true;
                     break;
@@ -471,7 +471,7 @@ public class BattleStateTests
         bool anyPlayerDifferent = false;
         for (int i = 0; i < status1.Players.Count; i++)
         {
-            if (status1.Players[i].Id != status2.Players[i].Id)
+            if (status1.Players[i].EntityId != status2.Players[i].EntityId)
             {
                 anyPlayerDifferent = true;
                 break;

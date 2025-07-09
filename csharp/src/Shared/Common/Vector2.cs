@@ -33,7 +33,15 @@ public readonly record struct Vector2
     /// </summary>
     public override string ToString() => $"({X}, {Y})";
 
+    /// <summary>
+    /// Invalid position constant
+    /// </summary>
     public static Vector2 InvalidPosition { get; } = new Vector2(-1, -1);
+
+    /// <summary>
+    /// Zero position constant
+    /// </summary>
+    public static Vector2 Zero { get; } = new Vector2(0, 0);
 }
 
 /// <summary>

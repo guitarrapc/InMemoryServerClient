@@ -288,7 +288,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             actions.Add(new ActionReward("move", reward, nearestTarget));
         }
 
-        if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.Id != nearestTarget.Value.Id))
+        if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.EntityId != nearestTarget.Value.EntityId))
         {
             float reward = BattleAIDefines.MoveToLowestHpReward * moveMultiplier;
             float hpRatio = (float)lowestHpTarget.Value.CurrentHp / lowestHpTarget.Value.MaxHp;

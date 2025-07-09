@@ -16,7 +16,7 @@ internal class BattleUtilities
         {
             for (int i = 0; i < players.Count; i++)
             {
-                if (players[i].Id == entity.Id)
+                if (players[i].EntityId == entity.EntityId)
                 {
                     players[i] = players[i] with { Position = newPosition };
                     break;
@@ -27,7 +27,7 @@ internal class BattleUtilities
         {
             for (int i = 0; i < enemies.Count; i++)
             {
-                if (enemies[i].Id == entity.Id)
+                if (enemies[i].EntityId == entity.EntityId)
                 {
                     enemies[i] = enemies[i] with { Position = newPosition };
                     break;
@@ -45,7 +45,7 @@ internal class BattleUtilities
         {
             for (int i = 0; i < players.Count; i++)
             {
-                if (players[i].Id == entity.Id)
+                if (players[i].EntityId == entity.EntityId)
                 {
                     players[i] = players[i] with { CurrentHp = newHp };
                     break;
@@ -56,7 +56,7 @@ internal class BattleUtilities
         {
             for (int i = 0; i < enemies.Count; i++)
             {
-                if (enemies[i].Id == entity.Id)
+                if (enemies[i].EntityId == entity.EntityId)
                 {
                     enemies[i] = enemies[i] with { CurrentHp = newHp };
                     break;
@@ -74,7 +74,7 @@ internal class BattleUtilities
         {
             for (int i = 0; i < players.Count; i++)
             {
-                if (players[i].Id == entity.Id)
+                if (players[i].EntityId == entity.EntityId)
                 {
                     players[i] = players[i] with { IsDefending = isDefending };
                     break;
@@ -85,7 +85,7 @@ internal class BattleUtilities
         {
             for (int i = 0; i < enemies.Count; i++)
             {
-                if (enemies[i].Id == entity.Id)
+                if (enemies[i].EntityId == entity.EntityId)
                 {
                     enemies[i] = enemies[i] with { IsDefending = isDefending };
                     break;
@@ -120,11 +120,11 @@ internal class BattleUtilities
                     // Find entity with matching ID
                     if (entity.Type.IsPlayer)
                     {
-                        target = enemies.FirstOrDefault(e => e.Id == targetId && e.CurrentHp > 0);
+                        target = enemies.FirstOrDefault(e => e.EntityId == targetId && e.CurrentHp > 0);
                     }
                     else
                     {
-                        target = players.FirstOrDefault(p => p.Id == targetId && p.CurrentHp > 0);
+                        target = players.FirstOrDefault(p => p.EntityId == targetId && p.CurrentHp > 0);
                     }
 
                     if (target != null)
@@ -214,8 +214,8 @@ internal class BattleUtilities
     {
         // Get allied positions
         var allies = entity.Type.IsPlayer ?
-            players.Where(p => p.Id != entity.Id && p.CurrentHp > 0) :
-            enemies.Where(e => e.Id != entity.Id && e.CurrentHp > 0);
+            players.Where(p => p.EntityId != entity.EntityId && p.CurrentHp > 0) :
+            enemies.Where(e => e.EntityId != entity.EntityId && e.CurrentHp > 0);
 
         // Check positions around the enemy
         int surroundCount = 0;

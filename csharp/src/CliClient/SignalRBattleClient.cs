@@ -402,7 +402,7 @@ internal class SignalRBattleClient : IBattleClient
                 player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
                 player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
             {
-                field[player.Position.Y, player.Position.X] = player.Id;
+                field[player.Position.Y, player.Position.X] = player.EntityId;
             }
         }
 
@@ -413,7 +413,7 @@ internal class SignalRBattleClient : IBattleClient
                 enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
                 enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
             {
-                field[enemy.Position.Y, enemy.Position.X] = enemy.Id;
+                field[enemy.Position.Y, enemy.Position.X] = enemy.EntityId;
             }
         }
 
@@ -452,18 +452,18 @@ internal class SignalRBattleClient : IBattleClient
                 else
                 {
                     // Determine if this is a player or enemy
-                    bool isPlayer = status.Players.Any(p => p.Id == cellContent);
+                    bool isPlayer = status.Players.Any(p => p.EntityId == cellContent);
 
                     if (isPlayer)
                     {
                         // Player: P1, P2, etc.
-                        int playerIdx = status.Players.FindIndex(p => p.Id == cellContent) + 1;
+                        int playerIdx = status.Players.FindIndex(p => p.EntityId == cellContent) + 1;
                         line.Append($"P{playerIdx}");
                     }
                     else
                     {
                         // Enemy: E1, E2, etc.
-                        int enemyIdx = status.Enemies.FindIndex(e => e.Id == cellContent) + 1;
+                        int enemyIdx = status.Enemies.FindIndex(e => e.EntityId == cellContent) + 1;
                         line.Append($"E{enemyIdx}");
                     }
                 }

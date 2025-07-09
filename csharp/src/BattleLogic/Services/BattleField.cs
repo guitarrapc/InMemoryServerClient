@@ -55,7 +55,7 @@ internal class BattleField
 
                 if (IsValidPosition(x, y) && _field[y, x] == null)
                 {
-                    _field[y, x] = players[i].Id;
+                    _field[y, x] = players[i].EntityId;
                     players[i] = players[i] with { Position = new Vector2(x, y) };
                     break;
                 }
@@ -79,7 +79,7 @@ internal class BattleField
 
                 if (IsValidPosition(x, y) && _field[y, x] == null)
                 {
-                    _field[y, x] = enemies[i].Id;
+                    _field[y, x] = enemies[i].EntityId;
                     enemies[i] = enemies[i] with { Position = new Vector2(x, y) };
                     break;
                 }

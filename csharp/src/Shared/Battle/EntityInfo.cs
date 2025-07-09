@@ -10,7 +10,7 @@ public readonly record struct EntityInfo
     /// <summary>
     /// Entity unique identifier
     /// </summary>
-    public required string Id { get; init; }
+    public required string EntityId { get; init; }
 
     /// <summary>
     /// Entity name
@@ -35,45 +35,45 @@ public readonly record struct EntityInfo
     /// <summary>
     /// Current HP
     /// </summary>
-    public int CurrentHp { get; init; }
+    public required int CurrentHp { get; init; }
 
     /// <summary>
     /// Maximum HP
     /// </summary>
-    public int MaxHp { get; init; }
+    public required int MaxHp { get; init; }
 
     /// <summary>
     /// Attack power
     /// </summary>
-    public int Attack { get; init; }
+    public required int Attack { get; init; }
 
     /// <summary>
     /// Defense power
     /// </summary>
-    public int Defense { get; init; }
+    public required int Defense { get; init; }
 
     /// <summary>
     /// Movement speed
     /// </summary>
-    public int Speed { get; init; }
+    public required int Speed { get; init; }
 
     /// <summary>
     /// Accuracy (hit rate, 0-100)
     /// </summary>
-    public int Accuracy { get; init; }
+    public required int Accuracy { get; init; }
 
     /// <summary>
     /// Evasion (dodge rate, 0-100)
     /// </summary>
-    public int Evasion { get; init; }
+    public required int Evasion { get; init; }
 
     /// <summary>
     /// Position on the battle field
     /// </summary>
-    public Vector2 Position { get; init; }
+    public required Vector2 Position { get; init; }
 
     /// <summary>
     /// Is defending (damage reduction)
     /// </summary>
-    public bool IsDefending { get; init; }
+    public required bool IsDefending { get; init; }
 }
