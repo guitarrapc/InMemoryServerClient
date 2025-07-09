@@ -8,7 +8,7 @@ public readonly struct BattleReplayData
     /// <summary>
     /// Battle ID
     /// </summary>
-    public required string BattleId { get; init; }
+    public required Guid BattleId { get; init; }
 
     /// <summary>
     /// Battle seed for reproducibility

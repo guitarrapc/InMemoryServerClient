@@ -8,7 +8,7 @@ public class BattleStatus
     /// <summary>
     /// Battle unique identifier
     /// </summary>
-    public string? BattleId { get; set; }
+    public Guid? BattleId { get; set; }
 
     /// <summary>
     /// Is battle in progress

@@ -18,7 +18,7 @@ internal class NullBattleReplayWriter : IBattleReplayWriter
         _logger = logger;
     }
 
-    public Task InitializeAsync(string battleId, int? seed = null)
+    public Task InitializeAsync(Guid battleId, int seed)
     {
         if (_enableLogging)
         {
@@ -40,7 +40,7 @@ internal class NullBattleReplayWriter : IBattleReplayWriter
         return Task.CompletedTask;
     }
 
-    public Task<List<BattleStatus>> LoadReplayAsync(string battleId)
+    public Task<List<BattleStatus>> LoadReplayAsync(Guid battleId)
     {
         // Return empty list - no data is stored
         return Task.FromResult(new List<BattleStatus>());

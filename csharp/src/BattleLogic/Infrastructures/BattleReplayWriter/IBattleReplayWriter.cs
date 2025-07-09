@@ -11,7 +11,7 @@ public interface IBattleReplayWriter : IAsyncDisposable
     /// </summary>
     /// <param name="battleId">The battle ID</param>
     /// <param name="seed">The battle seed (optional)</param>
-    Task InitializeAsync(string battleId, int? seed = null);
+    Task InitializeAsync(Guid battleId, int seed);
 
     /// <summary>
     /// Write a single battle frame
@@ -30,10 +30,25 @@ public interface IBattleReplayWriter : IAsyncDisposable
     /// </summary>
     /// <param name="battleId">The battle ID to load</param>
     /// <returns>List of battle status frames</returns>
-    Task<List<BattleStatus>> LoadReplayAsync(string battleId);
+    Task<List<BattleStatus>> LoadReplayAsync(Guid battleId);
 
     /// <summary>
     /// Finalize the writing process
     /// </summary>
     Task FinalizeAsync();
+}
+
+public readonly struct WriterMetadata
+{
+    public Guid BattleId { get; }
+    public int Seed { get; }
+    public DateTime Timestamp { get; }
+    public string Type => "BattleMetadata";
+
+    public WriterMetadata(Guid battleId, int seed, DateTime timestamp)
+    {
+        BattleId = battleId;
+        Seed = seed;
+        Timestamp = timestamp;
+    }
 }

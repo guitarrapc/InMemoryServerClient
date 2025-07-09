@@ -14,7 +14,7 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
     private readonly ILogger<FileBattleReplayWriter> _logger;
     private readonly bool _enableLogging;
     private StreamWriter? _writer;
-    private string? _battleId;
+    private Guid? _battleId;
     private int? _seed;
 
     public FileBattleReplayWriter(BattleReplayOptions options, ILogger<FileBattleReplayWriter> logger)
@@ -24,7 +24,7 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
         _logger = logger;
     }
 
-    public async Task InitializeAsync(string battleId, int? seed = null)
+    public async Task InitializeAsync(Guid battleId, int seed)
     {
         _battleId = battleId;
         _seed = seed;
@@ -38,13 +38,7 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
         _writer = new StreamWriter(filePath);
 
         // Write metadata as the first line
-        var metadata = new
-        {
-            BattleId = battleId,
-            Seed = seed,
-            Timestamp = DateTime.UtcNow,
-            Type = "BattleMetadata"
-        };
+        var metadata = new WriterMetadata(battleId, seed, DateTime.UtcNow);
         var metadataJson = JsonSerializer.Serialize(metadata);
         await _writer.WriteLineAsync(metadataJson);
 
@@ -86,7 +80,7 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
         }
     }
 
-    public async Task<List<BattleStatus>> LoadReplayAsync(string battleId)
+    public async Task<List<BattleStatus>> LoadReplayAsync(Guid battleId)
     {
         try
         {

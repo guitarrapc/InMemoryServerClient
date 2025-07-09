@@ -13,11 +13,11 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
     private readonly ILogger<MemoryBattleReplayWriter> _logger;
     private readonly bool _enableLogging;
     private readonly List<BattleStatus> _frames;
-    private string? _battleId;
+    private Guid? _battleId;
     private int? _seed;
 
     // Static storage to allow access from tests
-    private static readonly ConcurrentDictionary<string, List<BattleStatus>> _battleReplays = new();
+    private static readonly ConcurrentDictionary<Guid, List<BattleStatus>> _battleReplays = new();
 
     public MemoryBattleReplayWriter(BattleReplayOptions options, ILogger<MemoryBattleReplayWriter> logger)
     {
@@ -29,7 +29,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
     /// <summary>
     /// Get stored replay data for a specific battle (for testing)
     /// </summary>
-    public static List<BattleStatus>? GetStoredReplay(string battleId)
+    public static List<BattleStatus>? GetStoredReplay(Guid battleId)
     {
         return _battleReplays.TryGetValue(battleId, out var replay) ? replay : null;
     }
@@ -45,12 +45,12 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
     /// <summary>
     /// Get all stored battle IDs (for testing)
     /// </summary>
-    public static IEnumerable<string> GetStoredBattleIds()
+    public static IEnumerable<Guid> GetStoredBattleIds()
     {
         return _battleReplays.Keys;
     }
 
-    public Task InitializeAsync(string battleId, int? seed = null)
+    public Task InitializeAsync(Guid battleId, int seed)
     {
         _battleId = battleId;
         _seed = seed;
@@ -66,10 +66,8 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
 
     public Task WriteFrameAsync(BattleStatus frame)
     {
-        if (_battleId == null)
-        {
+        if (!_battleId.HasValue)
             throw new InvalidOperationException("Writer not initialized. Call InitializeAsync first.");
-        }
 
         // Store a deep copy to avoid reference issues
         var frameCopy = new BattleStatus
@@ -92,10 +90,8 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
 
     public Task WriteAllFramesAsync(IEnumerable<BattleStatus> frames)
     {
-        if (_battleId == null)
-        {
+        if (!_battleId.HasValue)
             throw new InvalidOperationException("Writer not initialized. Call InitializeAsync first.");
-        }
 
         _frames.Clear();
         foreach (var frame in frames)
@@ -120,7 +116,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
 
         if (_enableLogging)
         {
-            _logger.LogDebug("All battle frames written for battle {BattleId}, {FrameCount} frames", _battleId, _frames.Count);
+            _logger.LogDebug("All battle frames written for battle {BattleId}, {FrameCount} frames", _battleId.HasValue ? _battleId.Value : "Unknown", _frames.Count);
         }
 
         return Task.CompletedTask;
@@ -128,22 +124,22 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
 
     public Task FinalizeAsync()
     {
-        if (_battleId != null)
-        {
-            // Store the complete replay data
-            _battleReplays[_battleId] = new List<BattleStatus>(_frames);
+        if (!_battleId.HasValue)
+            throw new InvalidOperationException("Writer not initialized. Call InitializeAsync first.");
 
-            if (_enableLogging)
-            {
-                _logger.LogDebug("Memory battle replay completed for battle: {BattleId}, {FrameCount} frames stored",
-                    _battleId, _frames.Count);
-            }
+        // Store the complete replay data
+        _battleReplays[_battleId.Value] = new List<BattleStatus>(_frames);
+
+        if (_enableLogging)
+        {
+            _logger.LogDebug("Memory battle replay completed for battle: {BattleId}, {FrameCount} frames stored",
+                _battleId.Value, _frames.Count);
         }
 
         return Task.CompletedTask;
     }
 
-    public Task<List<BattleStatus>> LoadReplayAsync(string battleId)
+    public Task<List<BattleStatus>> LoadReplayAsync(Guid battleId)
     {
         var replay = GetStoredReplay(battleId);
         return Task.FromResult(replay ?? new List<BattleStatus>());

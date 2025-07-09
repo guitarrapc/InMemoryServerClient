@@ -248,9 +248,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             logger.LogWarning($"Battle replay file not found: {replayPath}");
             return null;
         }
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Start a battle for a full group
     /// </summary>
     private async Task StartBattleAsync(GroupInfo group)
@@ -258,7 +256,6 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         // Generate completely independent battle ID and seed
         var battleId = BattleSeed.GenerateBattleId();
         var seed = BattleSeed.GenerateSecureSeed();
-
         group.BattleId = battleId.ToString();
 
         // Log both battle ID and seed for debugging/reproduce purposes
@@ -347,7 +344,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
                 var replayData = new BattleReplayData
                 {
-                    BattleId = battleId.ToString(),
+                    BattleId = battleId,
                     Seed = seed,
                     TurnData = turnDataList,
                     ChunkIndex = i,
@@ -665,7 +662,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
                 var replayData = new BattleReplayData
                 {
-                    BattleId = battleId.ToString(),
+                    BattleId = battleId,
                     Seed = seed,
                     TurnData = turnDataList,
                     ChunkIndex = i,

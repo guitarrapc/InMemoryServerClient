@@ -258,7 +258,7 @@ public class BattleState
 
         // Write all replay data at once for efficiency
         await using var replayWriter = _replayWriterFactory.Create();
-        await replayWriter.InitializeAsync(_battleId.ToString(), _seed);
+        await replayWriter.InitializeAsync(_battleId, _seed);
         await replayWriter.WriteAllFramesAsync(allTurnData);
         await replayWriter.FinalizeAsync();
 
@@ -317,7 +317,7 @@ public class BattleState
     {
         return new BattleStatus
         {
-            BattleId = _battleId.ToString(),
+            BattleId = _battleId,
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,
@@ -337,7 +337,7 @@ public class BattleState
     {
         return new BattleStatus
         {
-            BattleId = _battleId.ToString(),
+            BattleId = _battleId,
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,

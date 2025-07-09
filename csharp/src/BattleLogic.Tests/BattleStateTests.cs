@@ -49,7 +49,7 @@ public class BattleStateTests
 
         // Assert
         Assert.NotNull(status);
-        Assert.Equal(battleId.ToString(), status.BattleId);
+        Assert.Equal(battleId, status.BattleId);
         Assert.Equal(_mockGroup.ConnectedCount, status.Players.Count);
         Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
         Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
