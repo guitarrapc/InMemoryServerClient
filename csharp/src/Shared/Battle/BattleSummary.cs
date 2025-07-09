@@ -8,7 +8,7 @@ public readonly struct BattleSummary
     /// <summary>
     /// Battle ID
     /// </summary>
-    public required string Id { get; init; }
+    public required string BattleId { get; init; }
 
     /// <summary>
     /// Associated group ID

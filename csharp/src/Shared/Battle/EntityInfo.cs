@@ -1,4 +1,5 @@
 ﻿using Shared.Common;
+using System.Text.Json.Serialization;
 
 namespace Shared.Battle;
 
@@ -25,11 +26,13 @@ public readonly record struct EntityInfo
     /// <summary>
     /// Player job type (only set for players)
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public PlayerJob? PlayerJob { get; init; }
 
     /// <summary>
     /// Enemy job type (only set for enemies)
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public EnemyJob? EnemyJob { get; init; }
 
     /// <summary>

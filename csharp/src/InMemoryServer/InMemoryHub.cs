@@ -493,7 +493,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
             status.ActiveBattles.Add(new BattleSummary
             {
-                Id = battleEntry.Key,
+                BattleId = battleEntry.Key,
                 GroupId = battleState.GroupId,
                 CurrentTurn = battleStatus.CurrentTurn,
                 PlayerCount = battleStatus.Players.Count,

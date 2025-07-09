@@ -1,4 +1,6 @@
-﻿namespace Shared.Battle;
+﻿using System.Text.Json.Serialization;
+
+namespace Shared.Battle;
 
 /// <summary>
 /// Battle status for client-server communication
@@ -8,7 +10,7 @@ public class BattleStatus
     /// <summary>
     /// Battle unique identifier
     /// </summary>
-    public Guid? BattleId { get; set; }
+    public Guid BattleId { get; set; }
 
     /// <summary>
     /// Is battle in progress
@@ -53,6 +55,7 @@ public class BattleStatus
     /// <summary>
     /// Battle result (null if battle is still in progress)
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsPlayerVictory { get; set; }
 
     /// <summary>
