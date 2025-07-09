@@ -161,7 +161,10 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
 
         _logger.LogInformation("Cleaning up {ClientCount} clients...", _clients.Count);
 
-        foreach (var client in _clients)
+        // Create a copy to avoid collection modification issues
+        var clientsToDispose = _clients.ToList();
+
+        foreach (var client in clientsToDispose)
         {
             try
             {
