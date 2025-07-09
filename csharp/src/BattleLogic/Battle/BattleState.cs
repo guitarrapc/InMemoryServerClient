@@ -369,4 +369,12 @@ public class BattleState
         return _readyClientsCount == _connectedClientsCount;
     }
 
+    /// <summary>
+    /// Get the current count of clients that have confirmed connection readiness
+    /// </summary>
+    public int GetConfirmedConnectionCount()
+    {
+        return _readyClientsCount;
+    }
+
 }

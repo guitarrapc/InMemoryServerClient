@@ -22,6 +22,7 @@ internal sealed class MagicOnionBattleClient : IBattleClient
     public event Action<string, string>? OnKeyChanged;
     public event Action<string>? OnKeyDeleted;
     public event Action<string, int>? OnMemberJoined;
+    public event Action<string, int>? OnMemberLeft;
     public event Action<string, string>? OnGroupMessage;
     public event Action<string>? OnConnectionsReady;
     public event Action<string>? OnBattleStarted;

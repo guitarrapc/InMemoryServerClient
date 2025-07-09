@@ -98,7 +98,7 @@ public class GroupManager
     /// <summary>
     /// Leave current group
     /// </summary>
-    public async Task LeaveGroupAsync(string connectionId)
+    public async Task<(GroupInfo? group, int newCount)> LeaveGroupAsync(string connectionId)
     {
         if (_connectionToGroup.TryRemove(connectionId, out var groupId))
         {
@@ -106,16 +106,22 @@ public class GroupManager
             {
                 group.ConnectionCount--;
                 group.ClientIds.Remove(connectionId);
-                _logger.LogInformation($"Connection {connectionId} left group {group.Name} (ID: {groupId})");
+                var newCount = group.ConnectionCount;
+                _logger.LogInformation($"Connection {connectionId} left group {group.Name} (ID: {groupId}). New count: {newCount}");
 
                 // Remove group if empty
                 if (group.ConnectionCount <= 0)
                 {
                     _groups.TryRemove(groupId, out _);
                     _logger.LogDebug($"Removed empty group {group.Name} (ID: {groupId})");
+                    return (null, 0);
                 }
+
+                return (group, newCount);
             }
         }
+
+        return (null, 0);
     }
 
     /// <summary>

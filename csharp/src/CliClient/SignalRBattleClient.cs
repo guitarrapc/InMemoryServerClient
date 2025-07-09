@@ -35,6 +35,7 @@ internal class SignalRBattleClient : IBattleClient
     public event Action<string, string>? OnKeyChanged;
     public event Action<string>? OnKeyDeleted;
     public event Action<string, int>? OnMemberJoined;
+    public event Action<string, int>? OnMemberLeft;
     public event Action<string, string>? OnGroupMessage;
     public event Action<string>? OnConnectionsReady;
     public event Action<string>? OnBattleStarted;
@@ -169,7 +170,22 @@ internal class SignalRBattleClient : IBattleClient
 
         _connection.On<string, string>("KeyChanged", (key, value) => OnKeyChanged?.Invoke(key, value));
         _connection.On<string>("KeyDeleted", key => OnKeyDeleted?.Invoke(key));
-        _connection.On<string, int>("MemberJoined", (connectionId, count) => OnMemberJoined?.Invoke(connectionId, count));
+        _connection.On<string, int>("MemberJoined", (connectionId, count) =>
+        {
+            _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId}", connectionId);
+            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/5", count);
+            if (count == 5)
+            {
+                _logger.LogInformation("[GROUP] ✅ Group is now full! Battle will start soon...");
+            }
+            OnMemberJoined?.Invoke(connectionId, count);
+        });
+        _connection.On<string, int>("MemberLeft", (connectionId, count) =>
+        {
+            _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId}", connectionId);
+            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/5", count);
+            OnMemberLeft?.Invoke(connectionId, count);
+        });
         _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
 
         _connection.On<object>("ConnectionsReady", async (data) =>
@@ -182,6 +198,7 @@ internal class SignalRBattleClient : IBattleClient
             _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", battleId);
             _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", seed);
             _logger.LogInformation("[BATTLE] Group is full! All clients connected.");
+            _logger.LogInformation("[BATTLE] Sending confirmation to server...");
             _logger.LogInformation("[BATTLE] ========================================");
 
             OnConnectionsReady?.Invoke(battleId.ToString());
@@ -189,12 +206,13 @@ internal class SignalRBattleClient : IBattleClient
             // Automatically confirm connection ready
             try
             {
+                _logger.LogInformation("[BATTLE] Confirming connection ready status...");
                 var result = await ConfirmConnectionReadyAsync();
-                _logger.LogInformation("[BATTLE] Connection ready confirmation sent. Result: {Result}", result);
+                _logger.LogInformation("[BATTLE] ✅ Connection ready confirmation sent successfully. Result: {Result}", result);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to confirm connection ready status");
+                _logger.LogError(ex, "[BATTLE] ❌ Failed to confirm connection ready status");
             }
         });
 

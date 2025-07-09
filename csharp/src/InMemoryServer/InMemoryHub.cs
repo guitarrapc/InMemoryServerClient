@@ -270,27 +270,43 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _ = Task.Run(async () =>
         {
             // Wait for all clients to confirm they received the ConnectionsReady notification
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10)); // Reduced to 10 seconds for faster response
             var startTime = DateTime.UtcNow;
 
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Waiting for client confirmations ({ConnectionCount} clients)...",
                 battleId, seed, group.ConnectionCount);
 
+            // More responsive polling with progress feedback
+            var lastConfirmedCount = 0;
             while (!battle.AreAllConnectionsReadyConfirmed())
             {
-                if (await Task.WhenAny(Task.Delay(100), timeoutTask) == timeoutTask)
+                var currentConfirmedCount = battle.GetConfirmedConnectionCount();
+                if (currentConfirmedCount != lastConfirmedCount)
+                {
+                    logger.LogInformation("Battle {BattleId} (Seed: {Seed}): {ConfirmedCount}/{TotalCount} clients confirmed ready",
+                        battleId, seed, currentConfirmedCount, group.ConnectionCount);
+                    lastConfirmedCount = currentConfirmedCount;
+                }
+
+                if (await Task.WhenAny(Task.Delay(50), timeoutTask) == timeoutTask) // 50ms polling for better responsiveness
                 {
                     // タイムアウト発生、確認が揃わなかった
                     var elapsed = DateTime.UtcNow - startTime;
-                    logger.LogWarning("Battle {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Proceeding anyway.",
-                        battleId, seed, elapsed.TotalSeconds);
+                    var finalConfirmedCount = battle.GetConfirmedConnectionCount();
+                    logger.LogWarning("Battle {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Got {ConfirmedCount}/{TotalCount} confirmations. Proceeding anyway.",
+                        battleId, seed, elapsed.TotalSeconds, finalConfirmedCount, group.ConnectionCount);
                     break;
                 }
             }
 
+            var finalElapsed = DateTime.UtcNow - startTime;
+            if (battle.AreAllConnectionsReadyConfirmed())
+            {
+                logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All clients confirmed ready in {Elapsed:F1}s. Starting battle.",
+                    battleId, seed, finalElapsed.TotalSeconds);
+            }
+
             // 3. Send BattleStarted notification once all clients have confirmed
-            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All clients confirmed or timeout reached. Starting battle.",
-                battleId, seed);
             await Clients.Group(group.Id).SendAsync("BattleStarted", new { BattleId = battleId, Seed = seed });
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)
@@ -379,8 +395,13 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         logger.LogInformation($"Client {Context.ConnectionId} disconnected");
         state.ConnectionCount--;
 
-        // Remove from group
-        await groupManager.LeaveGroupAsync(Context.ConnectionId);
+        // Remove from group and notify other members
+        var (group, newCount) = await groupManager.LeaveGroupAsync(Context.ConnectionId);
+        if (group != null)
+        {
+            // Notify other members about the disconnection
+            await Clients.OthersInGroup(group.Id).SendAsync("MemberLeft", Context.ConnectionId, newCount);
+        }
 
         // Remove from watchers
         foreach (var key in state.KeyWatchers.Keys.ToList())
@@ -535,27 +556,43 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _ = Task.Run(async () =>
         {
             // Wait for all clients to confirm they received the ConnectionsReady notification
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10)); // Reduced to 10 seconds for faster response
             var startTime = DateTime.UtcNow;
 
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Waiting for client confirmations ({ConnectionCount} clients)...",
                 battleId, seed, group.ConnectionCount);
 
+            // More responsive polling with progress feedback
+            var lastConfirmedCount = 0;
             while (!battle.AreAllConnectionsReadyConfirmed())
             {
-                if (await Task.WhenAny(Task.Delay(100), timeoutTask) == timeoutTask)
+                var currentConfirmedCount = battle.GetConfirmedConnectionCount();
+                if (currentConfirmedCount != lastConfirmedCount)
+                {
+                    logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): {ConfirmedCount}/{TotalCount} clients confirmed ready",
+                        battleId, seed, currentConfirmedCount, group.ConnectionCount);
+                    lastConfirmedCount = currentConfirmedCount;
+                }
+
+                if (await Task.WhenAny(Task.Delay(50), timeoutTask) == timeoutTask) // 50ms polling for better responsiveness
                 {
                     // タイムアウト発生、確認が揃わなかった
                     var elapsed = DateTime.UtcNow - startTime;
-                    logger.LogWarning("Battle reproduction {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Proceeding anyway.",
-                        battleId, seed, elapsed.TotalSeconds);
+                    var finalConfirmedCount = battle.GetConfirmedConnectionCount();
+                    logger.LogWarning("Battle reproduction {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Got {ConfirmedCount}/{TotalCount} confirmations. Proceeding anyway.",
+                        battleId, seed, elapsed.TotalSeconds, finalConfirmedCount, group.ConnectionCount);
                     break;
                 }
             }
 
+            var finalElapsed = DateTime.UtcNow - startTime;
+            if (battle.AreAllConnectionsReadyConfirmed())
+            {
+                logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All clients confirmed ready in {Elapsed:F1}s. Starting battle.",
+                    battleId, seed, finalElapsed.TotalSeconds);
+            }
+
             // 3. Send BattleStarted notification once all clients have confirmed
-            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All clients confirmed or timeout reached. Starting battle.",
-                battleId, seed);
             await Clients.Group(group.Id).SendAsync("BattleStarted", new { BattleId = battleId, Seed = seed });
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)

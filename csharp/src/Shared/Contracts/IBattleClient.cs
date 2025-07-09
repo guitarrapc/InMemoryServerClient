@@ -149,6 +149,11 @@ public interface IBattleClient : IAsyncDisposable
     event Action<string, int>? OnMemberJoined;
 
     /// <summary>
+    /// Fired when a member leaves the group
+    /// </summary>
+    event Action<string, int>? OnMemberLeft;
+
+    /// <summary>
     /// Fired when a group message is received
     /// </summary>
     event Action<string, string>? OnGroupMessage;
