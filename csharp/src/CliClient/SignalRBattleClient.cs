@@ -153,7 +153,7 @@ internal class SignalRBattleClient : IBattleClient
         return await GetCurrentGroupAsync();
     }
 
-    public async Task<BattleReplayData?> GetBattleReplayAsync(string battleId)
+    public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<BattleReplayData?>("GetBattleReplayAsync", battleId);
@@ -243,7 +243,7 @@ internal class SignalRBattleClient : IBattleClient
                 // Check if we have all chunks
                 if (_replayChunks.Count == _expectedTotalChunks)
                 {
-                    await PlayBattleReplayAsync(replayData.BattleId.ToString(), replayData.Seed);
+                    await PlayBattleReplayAsync(replayData.BattleId, replayData.Seed);
                 }
             }
             catch (Exception ex)
@@ -275,7 +275,7 @@ internal class SignalRBattleClient : IBattleClient
         };
     }
 
-    private async Task PlayBattleReplayAsync(string battleId, int? seed)
+    private async Task PlayBattleReplayAsync(Guid battleId, int? seed)
     {
         _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback - BattleId: {BattleId}, Seed: {Seed}",
             battleId, seed);

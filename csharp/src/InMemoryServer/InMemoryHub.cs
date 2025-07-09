@@ -222,7 +222,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// <summary>
     /// Get battle replay data
     /// </summary>
-    public async Task<string?> GetBattleReplayAsync(string battleId)
+    public async Task<string?> GetBattleReplayAsync(Guid battleId)
     {
         logger.LogInformation($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
 

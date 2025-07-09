@@ -638,7 +638,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="battleId">The battle ID to get replay for</param>
     private async Task BattleReplayAsync(string battleId)
     {
-        if (string.IsNullOrEmpty(battleId))
+        if (!Guid.TryParse(battleId, out var parsedBattleId))
         {
             logger.LogInformation("Error: Battle ID is required");
             Environment.ExitCode = 1;
@@ -653,16 +653,16 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
         try
         {
-            logger.LogInformation($"Requesting battle replay for battle {battleId}...");
-            var replayData = await _client.GetBattleReplayAsync(battleId);
+            logger.LogInformation($"Requesting battle replay for battle {parsedBattleId}...");
+            var replayData = await _client.GetBattleReplayAsync(parsedBattleId);
             if (replayData is null)
             {
-                logger.LogInformation($"Replay data not found for battle: {battleId}");
+                logger.LogInformation($"Replay data not found for battle: {parsedBattleId}");
                 Environment.ExitCode = 1;
                 return;
             }
 
-            logger.LogInformation($"Replay data received for battle {battleId}");
+            logger.LogInformation($"Replay data received for battle {parsedBattleId}");
             logger.LogInformation("Processing battle replay data...");
 
             // Use the turn data from the replay data

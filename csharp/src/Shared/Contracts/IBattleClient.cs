@@ -93,7 +93,7 @@ public interface IBattleClient : IAsyncDisposable
     /// <summary>
     /// Get battle replay data
     /// </summary>
-    Task<BattleReplayData?> GetBattleReplayAsync(string battleId);
+    Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId);
 
     /// <summary>
     /// Play battle replay

@@ -137,7 +137,7 @@ internal sealed class MagicOnionBattleClient : IBattleClient
         throw new NotImplementedException("MagicOnion implementation will be added in future versions");
     }
 
-    public Task<BattleReplayData?> GetBattleReplayAsync(string battleId)
+    public Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         _logger.LogInformation("MagicOnion implementation not yet available");
         throw new NotImplementedException("MagicOnion implementation will be added in future versions");
