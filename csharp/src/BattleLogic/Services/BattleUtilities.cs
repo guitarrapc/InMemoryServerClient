@@ -111,7 +111,7 @@ internal class BattleUtilities
 
                 int checkX = x + dx;
                 int checkY = y + dy;
-                string? targetId = battleField.GetEntityAt(checkX, checkY);
+                var targetId = battleField.GetEntityAt(checkX, checkY);
 
                 if (targetId != null)
                 {

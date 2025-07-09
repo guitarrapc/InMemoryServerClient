@@ -7,12 +7,12 @@ namespace BattleLogic.Services;
 /// </summary>
 internal class BattleField
 {
-    private readonly string?[,] _field;
+    private readonly Guid?[,] _field;
     private readonly Random _random;
 
     public BattleField(Random random)
     {
-        _field = new string[BattleSystemDefines.BattleFieldHeight, BattleSystemDefines.BattleFieldWidth];
+        _field = new Guid?[BattleSystemDefines.BattleFieldHeight, BattleSystemDefines.BattleFieldWidth];
         _random = random;
         ClearField();
     }
@@ -108,7 +108,7 @@ internal class BattleField
     /// <summary>
     /// Move entity on the field
     /// </summary>
-    public void MoveEntity(string entityId, Vector2 oldPosition, Vector2 newPosition)
+    public void MoveEntity(Guid entityId, Vector2 oldPosition, Vector2 newPosition)
     {
         if (IsValidPosition(oldPosition.X, oldPosition.Y))
         {
@@ -135,7 +135,7 @@ internal class BattleField
     /// <summary>
     /// Get entity ID at position
     /// </summary>
-    public string? GetEntityAt(int x, int y)
+    public Guid? GetEntityAt(int x, int y)
     {
         if (IsValidPosition(x, y))
         {
@@ -147,19 +147,19 @@ internal class BattleField
     /// <summary>
     /// Get field snapshot for serialization
     /// </summary>
-    public ReadOnlyMemory<ReadOnlyMemory<string?>> GetFieldSnapshot()
+    public ReadOnlyMemory<ReadOnlyMemory<Guid?>> GetFieldSnapshot()
     {
-        var cells = new string?[BattleSystemDefines.BattleFieldHeight][];
+        var cells = new Guid?[BattleSystemDefines.BattleFieldHeight][];
         for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
         {
-            cells[y] = new string?[BattleSystemDefines.BattleFieldWidth];
+            cells[y] = new Guid?[BattleSystemDefines.BattleFieldWidth];
             for (int x = 0; x < BattleSystemDefines.BattleFieldWidth; x++)
             {
                 cells[y][x] = _field[y, x];
             }
         }
 
-        var rowMemories = new ReadOnlyMemory<string?>[BattleSystemDefines.BattleFieldHeight];
+        var rowMemories = new ReadOnlyMemory<Guid?>[BattleSystemDefines.BattleFieldHeight];
         for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
         {
             rowMemories[y] = cells[y].AsMemory();

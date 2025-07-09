@@ -391,9 +391,9 @@ internal class SignalRBattleClient : IBattleClient
     /// <summary>
     /// Builds a 2D field array from player and enemy positions
     /// </summary>
-    private string?[,] BuildBattleField(BattleStatus status)
+    private Guid?[,] BuildBattleField(BattleStatus status)
     {
-        var field = new string?[status.FieldHeight, status.FieldWidth];
+        var field = new Guid?[status.FieldHeight, status.FieldWidth];
 
         // Place players on field
         foreach (var player in status.Players)

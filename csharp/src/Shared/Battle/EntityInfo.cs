@@ -10,7 +10,7 @@ public readonly record struct EntityInfo
     /// <summary>
     /// Entity unique identifier
     /// </summary>
-    public required string EntityId { get; init; }
+    public required Guid EntityId { get; init; }
 
     /// <summary>
     /// Entity name

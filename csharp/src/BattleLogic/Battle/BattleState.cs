@@ -305,7 +305,7 @@ public class BattleState
     /// <summary>
     /// Get a snapshot of the battle field
     /// </summary>
-    private ReadOnlyMemory<ReadOnlyMemory<string?>> GetBattleFieldSnapshot()
+    private ReadOnlyMemory<ReadOnlyMemory<Guid?>> GetBattleFieldSnapshot()
     {
         return _battleField.GetFieldSnapshot();
     }
