@@ -1,3 +1,7 @@
+---
+applyTo: "**"
+---
+
 # GUID使用ガイドライン
 
 ## 概要
@@ -61,7 +65,7 @@ var timestampId = Guid.CreateVersion7();
 var battleSeed = new BattleSeed(battleId);
 var player = new EntityInfo
 {
-    Id = battleSeed.NextEntityId().ToString(), // 決定論的
+    EntityId = battleSeed.NextEntityId(), // 決定論的
     // ...
 };
 
@@ -78,7 +82,7 @@ var groupId = Guid.CreateVersion7().ToString(); // タイムスタンプベー�
 // ❌ エンティティIDにタイムスタンプID使用（再現性が失われる）
 var player = new EntityInfo
 {
-    Id = Guid.NewGuid().ToString(), // 非決定論的
+    EntityId = Guid.NewGuid(), // 非決定論的
     // ...
 };
 
