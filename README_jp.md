@@ -55,12 +55,18 @@ C#で実装されたインメモリステートフルサーバーとCLIクライ
 ```
 csharp/
 ├── src/
-│   ├── InMemoryServer/     # サーバー実装
-│   ├── CliClient/          # CLIクライアント
-│   ├── Shared/             # 共有ライブラリ
-│   └── Tests/              # テストプロジェクト
-├── Dockerfile              # サーバーコンテナ化
-└── Directory.Build.props   # ビルド設定
+│   ├── BattleLogic/          # サーバー実装
+│   ├── CliClient/            # CLIクライアント
+│   ├── InMemoryServer/       # サーバー実装
+│   └── Shared/               # 共有ライブラリ
+├── tests/
+│   ├── BattleLogic.Tests/    # バトルロジックのユニットテスト
+│   ├── CliClient.Tests/      # CLIクライアントのユニットテスト
+│   ├── E2E.Tests/            # エンドツーエンドテスト
+│   └── InMemoryServer.Tests/ # サーバーのユニットテスト
+├── Dockerfile                # サーバーコンテナ化
+├── Directory.Build.props     # ビルド設定
+└── Directory.Packages.props  # パッケージ管理
 ```
 
 ## 始め方

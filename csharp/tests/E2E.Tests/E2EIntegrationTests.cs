@@ -7,7 +7,7 @@ using Shared.Contracts;
 using Shared.Models;
 using Xunit;
 
-namespace E2ETests;
+namespace E2E.Tests;
 
 public class E2EIntegrationTests : IDisposable
 {
@@ -77,7 +77,7 @@ public class E2EIntegrationTests : IDisposable
         var groupCreated = false;
         var joinedGroup = false;
         GroupInfo? createdGroupInfo = null;
-        
+
         connection.On<GroupInfo>("GroupCreated", (groupInfo) =>
         {
             groupCreated = true;
@@ -93,19 +93,19 @@ public class E2EIntegrationTests : IDisposable
         {
             // Act
             await connection.StartAsync();
-            
+
             // Create group
             await connection.InvokeAsync("CreateGroup", "TestGroup");
-            
+
             // Wait for group creation
             await Task.Delay(100);
-            
+
             // Join group
             if (createdGroupInfo != null)
             {
                 await connection.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
             }
-            
+
             // Wait for join
             await Task.Delay(100);
 
@@ -321,7 +321,7 @@ public class E2EIntegrationTests : IDisposable
         {
             // Act
             await connection.StartAsync();
-            
+
             // Create and join group
             await connection.InvokeAsync("CreateGroup", "LeaveTestGroup");
             await Task.Delay(100);

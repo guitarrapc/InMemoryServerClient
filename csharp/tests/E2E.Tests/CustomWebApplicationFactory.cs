@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace E2ETests;
+namespace E2E.Tests;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
@@ -16,7 +16,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             services.AddSingleton<InMemoryServer.GroupManager>();
             services.AddSingleton<InMemoryServer.InMemoryHub>();
             services.AddSingleton<BattleLogic.Infrastructures.BattleReplayWriter.BattleReplayWriterFactory>();
-            
+
             // Configure test logging
             services.AddLogging(logging =>
             {
@@ -26,7 +26,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         });
 
         builder.UseEnvironment("Testing");
-        
+
         // Create directory for battle replays
         Directory.CreateDirectory(BattleLogic.Constans.BattleSystemDefines.BattleReplayDirectory);
     }
