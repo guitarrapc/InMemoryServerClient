@@ -478,7 +478,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         {
             status.Groups.Add(new GroupSummary
             {
-                Id = group.GroupId,
+                GroupId = group.GroupId,
                 Name = group.Name,
                 ConnectionCount = group.ConnectionCount,
                 BattleId = group.BattleId

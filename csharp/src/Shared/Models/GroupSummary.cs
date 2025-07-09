@@ -8,7 +8,7 @@ public readonly struct GroupSummary
     /// <summary>
     /// Group ID
     /// </summary>
-    public required string Id { get; init; }
+    public required string GroupId { get; init; }
 
     /// <summary>
     /// Group name

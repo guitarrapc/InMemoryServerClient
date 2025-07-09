@@ -610,7 +610,7 @@ internal class SignalRBattleClient : IBattleClient
         EnsureConnected();
         var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
         var groups = serverStatus.Groups?.Select(g => new ClientGroupInfo(
-            g.Id,
+            g.GroupId,
             g.Name,
             g.ConnectionCount,
             5, // MaxMembers - hardcoded to 5 for battle groups
