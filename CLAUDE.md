@@ -5,23 +5,23 @@
 ## 📋 インストラクション一覧
 
 ### 🔧 基本方針とコアルール
-- **[core-rules.md](.github/instructions/core-rules.md)** - 最重要ルール、対話言語、データモデル、セキュリティ
+- **[core-rules.md](.github/instructions/core-rules.instructions.md)** - 最重要ルール、対話言語、データモデル、セキュリティ
 
 ### 📖 プロジェクト設計
-- **[project-overview.md](.github/instructions/project-overview.md)** - プロジェクト概要、アーキテクチャ、機能仕様
+- **[project-overview.md](.github/instructions/project-overview.instructions.md)** - プロジェクト概要、アーキテクチャ、機能仕様
 
 ### ⚙️ 開発技術スタック
-- **[coding-guidelines.md](.github/instructions/coding-guidelines.md)** - コーディングガイドライン、ライブラリ、テスト方針
+- **[coding-guidelines.md](.github/instructions/coding-guidelines.instructions.md)** - コーディングガイドライン、ライブラリ、テスト方針
 
 ### ⚔️ バトルシステム
-- **[battle-system-rules.md](.github/instructions/battle-system-rules.md)** - バトルシステムの実装ルールとバランス設定
+- **[battle-system-rules.md](.github/instructions/battle-system-rules.instructions.md)** - バトルシステムの実装ルールとバランス設定
 
 ### 🚀 パフォーマンス最適化
-- **[performance-optimization.md](.github/instructions/performance-optimization.md)** - メモリ効率化、GUID選択、構造体活用
-- **[guid-usage-guideline.md](.github/instructions/guid-usage-guideline.md)** - GUIDのガイドライン
+- **[performance-optimization.md](.github/instructions/performance-optimization.instructions.md)** - メモリ効率化、GUID選択、構造体活用
+- **[guid-usage-guideline.md](.github/instructions/guid-usage-guideline.instructions.md)** - GUIDのガイドライン
 
 ### 🏗️ インフラストラクチャ
-- **[infrastructure.md](.github/instructions/infrastructure.md)** - CI/CD、Docker、デプロイメント
+- **[infrastructure.md](.github/instructions/infrastructure.instructions.md)** - CI/CD、Docker、デプロイメント
 
 ## 📝 使用方法
 
