@@ -1,9 +1,5 @@
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using Shared.Constants;
-using Shared.Contracts;
 using Shared.Models;
 using Xunit;
 
