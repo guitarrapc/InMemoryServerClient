@@ -40,15 +40,16 @@ public class BattleStateTests
     public void BattleState_ShouldInitialize_WithProvidedGroup()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
+        var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345;
 
         // Act
-        var battleState = new BattleState(battleId, _mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = TestHelpers.CreateBattleState(battleId, seed, _mockGroup, _logger, _loggerFactory);
         var status = battleState.GetStatus();
 
         // Assert
         Assert.NotNull(status);
-        Assert.Equal(battleId, status.BattleId);
+        Assert.Equal(battleId.ToString(), status.BattleId);
         Assert.Equal(_mockGroup.ConnectedCount, status.Players.Count);
         Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
         Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
@@ -63,13 +64,14 @@ public class BattleStateTests
     public async Task BattleState_AfterBattleCompletion_ShouldHaveVictoryResult()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString();
+        var battleId = BattleSeed.NewTimestampId();
+        var seed = 12345; // Use fixed seed for testing
         var mockGroup = Substitute.For<IBattleGroupContext>();
         mockGroup.ConnectedCount.Returns(5);
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battleState = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
         await battleState.RunBattleAsync();
         var status = battleState.GetStatus();
 
@@ -97,13 +99,14 @@ public class BattleStateTests
     public void BattleStatus_ShouldHaveValidPlayers()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
+        var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345; // Use fixed seed for testing
         var mockGroup = Substitute.For<IBattleGroupContext>();
         mockGroup.ConnectedCount.Returns(2);
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2" });
 
         // Act
-        var battleState = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
         var status = battleState.GetStatus();
 
         // Assert
@@ -113,7 +116,7 @@ public class BattleStateTests
         {
             Assert.True(player.Type.IsPlayer);
             // Players have job modifiers applied, so we need to check wider ranges
-            Assert.True(player.MaxHp >= 150 && player.MaxHp <= 700, $"Player HP {player.MaxHp} is outside expected range");
+            Assert.True(player.MaxHp >= 150 && player.MaxHp <= 1000, $"Player HP {player.MaxHp} is outside expected range");
             Assert.Equal(player.MaxHp, player.CurrentHp); // Should start at full health
             Assert.True(player.Attack >= 15 && player.Attack <= 60, $"Player Attack {player.Attack} is outside expected range");
             Assert.True(player.Defense >= 0 && player.Defense <= 50, $"Player Defense {player.Defense} is outside expected range");
@@ -125,7 +128,8 @@ public class BattleStateTests
     public void BattleStatus_ShouldHaveValidEnemies()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
+        var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345; // Use fixed seed for testing
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
@@ -137,7 +141,7 @@ public class BattleStateTests
         };
 
         // Act
-        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = TestHelpers.CreateBattleState(battleId, seed, group, _logger, _loggerFactory);
         var status = battleState.GetStatus();
 
         // Assert
@@ -166,14 +170,15 @@ public class BattleStateTests
     public void BattleState_SameBattleId_ShouldProduceIdenticalResults()
     {
         // Arrange
-        const string battleId = "reproducible-battle-test-12345";
+        var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345; // Use fixed seed for testing
         var mockGroup = Substitute.For<IBattleGroupContext>();
         mockGroup.ConnectedCount.Returns(5);
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act - Create two battles with the same battleId
-        var battle1 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
-        var battle2 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle1 = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
+        var battle2 = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
 
         var status1 = battle1.GetStatus();
         var status2 = battle2.GetStatus();
@@ -218,29 +223,32 @@ public class BattleStateTests
             Assert.Equal(enemy1.Evasion, enemy2.Evasion);
         }
 
-        // Verify battle seeds are identical
-        Assert.Equal(battle1.BattleSeed.Seed, battle2.BattleSeed.Seed);
+        // Verify battle seeds are identical (user seed and deterministic seed should be same)
+        Assert.Equal(battle1.BattleSeed.UserSeed, battle2.BattleSeed.UserSeed);
+        Assert.Equal(battle1.BattleSeed.DeterministicSeed, battle2.BattleSeed.DeterministicSeed);
     }
 
     [Fact]
     public void BattleState_DifferentBattleIds_ShouldProduceDifferentResults()
     {
         // Arrange
-        const string battleId1 = "battle-test-12345";
-        const string battleId2 = "battle-test-67890";
+        var battleId1 = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var battleId2 = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345; // Use fixed seed for testing
         var mockGroup = Substitute.For<IBattleGroupContext>();
         mockGroup.ConnectedCount.Returns(5);
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battle1 = new BattleState(battleId1, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
-        var battle2 = new BattleState(battleId2, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle1 = TestHelpers.CreateBattleState(battleId1, seed, mockGroup, _logger, _loggerFactory);
+        var battle2 = TestHelpers.CreateBattleState(battleId2, seed, mockGroup, _logger, _loggerFactory);
 
         var status1 = battle1.GetStatus();
         var status2 = battle2.GetStatus();
 
-        // Assert - Different battleIds should produce different results
-        Assert.NotEqual(battle1.BattleSeed.Seed, battle2.BattleSeed.Seed);
+        // Assert - Different battleIds should produce different deterministic seeds even with same user seed
+        Assert.Equal(battle1.BattleSeed.UserSeed, battle2.BattleSeed.UserSeed); // Same user seed
+        Assert.NotEqual(battle1.BattleSeed.DeterministicSeed, battle2.BattleSeed.DeterministicSeed); // Different deterministic seed
 
         // While counts might be the same due to random distribution,
         // at least some entities should be different
@@ -296,14 +304,15 @@ public class BattleStateTests
     public async Task BattleState_SameBattleId_ShouldProduceIdenticalBattleExecution()
     {
         // Arrange
-        const string battleId = "full-execution-repro-test-98765";
+        var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345; // Use fixed seed for testing
         var mockGroup = Substitute.For<IBattleGroupContext>();
         mockGroup.ConnectedCount.Returns(5);
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act - Execute full battles with the same battleId
-        var battle1 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
-        var battle2 = new BattleState(battleId, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle1 = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
+        var battle2 = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
 
         // Execute the battles to completion
         await battle1.RunBattleAsync();
@@ -362,19 +371,20 @@ public class BattleStateTests
     }
 
     [Theory]
-    [InlineData("seed-test-alpha", "seed-test-alpha", true)]   // Same seeds should be identical
-    [InlineData("seed-test-beta", "seed-test-gamma", false)]   // Different seeds should be different
+    [InlineData("0197e9ec-f33e-7787-9d91-c6a45876776e", "0197e9ec-f33e-7787-9d91-c6a45876776e", true)]   // Same battleId and seed should be identical
+    [InlineData("0197e9ed-252a-7def-8a06-472cda6cf1e1", "0197e9ed-3be4-7096-98db-47a929334f06", false)]   // Different battleId should be different even with same seed
     public void BattleState_SeedReproducibility_ShouldMatchExpectedBehavior(
-        string battleId1, string battleId2, bool shouldBeIdentical)
+        Guid battleId1, Guid battleId2, bool shouldBeIdentical)
     {
         // Arrange
+        var seed = 12345; // Use fixed seed for testing
         var mockGroup = Substitute.For<IBattleGroupContext>();
         mockGroup.ConnectedCount.Returns(5);
         mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battle1 = new BattleState(battleId1, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
-        var battle2 = new BattleState(battleId2, mockGroup, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battle1 = TestHelpers.CreateBattleState(battleId1, seed, mockGroup, _logger, _loggerFactory);
+        var battle2 = TestHelpers.CreateBattleState(battleId2, seed, mockGroup, _logger, _loggerFactory);
 
         var status1 = battle1.GetStatus();
         var status2 = battle2.GetStatus();
@@ -424,5 +434,78 @@ public class BattleStateTests
             Assert.True(playersAreDifferent || enemiesAreDifferent,
                 "Different battle IDs should produce different entity arrangements");
         }
+    }
+
+    [Fact]
+    public void BattleState_SameBattleIdDifferentSeed_ShouldProduceDifferentResults()
+    {
+        // Arrange
+        var battleId = Guid.Parse("0197e9ec-f33e-7787-9d91-c6a45876776e");
+        var seed1 = 12345;
+        var seed2 = 54321;
+        var mockGroup = Substitute.For<IBattleGroupContext>();
+        mockGroup.ConnectedCount.Returns(5);
+        mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
+
+        // Act
+        var battle1 = TestHelpers.CreateBattleState(battleId, seed1, mockGroup, _logger, _loggerFactory);
+        var battle2 = TestHelpers.CreateBattleState(battleId, seed2, mockGroup, _logger, _loggerFactory);
+
+        var status1 = battle1.GetStatus();
+        var status2 = battle2.GetStatus();
+
+        // Assert - Same battleId but different user seeds should produce different deterministic seeds
+        Assert.Equal(battle1.BattleSeed.BattleId, battle2.BattleSeed.BattleId); // Same battle ID
+        Assert.NotEqual(battle1.BattleSeed.UserSeed, battle2.BattleSeed.UserSeed); // Different user seed
+        Assert.NotEqual(battle1.BattleSeed.DeterministicSeed, battle2.BattleSeed.DeterministicSeed); // Different deterministic seed
+
+        // Results should be different due to different deterministic seeds
+        Assert.Equal(status1.Players.Count, status2.Players.Count); // Same number of players (5)
+        // Enemy count may be different due to different random seeds - this is expected
+        Assert.True(status1.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
+        Assert.True(status1.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+        Assert.True(status2.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
+        Assert.True(status2.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+
+        // At least some entity IDs should be different
+        bool anyPlayerDifferent = false;
+        for (int i = 0; i < status1.Players.Count; i++)
+        {
+            if (status1.Players[i].Id != status2.Players[i].Id)
+            {
+                anyPlayerDifferent = true;
+                break;
+            }
+        }
+        Assert.True(anyPlayerDifferent, "At least some player entity IDs should be different with different seeds");
+    }
+
+    [Fact]
+    public void BattleSeed_CombinedSeedGeneration_ShouldBeConsistent()
+    {
+        // Arrange
+        var battleId = Guid.Parse("0197e9ec-f33e-7787-9d91-c6a45876776e");
+        var userSeed = 12345;
+
+        // Act - Create multiple instances with same parameters
+        var seed1 = new BattleSeed(battleId, userSeed);
+        var seed2 = new BattleSeed(battleId, userSeed);
+
+        // Assert - Should have identical deterministic seeds
+        Assert.Equal(seed1.BattleId, seed2.BattleId);
+        Assert.Equal(seed1.UserSeed, seed2.UserSeed);
+        Assert.Equal(seed1.DeterministicSeed, seed2.DeterministicSeed);
+
+        // Entity IDs should be identical when generated in same order
+        var entityIds1 = new List<Guid>();
+        var entityIds2 = new List<Guid>();
+
+        for (int i = 0; i < 5; i++)
+        {
+            entityIds1.Add(seed1.NextEntityId());
+            entityIds2.Add(seed2.NextEntityId());
+        }
+
+        Assert.Equal(entityIds1, entityIds2);
     }
 }

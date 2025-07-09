@@ -1,4 +1,4 @@
-using BattleLogic.Constans;
+﻿using BattleLogic.Constans;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using BattleLogic.Models;
 using BattleLogic.Services;
@@ -20,7 +20,8 @@ public class BattleState
         ReplayCompleted,
     }
 
-    private readonly string _battleId;
+    private readonly Guid _battleId;
+    private readonly int _seed;
     private readonly IBattleGroupContext _group;
     private readonly BattleSeed _battleSeed;
     private readonly List<EntityInfo> _players = new(5); // Pre-allocate for max players
@@ -59,27 +60,32 @@ public class BattleState
     /// <summary>
     /// Gets the battle ID
     /// </summary>
-    public string BattleId => _battleId;
+    public Guid BattleId => _battleId;
+
+    /// <summary>
+    /// Gets the seed value used for this battle
+    /// </summary>
+    public int Seed => _seed;
 
     /// <summary>
     /// Gets the time when the battle was started
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(string battleId, IBattleGroupContext group, ILogger<BattleState> logger, BattleReplayWriterFactory replayWriterFactory)
+    public BattleState(Guid battleId, int seed, IBattleGroupContext group, ILogger<BattleState> logger, BattleReplayWriterFactory replayWriterFactory)
     {
         _battleId = battleId;
+        _seed = seed;
         _group = group;
         _logger = logger;
         _replayWriterFactory = replayWriterFactory;
 
-        // Use battleId to generate seed if no explicit seed is provided
-        _battleSeed = new BattleSeed(battleId);
+        // Create battle seed with combined BattleId + seed for true deterministic behavior
+        _battleSeed = new BattleSeed(battleId, seed);
 
-        // Log the seed for reproducibility
-        _logger.LogInformation("Battle {BattleId} initialized with seed {Seed}. " +
-            "To reproduce this battle, use battleId: {BattleId} or seed: {Seed}",
-            battleId, _battleSeed.Seed, battleId, _battleSeed.Seed);
+        // Log both battle ID and seed for reproducibility
+        _logger.LogInformation("Battle initialized - BattleId: {BattleId}, UserSeed: {UserSeed}, DeterministicSeed: {DeterministicSeed}",
+            battleId, seed, _battleSeed.DeterministicSeed);
 
         // Initialize battle components with deterministic random
         _battleField = new BattleField(_battleSeed.Random);
@@ -190,7 +196,7 @@ public class BattleState
     /// </summary>
     public async Task RunBattleAsync()
     {
-        _logger.LogInformation("Battle {BattleId}: Starting pre-computation of battle simulation with {PlayerCount} players and {EnemyCount} enemies", _battleId, _players.Count, _enemies.Count);
+        _logger.LogInformation("Battle started - BattleId: {BattleId}, Seed: {Seed} - Pre-computation with {PlayerCount} players and {EnemyCount} enemies", _battleId, _seed, _players.Count, _enemies.Count);
         var startTime = DateTime.UtcNow;
 
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
@@ -251,15 +257,15 @@ public class BattleState
         allTurnData.Add(GetStatusSnapshot());
 
         // Write all replay data at once for efficiency
-        await using var replayWriter = _replayWriterFactory.Create(_battleId);
-        await replayWriter.InitializeAsync(_battleId);
+        await using var replayWriter = _replayWriterFactory.Create(_battleId.ToString());
+        await replayWriter.InitializeAsync(_battleId.ToString(), _seed);
         await replayWriter.WriteAllFramesAsync(allTurnData);
         await replayWriter.FinalizeAsync();
 
         var endTime = DateTime.UtcNow;
         var duration = endTime - startTime;
-        _logger.LogInformation($"Battle {_battleId}: Pre-computation completed in {duration.TotalSeconds:F2} seconds");
-        _logger.LogInformation($"Battle {_battleId}: Processed {_currentTurn} turns with final result: {(_playerVictory ? "Victory" : "Defeat")}");
+        _logger.LogInformation("Battle completed - BattleId: {BattleId}, UserSeed: {UserSeed}, DeterministicSeed: {DeterministicSeed} - Pre-computation completed in {Duration:F2} seconds", _battleId, _seed, _battleSeed.DeterministicSeed, duration.TotalSeconds);
+        _logger.LogInformation("Battle finished - BattleId: {BattleId}, Seed: {Seed} - Processed {TurnCount} turns with final result: {Result}", _battleId, _seed, _currentTurn, _playerVictory ? "Victory" : "Defeat");
 
         // Store all turn data for client transmission
         _allTurnData = allTurnData;
@@ -311,7 +317,7 @@ public class BattleState
     {
         return new BattleStatus
         {
-            BattleId = _battleId,
+            BattleId = _battleId.ToString(),
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,
@@ -331,7 +337,7 @@ public class BattleState
     {
         return new BattleStatus
         {
-            BattleId = _battleId,
+            BattleId = _battleId.ToString(),
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,

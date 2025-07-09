@@ -111,6 +111,16 @@ public interface IBattleClient : IAsyncDisposable
     /// </summary>
     Task<BattleStatus?> GetBattleStatusAsync();
 
+    // Battle reproduction
+    /// <summary>
+    /// Reproduce a battle with specific battle ID and seed
+    /// </summary>
+    /// <param name="battleId">Battle ID to reproduce</param>
+    /// <param name="seedValue">String seed value (will be converted to numeric by server)</param>
+    /// <param name="groupName">Optional group name for reproduction</param>
+    /// <returns>True if reproduction request was successful</returns>
+    Task<bool> ReproduceBattleAsync(string battleId, string seedValue, string? groupName = null);
+
     // Server status
     /// <summary>
     /// Get server status information

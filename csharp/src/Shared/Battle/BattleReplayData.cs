@@ -11,6 +11,11 @@ public readonly struct BattleReplayData
     public required string BattleId { get; init; }
 
     /// <summary>
+    /// Battle seed for reproducibility
+    /// </summary>
+    public int? Seed { get; init; }
+
+    /// <summary>
     /// Turn data for this chunk
     /// </summary>
     public required List<BattleStatus> TurnData { get; init; }

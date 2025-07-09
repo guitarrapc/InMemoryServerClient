@@ -112,7 +112,7 @@ public static class BattleSystemDefines
     {
         { EnemySize.Small, new (20, 30) },   // 高回避
         { EnemySize.Medium, new (13, 20) },  // 中回避
-        { EnemySize.Large, new (10, 20) }     // 低回避
+        { EnemySize.Large, new (10, 20) },   // 低回避
     };
 
     /// <summary>

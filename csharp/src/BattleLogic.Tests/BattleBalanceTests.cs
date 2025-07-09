@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Shared.Contracts;
 using System.Collections.Concurrent;
 
@@ -57,7 +57,8 @@ public class BattleBalanceTests
         // テスト用のグループを作成 (プレイヤー数は常に5人)
         var playerCount = 5; // 常に5人のプレイヤー
 
-        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
+        var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
+        var seed = 12345; // Use fixed seed for testing
         var groupId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for group ID
         var group = new GroupInfo
         {
@@ -73,7 +74,7 @@ public class BattleBalanceTests
         };
 
         // バトル状態を初期化
-        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = new BattleState(battleId, seed, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
         // バトルを実行
         await battleState.RunBattleAsync();
@@ -157,7 +158,8 @@ public class BattleBalanceTests
             // プレイヤー数は常に5人
             var playerCount = 5;
 
-            var battleId = BattleSeed.NewTimestampId().ToString();
+            var battleId = BattleSeed.NewTimestampId();
+            var seed = 12345; // Use fixed seed for testing
             var groupId = BattleSeed.NewTimestampId().ToString();
             var group = new GroupInfo
             {
@@ -173,7 +175,7 @@ public class BattleBalanceTests
             };
 
             // バトル状態を初期化
-            var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+            var battleState = new BattleState(battleId, seed, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
 
             // バトルを実行
             await battleState.RunBattleAsync();
@@ -247,13 +249,14 @@ public class BattleBalanceTests
     public async Task BattleResult_ShouldBeConsistent_BetweenPropertyAndCalculation()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString();
+        var battleId = BattleSeed.NewTimestampId();
+        var seed = 12345; // Use fixed seed for testing
         var group = Substitute.For<IBattleGroupContext>();
         group.ConnectedCount.Returns(5);
         group.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
 
         // Act
-        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = new BattleState(battleId, seed, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
         await battleState.RunBattleAsync();
 
         var finalStatus = battleState.GetStatus();

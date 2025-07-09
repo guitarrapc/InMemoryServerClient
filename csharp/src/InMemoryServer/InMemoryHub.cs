@@ -245,20 +245,26 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     /// </summary>
     private async Task StartBattleAsync(GroupInfo group)
     {
-        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for timestamp ordering
-        group.BattleId = battleId;
+        // Generate completely independent battle ID and seed
+        var battleId = BattleSeed.GenerateBattleId();
+        var seed = BattleSeed.GenerateSecureSeed();
 
-        logger.LogInformation($"Starting battle {battleId} for group {group.Id}");
-        logger.LogInformation($"Group {group.Id} has {group.ConnectionCount} members and will start a battle");
+        group.BattleId = battleId.ToString();
+
+        // Log both battle ID and seed for debugging/reproduce purposes
+        logger.LogInformation("Battle started - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
+        logger.LogInformation("Group {GroupId} has {ConnectionCount} members and will start a battle",
+            group.Id, group.ConnectionCount);
 
         // Create and store battle state
         var battleLogger = loggerFactory.CreateLogger<BattleState>();
-        var battle = new BattleState(battleId, group, battleLogger, replayWriterFactory);
-        state.BattleStates[battleId] = battle;
+        var battle = new BattleState(battleId, seed, group, battleLogger, replayWriterFactory);
+        state.BattleStates[battleId.ToString()] = battle;
 
         // 1. Notify all clients that connections are ready
-        logger.LogInformation($"Battle {battleId}: Notifying all clients that connections are ready");
-        await Clients.Group(group.Id).SendAsync("ConnectionsReady", battleId);
+        logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
+            battleId, seed);
+        await Clients.Group(group.Id).SendAsync("ConnectionsReady", new { BattleId = battleId, Seed = seed });
 
         // 2. Start battle processing in background after all clients confirm readiness
         _ = Task.Run(async () =>
@@ -267,7 +273,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
             var startTime = DateTime.UtcNow;
 
-            logger.LogInformation($"Battle {battleId}: Waiting for client confirmations ({group.ConnectionCount} clients)...");
+            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Waiting for client confirmations ({ConnectionCount} clients)...",
+                battleId, seed, group.ConnectionCount);
 
             while (!battle.AreAllConnectionsReadyConfirmed())
             {
@@ -275,28 +282,33 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
                 {
                     // タイムアウト発生、確認が揃わなかった
                     var elapsed = DateTime.UtcNow - startTime;
-                    logger.LogWarning($"Battle {battleId}: Timed out after {elapsed.TotalSeconds:F1}s waiting for client confirmations. Proceeding anyway.");
+                    logger.LogWarning("Battle {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Proceeding anyway.",
+                        battleId, seed, elapsed.TotalSeconds);
                     break;
                 }
             }
 
             // 3. Send BattleStarted notification once all clients have confirmed
-            logger.LogInformation($"Battle {battleId}: All clients confirmed or timeout reached. Starting battle.");
-            await Clients.Group(group.Id).SendAsync("BattleStarted", battleId);
+            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All clients confirmed or timeout reached. Starting battle.",
+                battleId, seed);
+            await Clients.Group(group.Id).SendAsync("BattleStarted", new { BattleId = battleId, Seed = seed });
 
             // 4. Run pre-computation (完全にサーバーサイドで計算完了)
-            logger.LogInformation($"Battle {battleId}: Starting pre-computation of battle simulation");
+            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
+                battleId, seed);
             await battle.RunBattleAsync();
 
             // 5. Send all battle data to clients for replay
-            logger.LogInformation($"Battle {battleId}: Sending battle replay data to clients");
+            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Sending battle replay data to clients",
+                battleId, seed);
             var allTurnData = battle.GetAllTurnData();
 
             // Check if data is too large, split if necessary
             const int maxTurnsPerChunk = 50; // Send in chunks of 50 turns
             var chunks = allTurnData.Chunk(maxTurnsPerChunk).ToList();
 
-            logger.LogInformation($"Battle {battleId}: Sending {allTurnData.Count} turns in {chunks.Count} chunk(s)");
+            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Sending {TurnCount} turns in {ChunkCount} chunk(s)",
+                battleId, seed, allTurnData.Count, chunks.Count);
 
             for (int i = 0; i < chunks.Count; i++)
             {
@@ -307,7 +319,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
                 var replayData = new BattleReplayData
                 {
-                    BattleId = battleId,
+                    BattleId = battleId.ToString(),
+                    Seed = seed,
                     TurnData = turnDataList,
                     ChunkIndex = i,
                     TotalChunks = chunks.Count,
@@ -340,7 +353,8 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
 
             // 6. Battle completed notification
             await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
-            logger.LogInformation($"Battle {battleId}: All replay data sent, battle marked as completed");
+            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
+                battleId, seed);
 
             // Clear entire allTurnData after all chunks sent
             battle.ClearBattleData();
@@ -465,5 +479,158 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         logger.LogInformation($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
 
         return true;
+    }
+
+    /// <summary>
+    /// Reproduce a battle with specific battle ID and seed
+    /// </summary>
+    public async Task<bool> ReproduceBattleAsync(string battleId, string seedValue, string? groupName = null)
+    {
+        // Validate battle ID
+        if (!Guid.TryParse(battleId, out var parsedBattleId))
+        {
+            logger.LogError("Invalid battle ID format: {BattleId}", battleId);
+            return false;
+        }
+
+        // Convert seed value to numeric using server-side logic
+        var seed = BattleSeed.CreateSeedFromString(seedValue);
+
+        var clientId = Context.ConnectionId;
+        logger.LogInformation("Client {ClientId} requesting battle reproduction - BattleId: {BattleId}, SeedValue: {SeedValue}, NumericSeed: {NumericSeed}",
+            clientId, battleId, seedValue, seed);
+
+        // Get or create group for reproduction
+        string finalGroupName = groupName ?? $"reproduce-{battleId[..8]}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+        var group = await groupManager.JoinGroupAsync(clientId, finalGroupName);
+        await Groups.AddToGroupAsync(clientId, group.Id);
+
+        logger.LogInformation("Client {ClientId} joined reproduction group: {GroupName} (ID: {GroupId})",
+            clientId, group.Name, group.Id);
+
+        // Check if group is full and battle should start with reproduction
+        if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
+        {
+            await StartReproduceBattleAsync(group, parsedBattleId, seed);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Start a battle reproduction with specific battle ID and seed
+    /// </summary>
+    private async Task StartReproduceBattleAsync(GroupInfo group, Guid battleId, int seed)
+    {
+        group.BattleId = battleId.ToString();
+
+        // Log battle reproduction start with both battle ID and seed
+        logger.LogInformation("Battle reproduction started - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
+        logger.LogInformation("Group {GroupId} has {ConnectionCount} members and will start battle reproduction",
+            group.Id, group.ConnectionCount);
+
+        // Create and store battle state with specific battle ID and seed
+        var battleLogger = loggerFactory.CreateLogger<BattleState>();
+        var battle = new BattleState(battleId, seed, group, battleLogger, replayWriterFactory);
+        state.BattleStates[battleId.ToString()] = battle;
+
+        // 1. Notify all clients that connections are ready
+        logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
+            battleId, seed);
+        await Clients.Group(group.Id).SendAsync("ConnectionsReady", new { BattleId = battleId, Seed = seed });
+
+        // 2. Start battle processing in background after all clients confirm readiness
+        _ = Task.Run(async () =>
+        {
+            // Wait for all clients to confirm they received the ConnectionsReady notification
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30)); // 30秒のタイムアウト
+            var startTime = DateTime.UtcNow;
+
+            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Waiting for client confirmations ({ConnectionCount} clients)...",
+                battleId, seed, group.ConnectionCount);
+
+            while (!battle.AreAllConnectionsReadyConfirmed())
+            {
+                if (await Task.WhenAny(Task.Delay(100), timeoutTask) == timeoutTask)
+                {
+                    // タイムアウト発生、確認が揃わなかった
+                    var elapsed = DateTime.UtcNow - startTime;
+                    logger.LogWarning("Battle reproduction {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Proceeding anyway.",
+                        battleId, seed, elapsed.TotalSeconds);
+                    break;
+                }
+            }
+
+            // 3. Send BattleStarted notification once all clients have confirmed
+            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All clients confirmed or timeout reached. Starting battle.",
+                battleId, seed);
+            await Clients.Group(group.Id).SendAsync("BattleStarted", new { BattleId = battleId, Seed = seed });
+
+            // 4. Run pre-computation (完全にサーバーサイドで計算完了)
+            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
+                battleId, seed);
+            await battle.RunBattleAsync();
+
+            // 5. Send all battle data to clients for replay
+            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Sending battle replay data to clients",
+                battleId, seed);
+            var allTurnData = battle.GetAllTurnData();
+
+            // Check if data is too large, split if necessary
+            const int maxTurnsPerChunk = 50; // Send in chunks of 50 turns
+            var chunks = allTurnData.Chunk(maxTurnsPerChunk).ToList();
+
+            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Sending {TurnCount} turns in {ChunkCount} chunk(s)",
+                battleId, seed, allTurnData.Count, chunks.Count);
+
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                var chunk = chunks[i];
+                var isLastChunk = i == chunks.Count - 1;
+                var turnDataList = new List<BattleStatus>(chunk.Length);
+                turnDataList.AddRange(chunk);
+
+                var replayData = new BattleReplayData
+                {
+                    BattleId = battleId.ToString(),
+                    Seed = seed,
+                    TurnData = turnDataList,
+                    ChunkIndex = i,
+                    TotalChunks = chunks.Count,
+                    IsLastChunk = isLastChunk,
+                };
+
+                await Clients.Group(group.Id).SendAsync("BattleReplayData", replayData);
+
+                // Clear chunk data immediately after sending to reduce memory pressure
+                turnDataList.Clear();
+
+                // Free memory for processed chunk
+                if (i > 0 && chunks.Count > 2)
+                {
+                    // Clear previous chunk data from allTurnData to help GC
+                    var startIndex = (i - 1) * maxTurnsPerChunk;
+                    var endIndex = Math.Min(startIndex + maxTurnsPerChunk, allTurnData.Count);
+                    for (int j = startIndex; j < endIndex; j++)
+                    {
+                        if (j < allTurnData.Count)
+                        {
+                            // Clear references within the status object
+                            allTurnData[j].Players.Clear();
+                            allTurnData[j].Enemies.Clear();
+                            allTurnData[j].RecentLogs.Clear();
+                        }
+                    }
+                }
+            }
+
+            // 6. Battle completed notification
+            await Clients.Group(group.Id).SendAsync("BattleCompleted", battle.GetStatus());
+            logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
+                battleId, seed);
+
+            // Clear entire allTurnData after all chunks sent
+            battle.ClearBattleData();
+        });
     }
 }

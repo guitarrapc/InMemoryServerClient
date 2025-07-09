@@ -10,7 +10,8 @@ public interface IBattleReplayWriter : IAsyncDisposable
     /// Initialize the writer for a specific battle
     /// </summary>
     /// <param name="battleId">The battle ID</param>
-    Task InitializeAsync(string battleId);
+    /// <param name="seed">The battle seed (optional)</param>
+    Task InitializeAsync(string battleId, int? seed = null);
 
     /// <summary>
     /// Write a single battle frame

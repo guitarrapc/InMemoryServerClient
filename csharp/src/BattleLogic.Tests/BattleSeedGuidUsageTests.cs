@@ -12,9 +12,10 @@ public class BattleSeedGuidUsageTests
     public void NextEntityId_ShouldGenerateDeterministicGuidV4()
     {
         // Arrange
-        const string battleId = "test-entity-deterministic";
-        var seed1 = new BattleSeed(battleId);
-        var seed2 = new BattleSeed(battleId);
+        const int userSeed = 12345;
+        var battleId = Guid.Parse("550e8400-e29b-41d4-a716-446655440000"); // Fixed battleId for test
+        var seed1 = new BattleSeed(battleId, userSeed);
+        var seed2 = new BattleSeed(battleId, userSeed);
 
         // Act - Generate multiple entity IDs from each seed
         var entityIds1 = new List<Guid>();
@@ -26,7 +27,7 @@ public class BattleSeedGuidUsageTests
             entityIds2.Add(seed2.NextEntityId());
         }
 
-        // Assert - Same battleId should produce identical entity ID sequences
+        // Assert - Same battleId and userSeed should produce identical entity ID sequences
         Assert.Equal(entityIds1, entityIds2);
 
         // Verify all generated GUIDs are version 4
@@ -43,8 +44,9 @@ public class BattleSeedGuidUsageTests
     public async Task NextEntityId_ShouldBeThreadSafe()
     {
         // Arrange
-        const string battleId = "test-thread-safety";
-        var seed = new BattleSeed(battleId);
+        const int userSeed = 12345;
+        var battleId = Guid.Parse("550e8400-e29b-41d4-a716-446655440000"); // Fixed battleId for test
+        var seed = new BattleSeed(battleId, userSeed);
         var allGuids = new ConcurrentBag<Guid>();
         const int threadsCount = 10;
         const int guidsPerThread = 100;
@@ -132,7 +134,8 @@ public class BattleSeedGuidUsageTests
     public void EntityIdVsTimestampId_ShouldHaveDifferentVersions()
     {
         // Arrange
-        var battleSeed = new BattleSeed("test-version-difference");
+        var battleId = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
+        var battleSeed = new BattleSeed(battleId, 12345);
 
         // Act
         var entityId = battleSeed.NextEntityId();
@@ -150,8 +153,9 @@ public class BattleSeedGuidUsageTests
     public void BattleSeed_ToString_ShouldShowCorrectCounterForEntityIds()
     {
         // Arrange
-        const string testBattleId = "d337a429-5837-45a8-9519-909a92593e03";
-        var battleSeed = new BattleSeed(testBattleId);
+        const int testSeed = 12345;
+        var battleId = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
+        var battleSeed = new BattleSeed(battleId, testSeed);
 
         // Act
         var initialString = battleSeed.ToString();
@@ -163,22 +167,24 @@ public class BattleSeedGuidUsageTests
         var afterEntityIdsString = battleSeed.ToString();
 
         // Assert
-        Assert.Contains($"Seed={battleSeed.Seed}", initialString);
+        Assert.Contains($"UserSeed={battleSeed.UserSeed}", initialString);
+        Assert.Contains($"DeterministicSeed={battleSeed.DeterministicSeed}", initialString);
         Assert.Contains("GuidCounter=0", initialString);
         Assert.Contains("GuidCounter=2", afterEntityIdsString);
     }
 
     [Fact]
-    public void BattleSeed_SameBattleId_ShouldProduceSameEntityIdSequence()
+    public void BattleSeed_DifferentBattleIdSameSeed_ShouldProduceDifferentEntityIdSequence()
     {
         // Arrange
-        const string battleId1 = "battle-reproducibility-test-1";
-        const string battleId2 = "battle-reproducibility-test-1"; // Same ID
-        const string battleId3 = "battle-reproducibility-test-2"; // Different ID
+        const int userSeed = 12345; // Same user seed
+        var battleId1 = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
+        var battleId2 = Guid.Parse("550e8400-e29b-41d4-a716-446655440001"); // Different battleId
+        var battleId3 = Guid.Parse("550e8400-e29b-41d4-a716-446655440002"); // Different battleId
 
-        var seed1 = new BattleSeed(battleId1);
-        var seed2 = new BattleSeed(battleId2);
-        var seed3 = new BattleSeed(battleId3);
+        var seed1 = new BattleSeed(battleId1, userSeed);
+        var seed2 = new BattleSeed(battleId2, userSeed);
+        var seed3 = new BattleSeed(battleId3, userSeed);
 
         // Act
         var entityIds1 = new List<Guid>();
@@ -193,8 +199,33 @@ public class BattleSeedGuidUsageTests
         }
 
         // Assert
-        Assert.Equal(entityIds1, entityIds2); // Same battle ID = same sequence
-        Assert.NotEqual(entityIds1, entityIds3); // Different battle ID = different sequence
+        Assert.NotEqual(entityIds1, entityIds2); // Different battleId + same userSeed = different sequence
+        Assert.NotEqual(entityIds1, entityIds3); // Different battleId + same userSeed = different sequence
+        Assert.NotEqual(entityIds2, entityIds3); // Different battleId + same userSeed = different sequence
+    }
+
+    [Fact]
+    public void BattleSeed_SameBattleIdAndSeed_ShouldProduceSameEntityIdSequence()
+    {
+        // Arrange
+        const int userSeed = 12345;
+        var battleId = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
+
+        var seed1 = new BattleSeed(battleId, userSeed);
+        var seed2 = new BattleSeed(battleId, userSeed);
+
+        // Act
+        var entityIds1 = new List<Guid>();
+        var entityIds2 = new List<Guid>();
+
+        for (int i = 0; i < 10; i++)
+        {
+            entityIds1.Add(seed1.NextEntityId());
+            entityIds2.Add(seed2.NextEntityId());
+        }
+
+        // Assert
+        Assert.Equal(entityIds1, entityIds2); // Same battleId + same userSeed = same sequence
     }
 
     /// <summary>
@@ -223,17 +254,17 @@ public class BattleSeedGuidUsageTests
 
     /// <summary>
     /// Extract version from GUID
-    /// For GUID v4: byte 6, upper nibble
-    /// For GUID v7: byte 7, upper nibble (due to little-endian byte order)
     /// </summary>
     private static int ExtractVersion(Guid guid)
     {
         var bytes = guid.ToByteArray();
-        // Try both positions due to endianness differences
-        var version6 = (bytes[6] & 0xF0) >> 4;
-        var version7 = (bytes[7] & 0xF0) >> 4;
-
-        // Return the one that makes sense (4 or 7)
-        return version6 is 4 or 7 ? version6 : version7;
+        // GUID version is always at byte[7] (time-hi-and-version field, upper 4 bits)
+        // due to little-endian byte ordering in .NET's ToByteArray()
+        // GUID: "0197e9ec-f33e-7787-9d91-c6a45876776e"
+        // バイト配列: [ec,e9,97,01, 3e,f3, 87,77, 9d,91, c6,a4,58,76,77,6e]
+        //             0  1  2  3   4  5   6  7   8  9   10 11 12 13 14 15
+        //                                     ↑
+        //                                 バージョン位置
+        return (bytes[7] & 0xF0) >> 4;
     }
 }

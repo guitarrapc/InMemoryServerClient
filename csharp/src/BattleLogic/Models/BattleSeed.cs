@@ -43,27 +43,33 @@ public sealed class BattleSeed
     private long _guidCounter;
 
     /// <summary>
-    /// Gets the seed value used for this battle
+    /// Gets the original user-provided seed value
     /// </summary>
-    public int Seed { get; }
+    public int UserSeed { get; }
 
     /// <summary>
-    /// Gets the battle ID used to generate this seed
+    /// Gets the BattleId used for this battle
     /// </summary>
-    public string BattleId { get; }
+    public Guid BattleId { get; }
 
     /// <summary>
-    /// Initializes a new instance of BattleSeed using a battle ID as the seed source
+    /// Gets the final deterministic seed value (combination of BattleId + UserSeed)
     /// </summary>
-    /// <param name="battleId">The battle ID to generate a deterministic seed from</param>
-    public BattleSeed(string battleId)
+    public int DeterministicSeed { get; }
+
+    /// <summary>
+    /// Initializes a new instance of BattleSeed using BattleId and user seed.
+    /// The final deterministic seed is generated from the combination of both values,
+    /// ensuring that same BattleId + same seed = same result, but different BattleId + same seed = different result.
+    /// </summary>
+    /// <param name="battleId">The battle ID for this battle</param>
+    /// <param name="userSeed">The user-provided seed value</param>
+    public BattleSeed(Guid battleId, int userSeed)
     {
-        if (string.IsNullOrEmpty(battleId))
-            throw new ArgumentException("Battle ID cannot be null or empty", nameof(battleId));
-
         BattleId = battleId;
-        Seed = GenerateSeedFromBattleId(battleId);
-        _random = new Random(Seed);
+        UserSeed = userSeed;
+        DeterministicSeed = CreateCombinedSeed(battleId, userSeed);
+        _random = new Random(DeterministicSeed);
         _guidCounter = 0;
     }
 
@@ -111,55 +117,73 @@ public sealed class BattleSeed
     public static Guid NewTimestampId() => Guid.CreateVersion7();
 
     /// <summary>
-    /// Generate a cryptographically secure random seed that avoids collisions
-    /// even when multiple servers start simultaneously
+    /// Generate a cryptographically secure seed value that is unpredictable from battle ID
     /// </summary>
-    private static int GenerateRandomSeed()
+    /// <returns>A 32-bit seed value derived from cryptographically secure random bytes</returns>
+    public static int GenerateSecureSeed()
     {
-        // Combine multiple entropy sources to avoid collisions
         using var rng = RandomNumberGenerator.Create();
-
-        // Get 4 bytes of cryptographically secure random data
-        Span<byte> cryptoBytes = stackalloc byte[4];
-        rng.GetBytes(cryptoBytes);
-        var cryptoPart = BitConverter.ToInt32(cryptoBytes);
-
-        // Add high-resolution timestamp
-        var timestampPart = (int)(DateTime.UtcNow.Ticks & 0xFFFFFFFF);
-
-        // Add process and thread identifiers
-        var processPart = Environment.ProcessId;
-        var threadPart = Thread.CurrentThread.ManagedThreadId;
-
-        // Add machine-specific identifier
-        var machinePart = Environment.MachineName.GetHashCode();
-
-        // Combine all entropy sources using XOR
-        var combinedSeed = cryptoPart ^ timestampPart ^ processPart ^ threadPart ^ machinePart;
+        Span<byte> bytes = stackalloc byte[4];
+        rng.GetBytes(bytes);
+        var seed = BitConverter.ToInt32(bytes);
 
         // Ensure we don't return 0 (which could cause issues with some Random implementations)
-        return combinedSeed == 0 ? 1 : combinedSeed;
+        return seed == 0 ? 1 : seed;
     }
 
     /// <summary>
-    /// Generate a deterministic seed from a battle ID using a consistent hash algorithm
+    /// Generate a battle ID that is completely independent from the seed value
+    /// Uses timestamp-based GUID v7 for proper ordering and uniqueness
     /// </summary>
-    /// <param name="battleId">The battle ID to generate seed from</param>
-    /// <returns>A deterministic 32-bit integer seed</returns>
-    private static int GenerateSeedFromBattleId(string battleId)
+    /// <returns>A GUID v7 for battle identification</returns>
+    public static Guid GenerateBattleId()
     {
-        // Use a simple but effective hash algorithm that's consistent across platforms
-        unchecked
-        {
-            var hash = 17;
-            foreach (var c in battleId)
-            {
-                hash = hash * 31 + c;
-            }
+        return Guid.CreateVersion7();
+    }
 
-            // Ensure we don't return 0 (which could cause issues with some Random implementations)
-            return hash == 0 ? 1 : hash;
-        }
+    /// <summary>
+    /// Create a deterministic seed from a user-provided string (for reproduce functionality)
+    /// </summary>
+    /// <param name="seedString">User-provided seed string</param>
+    /// <returns>Deterministic seed value</returns>
+    public static int CreateSeedFromString(string seedString)
+    {
+        if (string.IsNullOrWhiteSpace(seedString))
+            throw new ArgumentException("Seed string cannot be null, empty, or whitespace", nameof(seedString));
+
+        using var sha256 = SHA256.Create();
+        var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(seedString));
+        var seed = BitConverter.ToInt32(hash, 0);
+
+        // Ensure we don't return 0 (which could cause issues with some Random implementations)
+        return seed == 0 ? 1 : seed;
+    }
+
+    /// <summary>
+    /// Creates a deterministic seed by combining BattleId and user seed.
+    /// This ensures that the same BattleId + same user seed always produces the same result,
+    /// but different BattleId + same user seed produces different results.
+    /// </summary>
+    /// <param name="battleId">The battle ID</param>
+    /// <param name="userSeed">The user-provided seed</param>
+    /// <returns>Combined deterministic seed value</returns>
+    private static int CreateCombinedSeed(Guid battleId, int userSeed)
+    {
+        using var sha256 = SHA256.Create();
+
+        // Combine battleId bytes and userSeed bytes
+        var battleIdBytes = battleId.ToByteArray();
+        var userSeedBytes = BitConverter.GetBytes(userSeed);
+        var combinedBytes = new byte[battleIdBytes.Length + userSeedBytes.Length];
+
+        Array.Copy(battleIdBytes, 0, combinedBytes, 0, battleIdBytes.Length);
+        Array.Copy(userSeedBytes, 0, combinedBytes, battleIdBytes.Length, userSeedBytes.Length);
+
+        var hash = sha256.ComputeHash(combinedBytes);
+        var seed = BitConverter.ToInt32(hash, 0);
+
+        // Ensure we don't return 0 (which could cause issues with some Random implementations)
+        return seed == 0 ? 1 : seed;
     }
 
     /// <summary>
@@ -180,5 +204,5 @@ public sealed class BattleSeed
     /// <summary>
     /// Returns a string representation of this BattleSeed
     /// </summary>
-    public override string ToString() => $"BattleSeed(BattleId={BattleId}, Seed={Seed}, GuidCounter={Interlocked.Read(ref _guidCounter)})";
+    public override string ToString() => $"BattleSeed(BattleId={BattleId}, UserSeed={UserSeed}, DeterministicSeed={DeterministicSeed}, GuidCounter={Interlocked.Read(ref _guidCounter)})";
 }

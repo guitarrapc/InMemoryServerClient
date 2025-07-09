@@ -15,6 +15,7 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
     private readonly bool _enableLogging;
     private StreamWriter? _writer;
     private string? _battleId;
+    private int? _seed;
 
     public FileBattleReplayWriter(BattleReplayOptions options, ILogger<FileBattleReplayWriter> logger)
     {
@@ -23,20 +24,33 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
         _logger = logger;
     }
 
-    public async Task InitializeAsync(string battleId)
+    public async Task InitializeAsync(string battleId, int? seed = null)
     {
         _battleId = battleId;
+        _seed = seed;
 
         // Create directory if it doesn't exist
         Directory.CreateDirectory(_outputDirectory);
 
-        // Create file for writing
-        var filePath = Path.Combine(_outputDirectory, $"{battleId}.jsonl");
+        // Create file for writing with timestamp in filename for uniqueness
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var filePath = Path.Combine(_outputDirectory, $"battle_{battleId}_{timestamp}.jsonl");
         _writer = new StreamWriter(filePath);
+
+        // Write metadata as the first line
+        var metadata = new
+        {
+            BattleId = battleId,
+            Seed = seed,
+            Timestamp = DateTime.UtcNow,
+            Type = "BattleMetadata"
+        };
+        var metadataJson = JsonSerializer.Serialize(metadata);
+        await _writer.WriteLineAsync(metadataJson);
 
         if (_enableLogging)
         {
-            _logger.LogInformation("Battle replay file writer initialized: {FilePath}", filePath);
+            _logger.LogInformation("Battle replay file writer initialized - BattleId: {BattleId}, Seed: {Seed}, FilePath: {FilePath}", battleId, seed, filePath);
         }
     }
 
@@ -68,7 +82,7 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
 
         if (_enableLogging && _battleId != null)
         {
-            _logger.LogInformation("All battle frames written for battle {BattleId}", _battleId);
+            _logger.LogInformation("All battle frames written - BattleId: {BattleId}, Seed: {Seed}", _battleId, _seed);
         }
     }
 
@@ -123,8 +137,8 @@ internal class FileBattleReplayWriter : IBattleReplayWriter
 
             if (_enableLogging && _battleId != null)
             {
-                var filePath = Path.Combine(_outputDirectory, $"{_battleId}.jsonl");
-                _logger.LogInformation("Battle replay file writing completed: {FilePath}", filePath);
+                var filePath = Path.Combine(_outputDirectory, $"battle_{_battleId}_{DateTime.UtcNow:yyyyMMddHHmmss}.jsonl");
+                _logger.LogInformation("Battle replay file writing completed - BattleId: {BattleId}, Seed: {Seed}, FilePath: {FilePath}", _battleId, _seed, filePath);
             }
         }
     }

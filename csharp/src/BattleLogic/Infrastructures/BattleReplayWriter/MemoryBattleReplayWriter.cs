@@ -14,6 +14,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
     private readonly bool _enableLogging;
     private readonly List<BattleStatus> _frames;
     private string? _battleId;
+    private int? _seed;
 
     // Static storage to allow access from tests
     private static readonly ConcurrentDictionary<string, List<BattleStatus>> _battleReplays = new();
@@ -49,14 +50,15 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
         return _battleReplays.Keys;
     }
 
-    public Task InitializeAsync(string battleId)
+    public Task InitializeAsync(string battleId, int? seed = null)
     {
         _battleId = battleId;
+        _seed = seed;
         _frames.Clear();
 
         if (_enableLogging)
         {
-            _logger.LogDebug("Memory battle replay writer initialized for battle: {BattleId}", battleId);
+            _logger.LogDebug("Memory battle replay writer initialized - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
         }
 
         return Task.CompletedTask;

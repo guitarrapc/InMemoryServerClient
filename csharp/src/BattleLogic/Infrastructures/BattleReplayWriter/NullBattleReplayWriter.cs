@@ -18,11 +18,11 @@ internal class NullBattleReplayWriter : IBattleReplayWriter
         _logger = logger;
     }
 
-    public Task InitializeAsync(string battleId)
+    public Task InitializeAsync(string battleId, int? seed = null)
     {
         if (_enableLogging)
         {
-            _logger.LogDebug("Null battle replay writer initialized for battle: {BattleId} (no output)", battleId);
+            _logger.LogDebug("Null battle replay writer initialized - BattleId: {BattleId}, Seed: {Seed} (no output)", battleId, seed);
         }
 
         return Task.CompletedTask;

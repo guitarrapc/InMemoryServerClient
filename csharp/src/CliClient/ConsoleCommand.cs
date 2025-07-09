@@ -12,7 +12,6 @@ internal readonly record struct ConnectionOptions
 {
     public string ServerUrl { get; init; }
     public string? GroupName { get; init; }
-    public string? ReproduceBattleId { get; init; }
 }
 
 /// <summary>
@@ -835,15 +834,37 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         }
     }
 
-    /// <summary>Reproduce a battle with specific battle ID</summary>
+    /// <summary>Reproduce a battle with specific battle ID and seed value</summary>
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
         string battleId,
-        string groupName = "test_group",
+        string seedValue,
         int count = 5,
+        string? groupName = null,
         string serverUrl = "http://localhost:5000")
     {
         // Validate parameters
+        if (string.IsNullOrEmpty(battleId))
+        {
+            logger.LogError("バトルIDを指定してください");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        if (string.IsNullOrEmpty(seedValue))
+        {
+            logger.LogError("シード値を指定してください");
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        if (!Guid.TryParse(battleId, out var parsedBattleId))
+        {
+            logger.LogError("無効なバトルIDです: {BattleId}", battleId);
+            Environment.ExitCode = 1;
+            return;
+        }
+
         if (count <= 0 || count > 10)
         {
             logger.LogError("接続数は1から10の間で指定してください");
@@ -851,7 +872,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        logger.LogInformation("指定されたバトルID {BattleId} でバトルを再現します...", battleId);
+        logger.LogInformation("指定されたバトルID '{BattleId}' とシード値 '{SeedValue}' でバトルを再現します...", battleId, seedValue);
+
         logger.LogInformation("{Count}つの接続を作成中...", count);
 
         var connections = new List<IBattleClient>();
@@ -859,18 +881,29 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
         try
         {
+            // Generate unique group name for this reproduction
+            var finalGroupName = groupName ?? $"reproduce-{battleId[..8]}-{DateTime.Now:yyyyMMdd-HHmmss}";
+            logger.LogInformation("グループ名: {GroupName}", finalGroupName);
+
             for (int i = 0; i < count; i++)
             {
                 try
                 {
-                    var connectionOptions = new ConnectionOptions
-                    {
-                        ServerUrl = serverUrl,
-                        GroupName = groupName,
-                        ReproduceBattleId = battleId
-                    };
+                    var connection = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
 
-                    var connection = await ConnectWithOptionsAsync(connectionOptions);
+                    var success = await connection.ConnectAsync(serverUrl, finalGroupName);
+                    if (!success)
+                    {
+                        throw new InvalidOperationException("Failed to connect to server");
+                    }
+
+                    // Call the server's ReproduceBattleAsync method to start reproduction
+                    var reproduced = await connection.ReproduceBattleAsync(battleId, seedValue, finalGroupName);
+                    if (!reproduced)
+                    {
+                        logger.LogWarning("サーバーでのバトル再現リクエストが失敗しました");
+                    }
+
                     connections.Add(connection);
 
                     logger.LogInformation("接続 {Current}/{Total} 完了", i + 1, count);
@@ -897,8 +930,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                 return;
             }
 
-            logger.LogInformation($"有効な接続数: {connections.Count}/{count}");
-            logger.LogInformation($"バトルID {battleId} でバトルが開始されます。");
+            logger.LogInformation("有効な接続数: {ConnectionCount}/{RequestedCount}", connections.Count, count);
+            logger.LogInformation("バトルID '{BattleId}' とシード値 '{SeedValue}' でバトルが再現されます。", battleId, seedValue);
             logger.LogInformation("バトル完了まで待機中...");
 
             // Wait for battle completion with timeout
@@ -914,7 +947,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             }
             else
             {
-                logger.LogInformation("バトルが正常に完了しました");
+                logger.LogInformation("バトルID '{BattleId}' とシード値 '{SeedValue}' のバトル再現が正常に完了しました", battleId, seedValue);
             }
         }
         finally
@@ -945,20 +978,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             if (!success)
             {
                 throw new InvalidOperationException("Failed to connect to server");
-            }
-
-            if (!string.IsNullOrEmpty(options.ReproduceBattleId))
-            {
-                // Send battle ID information to server for reproduction
-                try
-                {
-                    // This might need to be implemented as a specific method in the future
-                    logger.LogInformation("Battle reproduction requested for ID: {BattleId}", options.ReproduceBattleId);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send battle reproduction info");
-                }
             }
 
             return client;
@@ -993,7 +1012,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
           mygroup                - Show current group information
           battle-status          - Show battle status
           battle-replay <id>     - Play battle replay at 5fps speed
-          battle-reproduce <battleId> [groupName] [connectionCount] [serverUrl] - Reproduce battle with specific battle ID
+          battle-reproduce <battleId> <seedValue> [count] [groupName] [serverUrl] - Reproduce battle with specific battle ID and seed value
           battle-complete        - Notify server that battle replay is complete
           exit, quit             - Exit the program
           help                   - Show this help

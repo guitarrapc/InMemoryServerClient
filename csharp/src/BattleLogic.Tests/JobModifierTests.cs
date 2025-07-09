@@ -33,7 +33,6 @@ public class JobModifierTests
     public void PlayerJob_Tank_ShouldApplyCorrectModifiers()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for battle ID
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
@@ -48,7 +47,7 @@ public class JobModifierTests
         var tankPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !tankPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+            var battleState = TestHelpers.CreateBattleState(group, _logger, _loggerFactory);
             var status = battleState.GetStatus();
 
             var tankPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Tank);
@@ -110,7 +109,6 @@ public class JobModifierTests
     public void PlayerJob_Warrior_ShouldApplyCorrectModifiers()
     {
         // Similar pattern to Tank test but for Warrior
-        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(),
@@ -124,7 +122,7 @@ public class JobModifierTests
         var warriorPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !warriorPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+            var battleState = TestHelpers.CreateBattleState(group, _logger, _loggerFactory);
             var status = battleState.GetStatus();
 
             var warriorPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Warrior);
@@ -164,7 +162,6 @@ public class JobModifierTests
     [Fact]
     public void PlayerJob_Mage_ShouldApplyCorrectModifiers()
     {
-        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(),
@@ -178,7 +175,7 @@ public class JobModifierTests
         var magePlayerFound = false;
         for (int attempt = 0; attempt < 200 && !magePlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+            var battleState = TestHelpers.CreateBattleState(group, _logger, _loggerFactory);
             var status = battleState.GetStatus();
 
             var magePlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Mage);
@@ -190,13 +187,13 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Mage, player.PlayerJob);
                 // Mage should have lower HP due to 0.8x multiplier and -50 bonus
-                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 ?N 110-350 range
+                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 ??N 110-350 range
                 Assert.True(player.MaxHp <= 350, $"Mage should have lower HP, got {player.MaxHp}");
                 // But very high attack due to 1.4x multiplier + 8 bonus
-                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 ?N 22-50 range
+                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 ??N 22-50 range
                 Assert.True(player.Attack >= 22, $"Mage should have very high attack power, got {player.Attack}");
                 // And lower defense due to 0.7x multiplier and -3 bonus
-                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 ?N 4-12 range
+                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 ??N 4-12 range
                 Assert.True(player.Defense <= 12, $"Mage should have lower defense, got {player.Defense}");
             }
         }
@@ -210,7 +207,6 @@ public class JobModifierTests
     [Fact]
     public void PlayerJob_Archer_ShouldApplyCorrectModifiers()
     {
-        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(),
@@ -224,7 +220,7 @@ public class JobModifierTests
         var archerPlayerFound = false;
         for (int attempt = 0; attempt < 200 && !archerPlayerFound; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+            var battleState = TestHelpers.CreateBattleState(group, _logger, _loggerFactory);
             var status = battleState.GetStatus();
 
             var archerPlayer = status.Players.FirstOrDefault(p => p.PlayerJob == PlayerJob.Archer);
@@ -236,10 +232,10 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Archer, player.PlayerJob);
                 // Archer should have high speed due to 1.4x multiplier + 1 bonus
-                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 ?N 3-6 range
+                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 ??N 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
                 // Good attack due to 1.3x multiplier + 3 bonus
-                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 ?N 35-47 range
+                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 ??N 35-47 range
                 Assert.True(player.Attack >= 35, $"Archer should have good attack power, got {player.Attack}");
             }
         }
@@ -253,7 +249,6 @@ public class JobModifierTests
     [Fact]
     public void EnemyJobs_ShouldApplyCorrectModifiers()
     {
-        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(),
@@ -264,7 +259,7 @@ public class JobModifierTests
             ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes)
         };
 
-        var battleState = new BattleState(battleId, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+        var battleState = TestHelpers.CreateBattleState(group, _logger, _loggerFactory);
         var status = battleState.GetStatus();
 
         // Check that enemies have valid jobs assigned
@@ -310,7 +305,6 @@ public class JobModifierTests
     public void PlayerJobs_EvasionRates_ShouldBeWithinExpectedRanges()
     {
         // Arrange
-        var battleId = BattleSeed.NewTimestampId().ToString();
         var group = new GroupInfo
         {
             Id = BattleSeed.NewTimestampId().ToString(),
@@ -327,7 +321,7 @@ public class JobModifierTests
         // Act - Run multiple times to collect evasion data for different jobs
         for (int attempt = 0; attempt < 500 && jobsFound.Count < 4; attempt++)
         {
-            var battleState = new BattleState(battleId + attempt, group, _logger, TestHelpers.CreateMemoryReplayWriterFactory(_loggerFactory));
+            var battleState = TestHelpers.CreateBattleState(group, _logger, _loggerFactory);
             var status = battleState.GetStatus();
 
             foreach (var player in status.Players)

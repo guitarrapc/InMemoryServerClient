@@ -172,14 +172,19 @@ internal class SignalRBattleClient : IBattleClient
         _connection.On<string, int>("MemberJoined", (connectionId, count) => OnMemberJoined?.Invoke(connectionId, count));
         _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
 
-        _connection.On<string>("ConnectionsReady", async (battleId) =>
+        _connection.On<object>("ConnectionsReady", async (data) =>
         {
+            var battleInfo = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(data));
+            var battleId = battleInfo.GetProperty("BattleId").GetGuid();
+            var seed = battleInfo.GetProperty("Seed").GetInt32();
+
             _logger.LogInformation("[BATTLE] ========== Connections Ready! ==========");
             _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", battleId);
+            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", seed);
             _logger.LogInformation("[BATTLE] Group is full! All clients connected.");
             _logger.LogInformation("[BATTLE] ========================================");
 
-            OnConnectionsReady?.Invoke(battleId);
+            OnConnectionsReady?.Invoke(battleId.ToString());
 
             // Automatically confirm connection ready
             try
@@ -193,20 +198,25 @@ internal class SignalRBattleClient : IBattleClient
             }
         });
 
-        _connection.On<string>("BattleStarted", (battleId) =>
+        _connection.On<object>("BattleStarted", (data) =>
         {
+            var battleInfo = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(data));
+            var battleId = battleInfo.GetProperty("BattleId").GetGuid();
+            var seed = battleInfo.GetProperty("Seed").GetInt32();
+
             _logger.LogInformation("[BATTLE] ========== Battle Started! ==========");
             _logger.LogInformation("[BATTLE] 🏆 Battle ID: {BattleId}", battleId);
+            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", seed);
             _logger.LogInformation("[BATTLE] ====================================");
-            OnBattleStarted?.Invoke(battleId);
+            OnBattleStarted?.Invoke(battleId.ToString());
         });
 
         _connection.On<BattleReplayData>("BattleReplayData", async (replayData) =>
         {
             try
             {
-                _logger.LogInformation("[BATTLE] Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns",
-                    replayData.ChunkIndex + 1, replayData.TotalChunks, replayData.TurnData.Count);
+                _logger.LogInformation("[BATTLE] Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns - BattleId: {BattleId}, Seed: {Seed}",
+                    replayData.ChunkIndex + 1, replayData.TotalChunks, replayData.TurnData.Count, replayData.BattleId, replayData.Seed);
 
                 // Store the chunk
                 _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
@@ -217,7 +227,7 @@ internal class SignalRBattleClient : IBattleClient
                 // Check if we have all chunks
                 if (_replayChunks.Count == _expectedTotalChunks)
                 {
-                    await PlayBattleReplayAsync();
+                    await PlayBattleReplayAsync(replayData.BattleId, replayData.Seed);
                 }
             }
             catch (Exception ex)
@@ -233,9 +243,10 @@ internal class SignalRBattleClient : IBattleClient
         };
     }
 
-    private async Task PlayBattleReplayAsync()
+    private async Task PlayBattleReplayAsync(string battleId, int? seed)
     {
-        _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback...");
+        _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback - BattleId: {BattleId}, Seed: {Seed}",
+            battleId, seed);
 
         // Reconstruct complete replay data
         List<BattleStatus> battleStatuses = [];
@@ -247,7 +258,8 @@ internal class SignalRBattleClient : IBattleClient
             }
         }
 
-        _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS", battleStatuses.Count, BattleReplayFps);
+        _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS - BattleId: {BattleId}, Seed: {Seed}",
+            battleStatuses.Count, BattleReplayFps, battleId, seed);
         _logger.LogInformation("[BATTLE REPLAY] ========== Starting Battle Replay ==========");
 
         // Play battle replay
@@ -290,7 +302,8 @@ internal class SignalRBattleClient : IBattleClient
             }
         }
         _logger.LogInformation("[BATTLE REPLAY] Total turns: {TotalTurns}", finalStatus.CurrentTurn);
-        _logger.LogInformation("[BATTLE REPLAY] Battle ID: {BattleId} (replay completed)", finalStatus.BattleId);
+        _logger.LogInformation("[BATTLE REPLAY] Battle completed - BattleId: {BattleId}, Seed: {Seed} (replay completed)",
+            battleId, seed);
         _logger.LogInformation("[BATTLE REPLAY] ===============================================");
 
         // Clean up
@@ -518,7 +531,9 @@ internal class SignalRBattleClient : IBattleClient
     {
         EnsureConnected();
         return await _connection!.InvokeAsync<bool>("BroadcastAsync", message);
-    }    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
+    }
+
+    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
     {
         EnsureConnected();
         var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
@@ -577,5 +592,26 @@ internal class SignalRBattleClient : IBattleClient
             serverStatus.ActiveBattleCount,
             groups
         );
+    }
+
+    public async Task<bool> ReproduceBattleAsync(string battleId, string seedValue, string? groupName = null)
+    {
+        EnsureConnected();
+        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
+            battleId, seedValue, groupName);
+
+        try
+        {
+            var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
+            _logger.LogInformation("Battle reproduction request result: {Result} for BattleId: {BattleId}, Seed: {Seed}",
+                result, battleId, seedValue);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to request battle reproduction - BattleId: {BattleId}, Seed: {Seed}",
+                battleId, seedValue);
+            return false;
+        }
     }
 }

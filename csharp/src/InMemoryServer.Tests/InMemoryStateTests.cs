@@ -1,4 +1,4 @@
-﻿namespace Tests;
+﻿namespace InMemoryServer.Tests;
 
 /// <summary>
 /// Tests for InMemoryState
