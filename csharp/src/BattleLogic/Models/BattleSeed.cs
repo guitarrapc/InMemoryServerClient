@@ -96,7 +96,7 @@ public sealed class BattleSeed
             Interlocked.Increment(ref _guidCounter);
 
             // Generate deterministic random bytes using our seeded Random
-            var bytes = new byte[16];
+            Span<byte> bytes = stackalloc byte[16];
             _random.NextBytes(bytes);
 
             // Set version to 4 and variant bits according to RFC 4122
