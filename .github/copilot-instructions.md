@@ -18,12 +18,10 @@
 
 ### 🚀 パフォーマンス最適化
 - **[performance-optimization.md](./instructions/performance-optimization.md)** - メモリ効率化、GUID選択、構造体活用
+- **[guid-usage-guideline.md](./instructions/guid-usage-guideline.md)** - GUIDのガイドライン
 
 ### 🏗️ インフラストラクチャ
 - **[infrastructure.md](./instructions/infrastructure.md)** - CI/CD、Docker、デプロイメント
-
-### 🔗 クライアント抽象化
-- **[client-abstraction.md](./instructions/client-abstraction.md)** - MagicOnion対応のための抽象化パターン
 
 ## 📝 使用方法
 
