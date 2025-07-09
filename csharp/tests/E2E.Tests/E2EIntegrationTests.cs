@@ -2,6 +2,7 @@
 using Shared.Constants;
 using Shared.Models;
 using Xunit;
+using System.Threading;
 
 namespace E2E.Tests;
 
@@ -59,7 +60,7 @@ public class E2EIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateGroup_AndJoinGroup_WorksCorrectly()
+    public async Task JoinGroup_CreatesAndJoinsGroup_WorksCorrectly()
     {
         // Arrange
         var factory = CreateFactory();
@@ -70,46 +71,17 @@ public class E2EIntegrationTests : IDisposable
             })
             .Build();
 
-        var groupCreated = false;
-        var joinedGroup = false;
-        GroupInfo? createdGroupInfo = null;
-
-        connection.On<GroupInfo>("GroupCreated", (groupInfo) =>
-        {
-            groupCreated = true;
-            createdGroupInfo = groupInfo;
-        });
-
-        connection.On<GroupInfo>("JoinedGroup", (groupInfo) =>
-        {
-            joinedGroup = true;
-        });
-
         try
         {
             // Act
             await connection.StartAsync();
 
-            // Create group
-            await connection.InvokeAsync("CreateGroup", "TestGroup");
-
-            // Wait for group creation
-            await Task.Delay(100);
-
-            // Join group
-            if (createdGroupInfo != null)
-            {
-                await connection.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
-            }
-
-            // Wait for join
-            await Task.Delay(100);
+            // Join group (which will create it if it doesn't exist)
+            var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", "TestGroup");
 
             // Assert
-            Assert.True(groupCreated);
-            Assert.True(joinedGroup);
-            Assert.NotNull(createdGroupInfo);
-            Assert.Equal("TestGroup", createdGroupInfo.Name);
+            Assert.NotNull(groupId);
+            Assert.NotEmpty(groupId);
         }
         finally
         {
@@ -137,23 +109,14 @@ public class E2EIntegrationTests : IDisposable
             })
             .Build();
 
-        GroupInfo? createdGroupInfo = null;
-        var client1Joined = false;
-        var client2Joined = false;
+        var connection1ReceivedMemberJoined = false;
+        MemberJoinedData? memberData = null;
 
-        connection1.On<GroupInfo>("GroupCreated", (groupInfo) =>
+        // Connection1 should receive MemberJoined when connection2 joins
+        connection1.On<MemberJoinedData>("MemberJoined", (data) =>
         {
-            createdGroupInfo = groupInfo;
-        });
-
-        connection1.On<GroupInfo>("JoinedGroup", (groupInfo) =>
-        {
-            client1Joined = true;
-        });
-
-        connection2.On<GroupInfo>("JoinedGroup", (groupInfo) =>
-        {
-            client2Joined = true;
+            connection1ReceivedMemberJoined = true;
+            memberData = data;
         });
 
         try
@@ -162,23 +125,20 @@ public class E2EIntegrationTests : IDisposable
             await connection1.StartAsync();
             await connection2.StartAsync();
 
-            // Create group with first client
-            await connection1.InvokeAsync("CreateGroup", "MultiTestGroup");
+            // First client joins group
+            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", "MultiTestGroup");
             await Task.Delay(100);
 
-            // Both clients join the group
-            if (createdGroupInfo != null)
-            {
-                await connection1.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
-                await connection2.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
-            }
-
+            // Second client joins the same group
+            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", "MultiTestGroup");
             await Task.Delay(100);
 
             // Assert
-            Assert.NotNull(createdGroupInfo);
-            Assert.True(client1Joined);
-            Assert.True(client2Joined);
+            Assert.Equal(groupId1, groupId2); // Both should be in the same group
+            Assert.True(connection1ReceivedMemberJoined); // Connection1 should receive the MemberJoined event
+            Assert.NotNull(memberData);
+            Assert.Equal("MultiTestGroup", memberData.Value.GroupName);
+            Assert.Equal(2, memberData.Value.CurrentMemberCount); // Should be 2 after second join
         }
         finally
         {
@@ -189,74 +149,71 @@ public class E2EIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task StartBattle_WithMultipleClients_WorksCorrectly()
+    public async Task FiveClients_AutoStartBattle_WorksCorrectly()
     {
         // Arrange
         var factory = CreateFactory();
-        var connection1 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+        var connections = new List<HubConnection>();
+        var connectionsReadyCount = 0;
+        var battleStartedCount = 0;
+
+        // Create 5 connections
+        for (int i = 0; i < 5; i++)
+        {
+            var connection = new HubConnectionBuilder()
+                .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+                {
+                    options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+                })
+                .Build();
+
+            connection.On<ConnectionsReadyData>("ConnectionsReady", async (data) =>
             {
-                options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
-            })
-            .Build();
+                Interlocked.Increment(ref connectionsReadyCount);
+                // Confirm that this client is ready
+                await connection.InvokeAsync("ConfirmConnectionReadyAsync");
+            });
 
-        var connection2 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            connection.On<BattleStartedData>("BattleStarted", (data) =>
             {
-                options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
-            })
-            .Build();
+                Interlocked.Increment(ref battleStartedCount);
+            });
 
-        GroupInfo? createdGroupInfo = null;
-        var battleStarted1 = false;
-        var battleStarted2 = false;
-
-        connection1.On<GroupInfo>("GroupCreated", (groupInfo) =>
-        {
-            createdGroupInfo = groupInfo;
-        });
-
-        connection1.On("BattleStarted", () =>
-        {
-            battleStarted1 = true;
-        });
-
-        connection2.On("BattleStarted", () =>
-        {
-            battleStarted2 = true;
-        });
+            connections.Add(connection);
+        }
 
         try
         {
             // Act
-            await connection1.StartAsync();
-            await connection2.StartAsync();
-
-            // Create and join group
-            await connection1.InvokeAsync("CreateGroup", "BattleTestGroup");
-            await Task.Delay(100);
-
-            if (createdGroupInfo != null)
+            // Start all connections
+            foreach (var connection in connections)
             {
-                await connection1.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
-                await connection2.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
-                await Task.Delay(100);
-
-                // Start battle
-                await connection1.InvokeAsync("StartBattle", createdGroupInfo.GroupId);
-                await Task.Delay(200);
+                await connection.StartAsync();
             }
 
+            // All clients join the same group
+            var groupIds = new List<string>();
+            foreach (var connection in connections)
+            {
+                var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", "BattleTestGroup");
+                groupIds.Add(groupId);
+            }
+
+            // Wait for battle to auto-start
+            await Task.Delay(5000); // Give enough time for the battle to start
+
             // Assert
-            Assert.NotNull(createdGroupInfo);
-            Assert.True(battleStarted1);
-            Assert.True(battleStarted2);
+            Assert.True(groupIds.All(id => id == groupIds[0]), "All clients should be in the same group");
+            Assert.Equal(5, connectionsReadyCount); // All 5 clients should receive ConnectionsReady
+            Assert.Equal(5, battleStartedCount);   // All 5 clients should receive BattleStarted
         }
         finally
         {
             // Cleanup
-            await connection1.DisposeAsync();
-            await connection2.DisposeAsync();
+            foreach (var connection in connections)
+            {
+                await connection.DisposeAsync();
+            }
         }
     }
 
@@ -289,57 +246,63 @@ public class E2EIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task LeaveGroup_WorksCorrectly()
+    public async Task ClientDisconnection_LeavesGroup_WorksCorrectly()
     {
         // Arrange
         var factory = CreateFactory();
-        var connection = new HubConnectionBuilder()
+        var connection1 = new HubConnectionBuilder()
             .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
             .Build();
 
-        GroupInfo? createdGroupInfo = null;
-        var groupLeft = false;
+        var connection2 = new HubConnectionBuilder()
+            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            {
+                options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+            })
+            .Build();
 
-        connection.On<GroupInfo>("GroupCreated", (groupInfo) =>
-        {
-            createdGroupInfo = groupInfo;
-        });
+        var memberLeftReceived = false;
+        MemberLeftData? memberLeftData = null;
 
-        connection.On("LeftGroup", () =>
+        connection2.On<MemberLeftData>("MemberLeft", (data) =>
         {
-            groupLeft = true;
+            memberLeftReceived = true;
+            memberLeftData = data;
         });
 
         try
         {
             // Act
-            await connection.StartAsync();
+            await connection1.StartAsync();
+            await connection2.StartAsync();
 
-            // Create and join group
-            await connection.InvokeAsync("CreateGroup", "LeaveTestGroup");
+            // Both clients join the same group
+            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", "LeaveTestGroup");
+            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", "LeaveTestGroup");
             await Task.Delay(100);
 
-            if (createdGroupInfo != null)
-            {
-                await connection.InvokeAsync("JoinGroup", createdGroupInfo.GroupId);
-                await Task.Delay(100);
+            Assert.Equal(groupId1, groupId2); // Ensure they're in the same group
 
-                // Leave group
-                await connection.InvokeAsync("LeaveGroup", createdGroupInfo.GroupId);
-                await Task.Delay(100);
-            }
+            // Disconnect the first client (this should leave the group)
+            await connection1.DisposeAsync();
+            await Task.Delay(100); // Wait for the leave event to be processed
 
             // Assert
-            Assert.NotNull(createdGroupInfo);
-            Assert.True(groupLeft);
+            Assert.True(memberLeftReceived);
+            Assert.NotNull(memberLeftData);
+            Assert.Equal("LeaveTestGroup", memberLeftData.Value.GroupName);
+            Assert.Equal(1, memberLeftData.Value.CurrentMemberCount); // One member should remain
         }
         finally
         {
             // Cleanup
-            await connection.DisposeAsync();
+            if (connection2.State == HubConnectionState.Connected)
+            {
+                await connection2.DisposeAsync();
+            }
         }
     }
 
