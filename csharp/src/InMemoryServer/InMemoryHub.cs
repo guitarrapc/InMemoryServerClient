@@ -278,7 +278,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _ = Task.Run(async () =>
         {
             // Wait for all clients to confirm they received the ConnectionsReady notification
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10)); // Reduced to 10 seconds for faster response
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
             var startTime = DateTime.UtcNow;
 
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Waiting for client confirmations ({ConnectionCount} clients)...",
@@ -596,7 +596,7 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
         _ = Task.Run(async () =>
         {
             // Wait for all clients to confirm they received the ConnectionsReady notification
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10)); // Reduced to 10 seconds for faster response
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
             var startTime = DateTime.UtcNow;
 
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Waiting for client confirmations ({ConnectionCount} clients)...",
