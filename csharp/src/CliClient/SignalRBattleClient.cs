@@ -34,14 +34,14 @@ internal class SignalRBattleClient : IBattleClient
     public event Action<string>? OnDisconnected;
     public event Action<string, string>? OnKeyChanged;
     public event Action<string>? OnKeyDeleted;
-    public event Action<string, int>? OnMemberJoined;
-    public event Action<string, int>? OnMemberLeft;
+    public event Action<MemberJoinedData>? OnMemberJoined;
+    public event Action<MemberLeftData>? OnMemberLeft;
     public event Action<string, string>? OnGroupMessage;
-    public event Action<string>? OnConnectionsReady;
-    public event Action<string>? OnBattleStarted;
+    public event Action<ConnectionsReadyData>? OnConnectionsReady;
+    public event Action<BattleStartedData>? OnBattleStarted;
     public event Action<BattleReplayData>? OnBattleReplayData;
-    public event Action<string, string>? OnGroupDissolved;
-    public event Action<object>? OnGroupExtended;
+    public event Action<GroupDissolvedData>? OnGroupDissolved;
+    public event Action<GroupExtendedData>? OnGroupExtended;
 
     public SignalRBattleClient(ILogger<SignalRBattleClient> logger)
     {
@@ -172,38 +172,38 @@ internal class SignalRBattleClient : IBattleClient
 
         _connection.On<string, string>("KeyChanged", (key, value) => OnKeyChanged?.Invoke(key, value));
         _connection.On<string>("KeyDeleted", key => OnKeyDeleted?.Invoke(key));
-        _connection.On<string, int>("MemberJoined", (connectionId, count) =>
+        _connection.On<MemberJoinedData>("MemberJoined", (memberData) =>
         {
-            _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId}", connectionId);
-            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/5", count);
-            if (count == 5)
+            _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}",
+                memberData.ConnectionId, memberData.GroupName);
+            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
+                memberData.CurrentMemberCount, memberData.MaxMembers);
+            if (memberData.CurrentMemberCount == memberData.MaxMembers)
             {
                 _logger.LogInformation("[GROUP] ✅ Group is now full! Battle will start soon...");
             }
-            OnMemberJoined?.Invoke(connectionId, count);
+            OnMemberJoined?.Invoke(memberData);
         });
-        _connection.On<string, int>("MemberLeft", (connectionId, count) =>
+        _connection.On<MemberLeftData>("MemberLeft", (memberData) =>
         {
-            _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId}", connectionId);
-            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/5", count);
-            OnMemberLeft?.Invoke(connectionId, count);
+            _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}",
+                memberData.ConnectionId, memberData.GroupName);
+            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
+                memberData.CurrentMemberCount, memberData.MaxMembers);
+            OnMemberLeft?.Invoke(memberData);
         });
         _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
 
-        _connection.On<object>("ConnectionsReady", async (data) =>
+        _connection.On<ConnectionsReadyData>("ConnectionsReady", async (data) =>
         {
-            var battleInfo = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(data));
-            var battleId = battleInfo.GetProperty("BattleId").GetGuid();
-            var seed = battleInfo.GetProperty("Seed").GetInt32();
-
             _logger.LogInformation("[BATTLE] ========== Connections Ready! ==========");
-            _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", battleId);
-            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", seed);
+            _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", data.BattleId);
+            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", data.Seed);
             _logger.LogInformation("[BATTLE] Group is full! All clients connected.");
             _logger.LogInformation("[BATTLE] Sending confirmation to server...");
             _logger.LogInformation("[BATTLE] ========================================");
 
-            OnConnectionsReady?.Invoke(battleId.ToString());
+            OnConnectionsReady?.Invoke(data);
 
             // Automatically confirm connection ready
             try
@@ -218,17 +218,13 @@ internal class SignalRBattleClient : IBattleClient
             }
         });
 
-        _connection.On<object>("BattleStarted", (data) =>
+        _connection.On<BattleStartedData>("BattleStarted", (data) =>
         {
-            var battleInfo = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(data));
-            var battleId = battleInfo.GetProperty("BattleId").GetGuid();
-            var seed = battleInfo.GetProperty("Seed").GetInt32();
-
             _logger.LogInformation("[BATTLE] ========== Battle Started! ==========");
-            _logger.LogInformation("[BATTLE] 🏆 Battle ID: {BattleId}", battleId);
-            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", seed);
+            _logger.LogInformation("[BATTLE] 🏆 Battle ID: {BattleId}", data.BattleId);
+            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", data.Seed);
             _logger.LogInformation("[BATTLE] ====================================");
-            OnBattleStarted?.Invoke(battleId.ToString());
+            OnBattleStarted?.Invoke(data);
         });
 
         _connection.On<BattleReplayData>("BattleReplayData", async (replayData) =>
@@ -247,7 +243,7 @@ internal class SignalRBattleClient : IBattleClient
                 // Check if we have all chunks
                 if (_replayChunks.Count == _expectedTotalChunks)
                 {
-                    await PlayBattleReplayAsync(replayData.BattleId, replayData.Seed);
+                    await PlayBattleReplayAsync(replayData.BattleId.ToString(), replayData.Seed);
                 }
             }
             catch (Exception ex)
@@ -256,27 +252,20 @@ internal class SignalRBattleClient : IBattleClient
             }
         });
 
-        _connection.On<string, string>("GroupDissolved", (groupId, reason) =>
+        _connection.On<GroupDissolvedData>("GroupDissolved", (data) =>
         {
-            _logger.LogWarning("[GROUP] ❌ Group dissolved! Group ID: {GroupId}", groupId);
-            _logger.LogWarning("[GROUP] 📄 Reason: {Reason}", reason);
+            _logger.LogWarning("[GROUP] ❌ Group dissolved! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
+            _logger.LogWarning("[GROUP] 📄 Reason: {Reason}", data.Reason);
             _logger.LogInformation("[GROUP] Connection will be closed automatically.");
-            OnGroupDissolved?.Invoke(groupId, reason);
+            OnGroupDissolved?.Invoke(data);
         });
 
-        _connection.On<object>("GroupExtended", (extensionInfo) =>
+        _connection.On<GroupExtendedData>("GroupExtended", (data) =>
         {
-            var extInfo = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(extensionInfo));
-            var groupId = extInfo.GetProperty("GroupId").GetString();
-            var groupName = extInfo.GetProperty("GroupName").GetString();
-            var extensionCount = extInfo.GetProperty("ExtensionCount").GetInt32();
-            var maxExtensions = extInfo.GetProperty("MaxExtensions").GetInt32();
-            var newExpiryTime = extInfo.GetProperty("NewExpiryTime").GetDateTime();
-
-            _logger.LogInformation("[GROUP] ⏰ Group extended! Group: {GroupName} (ID: {GroupId})", groupName, groupId);
-            _logger.LogInformation("[GROUP] 🔄 Extension count: {ExtensionCount}/{MaxExtensions}", extensionCount, maxExtensions);
-            _logger.LogInformation("[GROUP] 📅 New expiry time: {NewExpiryTime:yyyy-MM-dd HH:mm:ss}", newExpiryTime);
-            OnGroupExtended?.Invoke(extensionInfo);
+            _logger.LogInformation("[GROUP] ⏰ Group extended! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
+            _logger.LogInformation("[GROUP] 🔄 Extension count: {ExtensionCount}/{MaxExtensions}", data.ExtensionCount, data.MaxExtensions);
+            _logger.LogInformation("[GROUP] 📅 New expiry time: {NewExpiryTime:yyyy-MM-dd HH:mm:ss}", data.NewExpiryTime);
+            OnGroupExtended?.Invoke(data);
         });
 
         _connection.Closed += error =>

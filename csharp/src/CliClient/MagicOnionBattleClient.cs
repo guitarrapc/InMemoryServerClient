@@ -21,14 +21,14 @@ internal sealed class MagicOnionBattleClient : IBattleClient
     public event Action<string>? OnDisconnected;
     public event Action<string, string>? OnKeyChanged;
     public event Action<string>? OnKeyDeleted;
-    public event Action<string, int>? OnMemberJoined;
-    public event Action<string, int>? OnMemberLeft;
+    public event Action<MemberJoinedData>? OnMemberJoined;
+    public event Action<MemberLeftData>? OnMemberLeft;
     public event Action<string, string>? OnGroupMessage;
-    public event Action<string>? OnConnectionsReady;
-    public event Action<string>? OnBattleStarted;
+    public event Action<ConnectionsReadyData>? OnConnectionsReady;
+    public event Action<BattleStartedData>? OnBattleStarted;
     public event Action<BattleReplayData>? OnBattleReplayData;
-    public event Action<string, string>? OnGroupDissolved;
-    public event Action<object>? OnGroupExtended;
+    public event Action<GroupDissolvedData>? OnGroupDissolved;
+    public event Action<GroupExtendedData>? OnGroupExtended;
 
     public MagicOnionBattleClient(ILogger<MagicOnionBattleClient> logger)
     {

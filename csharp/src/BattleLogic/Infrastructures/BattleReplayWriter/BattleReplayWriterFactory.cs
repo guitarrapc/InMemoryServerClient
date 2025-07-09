@@ -24,7 +24,7 @@ public class BattleReplayWriterFactory
     /// <summary>
     /// Create a new IBattleReplayWriter instance based on current configuration
     /// </summary>
-    public IBattleReplayWriter Create(string battleId)
+    public IBattleReplayWriter Create()
     {
         return _options.Mode switch
         {

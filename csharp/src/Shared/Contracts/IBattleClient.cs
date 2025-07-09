@@ -146,12 +146,12 @@ public interface IBattleClient : IAsyncDisposable
     /// <summary>
     /// Fired when a new member joins the group
     /// </summary>
-    event Action<string, int>? OnMemberJoined;
+    event Action<MemberJoinedData>? OnMemberJoined;
 
     /// <summary>
     /// Fired when a member leaves the group
     /// </summary>
-    event Action<string, int>? OnMemberLeft;
+    event Action<MemberLeftData>? OnMemberLeft;
 
     /// <summary>
     /// Fired when a group message is received
@@ -161,12 +161,12 @@ public interface IBattleClient : IAsyncDisposable
     /// <summary>
     /// Fired when all connections are ready for battle
     /// </summary>
-    event Action<string>? OnConnectionsReady;
+    event Action<ConnectionsReadyData>? OnConnectionsReady;
 
     /// <summary>
     /// Fired when battle starts
     /// </summary>
-    event Action<string>? OnBattleStarted;
+    event Action<BattleStartedData>? OnBattleStarted;
 
     /// <summary>
     /// Fired when battle replay data is received
@@ -176,10 +176,10 @@ public interface IBattleClient : IAsyncDisposable
     /// <summary>
     /// Fired when a group is dissolved
     /// </summary>
-    event Action<string, string>? OnGroupDissolved;
+    event Action<GroupDissolvedData>? OnGroupDissolved;
 
     /// <summary>
     /// Fired when a group waiting time is extended
     /// </summary>
-    event Action<object>? OnGroupExtended;
+    event Action<GroupExtendedData>? OnGroupExtended;
 }

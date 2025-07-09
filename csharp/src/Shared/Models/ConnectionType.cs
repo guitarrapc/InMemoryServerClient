@@ -1,4 +1,4 @@
-namespace Shared.Models;
+﻿namespace Shared.Models;
 
 /// <summary>
 /// Connection type for protocol selection

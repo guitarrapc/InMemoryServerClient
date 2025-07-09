@@ -257,7 +257,7 @@ public class BattleState
         allTurnData.Add(GetStatusSnapshot());
 
         // Write all replay data at once for efficiency
-        await using var replayWriter = _replayWriterFactory.Create(_battleId.ToString());
+        await using var replayWriter = _replayWriterFactory.Create();
         await replayWriter.InitializeAsync(_battleId.ToString(), _seed);
         await replayWriter.WriteAllFramesAsync(allTurnData);
         await replayWriter.FinalizeAsync();

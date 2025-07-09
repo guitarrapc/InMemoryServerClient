@@ -1,4 +1,4 @@
-namespace Shared.Models;
+﻿namespace Shared.Models;
 
 /// <summary>
 /// Server status information for client abstraction

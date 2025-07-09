@@ -254,7 +254,7 @@ public class GroupManager
                             _logger.LogWarning($"Auto-dissolved group {group.Name} (ID: {group.Id}) - maximum extensions reached. Affected clients: {clientIds.Count}");
 
                             // Notify the hub about the dissolution
-                            OnGroupDissolved?.Invoke(group.Id, clientIds, "Maximum extensions reached");
+                            OnGroupDissolved?.Invoke(group.Id, group.Name, clientIds, "Maximum extensions reached");
                         }
                     }
                 }
@@ -265,5 +265,5 @@ public class GroupManager
     /// <summary>
     /// Event fired when a group is dissolved
     /// </summary>
-    public event Action<string, List<string>, string>? OnGroupDissolved;
+    public event Action<string, string, List<string>, string>? OnGroupDissolved;
 }
