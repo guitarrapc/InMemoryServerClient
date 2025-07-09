@@ -7,6 +7,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
+    <NoWarn>xUnit1051</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
