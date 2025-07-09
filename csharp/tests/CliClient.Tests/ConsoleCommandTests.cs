@@ -1,4 +1,4 @@
-namespace CliClient.Tests;
+﻿namespace CliClient.Tests;
 
 /// <summary>
 /// Tests for ConsoleCommand class
@@ -79,7 +79,7 @@ public class ConsoleCommandTests : IDisposable
         // by checking that it contains references to expected command strings
 
         // Arrange & Act
-        var sourceCode = File.ReadAllText("c:\\github\\guitarrapc\\InMemoryServerClient\\csharp\\src\\CliClient\\ConsoleCommand.cs");
+        var sourceCode = File.ReadAllText($@"{Directory.GetCurrentDirectory()}/../../../../../src/CliClient/ConsoleCommand.cs");
 
         // Assert
         Assert.Contains($"\"{expectedCommand}\"", sourceCode);
