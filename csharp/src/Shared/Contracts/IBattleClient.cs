@@ -172,4 +172,14 @@ public interface IBattleClient : IAsyncDisposable
     /// Fired when battle replay data is received
     /// </summary>
     event Action<BattleReplayData>? OnBattleReplayData;
+
+    /// <summary>
+    /// Fired when a group is dissolved
+    /// </summary>
+    event Action<string, string>? OnGroupDissolved;
+
+    /// <summary>
+    /// Fired when a group waiting time is extended
+    /// </summary>
+    event Action<object>? OnGroupExtended;
 }

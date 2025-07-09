@@ -53,6 +53,16 @@ public class GroupInfo : IBattleGroupContext
     public string? BattleId { get; set; }
 
     /// <summary>
+    /// Number of extensions used for this group
+    /// </summary>
+    public int ExtensionCount { get; set; } = 0;
+
+    /// <summary>
+    /// Time when the group was last extended
+    /// </summary>
+    public DateTime? LastExtendedAt { get; set; }
+
+    /// <summary>
     /// Client IDs in this group (not sent to clients)
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]

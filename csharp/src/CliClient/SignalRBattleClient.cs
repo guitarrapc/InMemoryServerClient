@@ -40,6 +40,8 @@ internal class SignalRBattleClient : IBattleClient
     public event Action<string>? OnConnectionsReady;
     public event Action<string>? OnBattleStarted;
     public event Action<BattleReplayData>? OnBattleReplayData;
+    public event Action<string, string>? OnGroupDissolved;
+    public event Action<object>? OnGroupExtended;
 
     public SignalRBattleClient(ILogger<SignalRBattleClient> logger)
     {
@@ -252,6 +254,29 @@ internal class SignalRBattleClient : IBattleClient
             {
                 _logger.LogError(ex, "Error processing battle replay data");
             }
+        });
+
+        _connection.On<string, string>("GroupDissolved", (groupId, reason) =>
+        {
+            _logger.LogWarning("[GROUP] ❌ Group dissolved! Group ID: {GroupId}", groupId);
+            _logger.LogWarning("[GROUP] 📄 Reason: {Reason}", reason);
+            _logger.LogInformation("[GROUP] Connection will be closed automatically.");
+            OnGroupDissolved?.Invoke(groupId, reason);
+        });
+
+        _connection.On<object>("GroupExtended", (extensionInfo) =>
+        {
+            var extInfo = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(System.Text.Json.JsonSerializer.Serialize(extensionInfo));
+            var groupId = extInfo.GetProperty("GroupId").GetString();
+            var groupName = extInfo.GetProperty("GroupName").GetString();
+            var extensionCount = extInfo.GetProperty("ExtensionCount").GetInt32();
+            var maxExtensions = extInfo.GetProperty("MaxExtensions").GetInt32();
+            var newExpiryTime = extInfo.GetProperty("NewExpiryTime").GetDateTime();
+
+            _logger.LogInformation("[GROUP] ⏰ Group extended! Group: {GroupName} (ID: {GroupId})", groupName, groupId);
+            _logger.LogInformation("[GROUP] 🔄 Extension count: {ExtensionCount}/{MaxExtensions}", extensionCount, maxExtensions);
+            _logger.LogInformation("[GROUP] 📅 New expiry time: {NewExpiryTime:yyyy-MM-dd HH:mm:ss}", newExpiryTime);
+            OnGroupExtended?.Invoke(extensionInfo);
         });
 
         _connection.Closed += error =>

@@ -27,6 +27,8 @@ internal sealed class MagicOnionBattleClient : IBattleClient
     public event Action<string>? OnConnectionsReady;
     public event Action<string>? OnBattleStarted;
     public event Action<BattleReplayData>? OnBattleReplayData;
+    public event Action<string, string>? OnGroupDissolved;
+    public event Action<object>? OnGroupExtended;
 
     public MagicOnionBattleClient(ILogger<MagicOnionBattleClient> logger)
     {

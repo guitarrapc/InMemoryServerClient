@@ -14,6 +14,8 @@ namespace InMemoryServer;
 /// </summary>
 public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory, BattleReplayWriterFactory replayWriterFactory) : Hub
 {
+    private static readonly object _eventSetupLock = new();
+    private static bool _eventHandlersSetup = false;
     /// <summary>
     /// Get value by key
     /// </summary>
@@ -384,6 +386,28 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
     {
         logger.LogInformation($"Client {Context.ConnectionId} connected");
         state.ConnectionCount++;
+
+        // Set up event handlers once (thread-safe)
+        lock (_eventSetupLock)
+        {
+            if (!_eventHandlersSetup)
+            {
+                groupManager.OnGroupDissolved += async (groupId, clientIds, reason) =>
+                {
+                    try
+                    {
+                        await NotifyGroupDissolved(groupId, clientIds, reason);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error notifying group dissolution for group {GroupId}", groupId);
+                    }
+                };
+                _eventHandlersSetup = true;
+                logger.LogInformation("Group dissolution event handler set up");
+            }
+        }
+
         await base.OnConnectedAsync();
     }
 
@@ -661,5 +685,63 @@ public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, Group
             // Clear entire allTurnData after all chunks sent
             battle.ClearBattleData();
         });
+    }
+
+    /// <summary>
+    /// Notify clients about group dissolution
+    /// </summary>
+    private async Task NotifyGroupDissolved(string groupId, List<string> clientIds, string reason)
+    {
+        logger.LogInformation("Notifying {ClientCount} clients about group {GroupId} dissolution. Reason: {Reason}",
+            clientIds.Count, groupId, reason);
+
+        foreach (var clientId in clientIds)
+        {
+            try
+            {
+                await Clients.Client(clientId).SendAsync("GroupDissolved", groupId, reason);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to notify client {ClientId} about group dissolution", clientId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Manually extend a group's waiting time (for testing or admin purposes)
+    /// </summary>
+    public async Task<bool> ExtendGroupAsync(string? groupName = null)
+    {
+        var groupId = groupName != null ?
+            groupManager.GetAllGroups().FirstOrDefault(g => g.Name == groupName)?.Id :
+            groupManager.GetGroupIdForConnection(Context.ConnectionId);
+
+        if (string.IsNullOrEmpty(groupId))
+        {
+            logger.LogWarning($"Client {Context.ConnectionId} tried to extend group but is not in any group or group not found");
+            return false;
+        }
+
+        var success = groupManager.ExtendGroupWaitingTime(groupId);
+        if (success)
+        {
+            var group = groupManager.GetGroupInfo(groupId);
+            if (group != null)
+            {
+                // Notify all group members about the extension
+                await Clients.Group(groupId).SendAsync("GroupExtended", new {
+                    GroupId = groupId,
+                    GroupName = group.Name,
+                    ExtensionCount = group.ExtensionCount,
+                    MaxExtensions = SystemDefines.MaxGroupExtensions,
+                    NewExpiryTime = group.ExpiresAt
+                });
+
+                logger.LogInformation($"Group {group.Name} (ID: {groupId}) extended by client {Context.ConnectionId}");
+            }
+        }
+
+        return success;
     }
 }

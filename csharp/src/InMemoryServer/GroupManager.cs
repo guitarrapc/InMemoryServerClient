@@ -149,7 +149,69 @@ public class GroupManager
     }
 
     /// <summary>
-    /// Start timer to clean up expired groups
+    /// Extend group waiting time if possible
+    /// </summary>
+    public bool ExtendGroupWaitingTime(string groupId)
+    {
+        if (!_groups.TryGetValue(groupId, out var group))
+        {
+            return false;
+        }
+
+        // Check if extension is allowed
+        if (group.ExtensionCount >= SystemDefines.MaxGroupExtensions)
+        {
+            _logger.LogWarning($"Group {group.Name} (ID: {groupId}) has reached maximum extensions ({SystemDefines.MaxGroupExtensions})");
+            return false;
+        }
+
+        // Extend the group
+        group.ExtensionCount++;
+        group.LastExtendedAt = DateTime.UtcNow;
+        group.ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExtensionMinutes);
+
+        _logger.LogInformation($"Extended group {group.Name} (ID: {groupId}) for {SystemDefines.GroupExtensionMinutes} minutes. Extension count: {group.ExtensionCount}/{SystemDefines.MaxGroupExtensions}");
+        return true;
+    }
+
+    /// <summary>
+    /// Dissolve a group and notify all members
+    /// </summary>
+    public async Task<List<string>> DissolveGroupAsync(string groupId, string reason = "Group disbanded due to timeout")
+    {
+        if (!_groups.TryRemove(groupId, out var group))
+        {
+            return new List<string>();
+        }
+
+        var clientIds = new List<string>(group.ClientIds);
+
+        // Remove all connections from the group mapping
+        foreach (var clientId in clientIds)
+        {
+            _connectionToGroup.TryRemove(clientId, out _);
+        }
+
+        _logger.LogInformation($"Dissolved group {group.Name} (ID: {groupId}). Reason: {reason}. Affected clients: {clientIds.Count}");
+        return clientIds;
+    }
+
+    /// <summary>
+    /// Get groups that need extension or dissolution
+    /// </summary>
+    public IEnumerable<GroupInfo> GetGroupsNeedingAttention()
+    {
+        var now = DateTime.UtcNow;
+        return _groups.Values.Where(g =>
+            g.ConnectionCount > 0 &&
+            g.ConnectionCount < SystemDefines.MaxConnectionsPerGroup &&
+            string.IsNullOrEmpty(g.BattleId) &&
+            g.ExpiresAt <= now.AddMinutes(1) // Groups expiring within 1 minute
+        );
+    }
+
+    /// <summary>
+    /// Start timer to clean up expired groups and handle extensions
     /// </summary>
     private void StartCleanupTimer()
     {
@@ -157,20 +219,51 @@ public class GroupManager
         {
             while (true)
             {
-                // Check once a minute
-                await Task.Delay(TimeSpan.FromMinutes(1));
+                // Check every 30 seconds for more responsive handling
+                await Task.Delay(TimeSpan.FromSeconds(30));
 
                 var now = DateTime.UtcNow;
-                var expiredGroups = _groups.Values.Where(g => g.ExpiresAt < now && g.ConnectionCount == 0).ToList();
 
-                foreach (var group in expiredGroups)
+                // Handle empty expired groups
+                var expiredEmptyGroups = _groups.Values.Where(g => g.ExpiresAt < now && g.ConnectionCount == 0).ToList();
+                foreach (var group in expiredEmptyGroups)
                 {
                     if (_groups.TryRemove(group.Id, out _))
                     {
-                        _logger.LogInformation($"Removed expired group {group.Name} (ID: {group.Id})");
+                        _logger.LogInformation($"Removed expired empty group {group.Name} (ID: {group.Id})");
+                    }
+                }
+
+                // Handle groups that need attention (extension or dissolution)
+                var groupsNeedingAttention = GetGroupsNeedingAttention().ToList();
+                foreach (var group in groupsNeedingAttention)
+                {
+                    if (group.ExpiresAt <= now)
+                    {
+                        // Group has expired, attempt extension or dissolve
+                        if (group.ExtensionCount < SystemDefines.MaxGroupExtensions)
+                        {
+                            // Extend the group
+                            ExtendGroupWaitingTime(group.Id);
+                            _logger.LogInformation($"Auto-extended group {group.Name} (ID: {group.Id}) due to timeout. Members: {group.ConnectionCount}/{SystemDefines.MaxConnectionsPerGroup}");
+                        }
+                        else
+                        {
+                            // Dissolve the group - maximum extensions reached
+                            var clientIds = await DissolveGroupAsync(group.Id, "Maximum extensions reached");
+                            _logger.LogWarning($"Auto-dissolved group {group.Name} (ID: {group.Id}) - maximum extensions reached. Affected clients: {clientIds.Count}");
+
+                            // Notify the hub about the dissolution
+                            OnGroupDissolved?.Invoke(group.Id, clientIds, "Maximum extensions reached");
+                        }
                     }
                 }
             }
         });
     }
+
+    /// <summary>
+    /// Event fired when a group is dissolved
+    /// </summary>
+    public event Action<string, List<string>, string>? OnGroupDissolved;
 }
