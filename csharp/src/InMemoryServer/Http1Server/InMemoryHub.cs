@@ -15,8 +15,9 @@ namespace InMemoryServer.Http1Server;
 /// </summary>
 public class InMemoryHub(ILogger<InMemoryHub> logger, InMemoryState state, GroupManager groupManager, ILoggerFactory loggerFactory, BattleReplayWriterFactory replayWriterFactory) : Hub
 {
-    private static readonly object _eventSetupLock = new();
+    private static readonly Lock _eventSetupLock = new();
     private static bool _eventHandlersSetup = false;
+
     /// <summary>
     /// Get value by key
     /// </summary>
