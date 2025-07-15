@@ -1,4 +1,6 @@
-﻿namespace CliClient.Tests;
+﻿using CliClient.Clients;
+
+namespace CliClient.Tests;
 
 /// <summary>
 /// Integration tests for client components working together

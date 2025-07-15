@@ -1,4 +1,6 @@
-﻿namespace InMemoryServer.Tests;
+﻿using InMemoryServer.Services;
+
+namespace InMemoryServer.Tests;
 
 /// <summary>
 /// Tests for GroupManager

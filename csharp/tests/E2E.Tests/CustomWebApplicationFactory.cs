@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Hosting;
+﻿using InMemoryServer.Http1Server;
+using InMemoryServer.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,8 +15,8 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // Add the same services as in Program.RunServerAsync
             services.AddSignalR();
             services.AddSingleton<InMemoryServer.InMemoryState>();
-            services.AddSingleton<InMemoryServer.GroupManager>();
-            services.AddSingleton<InMemoryServer.InMemoryHub>();
+            services.AddSingleton<GroupManager>();
+            services.AddSingleton<InMemoryHub>();
             services.AddSingleton<BattleLogic.Infrastructures.BattleReplayWriter.BattleReplayWriterFactory>();
 
             // Configure test logging

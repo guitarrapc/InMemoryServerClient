@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using CliClient.Clients;
+using Microsoft.Extensions.Logging;
 using Shared.Contracts;
 using Shared.Models;
 

@@ -1,4 +1,5 @@
 ﻿using CliClient;
+using CliClient.Clients;
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

@@ -1,4 +1,6 @@
-﻿namespace CliClient.Tests;
+﻿using CliClient.Clients;
+
+namespace CliClient.Tests;
 
 /// <summary>
 /// Tests focused on error handling and edge cases for CliClient components
