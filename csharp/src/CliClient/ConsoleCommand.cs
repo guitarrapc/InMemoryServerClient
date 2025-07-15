@@ -12,7 +12,7 @@ namespace CliClient;
 internal readonly record struct ConnectionOptions
 {
     public string ServerUrl { get; init; }
-    public string? GroupName { get; init; }
+    public string GroupName { get; init; }
 }
 
 /// <summary>
@@ -23,7 +23,6 @@ internal readonly record struct ConnectionOptions
 public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
 {
     private IBattleClient? _client;
-    private static readonly ConnectionType DefaultConnectionType = ConnectionType.SignalR;
 
     /// <summary>Start interactive mode</summary>
     [Command("")]
@@ -60,15 +59,17 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
                     case "connect":
                         var url = args.Length > 1 ? args[1] : "http://localhost:5000";
-                        var group = args.Length > 2 ? args[2] : null;
-                        await ConnectAsync(url, group);
+                        var group = args.Length > 2 ? args[2] : "battle-group";
+                        var connectionType = Enum.Parse<ConnectionType>(args.Length > 3 ? args[3] : "SignalR");
+                        await ConnectAsync(url, group, connectionType);
                         break;
 
                     case "connect-battle":
                         var battleUrl = args.Length > 1 ? args[1] : "http://localhost:5000";
                         var battleGroup = args.Length > 2 ? args[2] : "battle-group";
                         var count = args.Length > 3 && int.TryParse(args[3], out var c) ? c : 5;
-                        await ConnectMultipleAsync(battleUrl, battleGroup, count);
+                        var battleConnectionType = Enum.Parse<ConnectionType>(args.Length > 4 ? args[4] : "SignalR");
+                        await ConnectMultipleAsync(battleUrl, battleGroup, count, battleConnectionType);
                         break;
 
                     case "disconnect":
@@ -201,9 +202,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Connect to InMemory server</summary>
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name (optional)</param>
+    /// <param name="connectionType">--connection-type, Connection type (default: SignalR)</param>
     private async Task ConnectAsync(
         string url = "http://localhost:5000",
-        string? group = null)
+        string group = "battle-group",
+        ConnectionType connectionType = ConnectionType.SignalR)
     {
         try
         {
@@ -214,7 +217,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                 _client = null;
             }
 
-            _client = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
+            _client = BattleClientFactory.Create(connectionType, loggerFactory);
             if (await _client.ConnectAsync(url, group))
             {
                 logger.LogInformation($"Connected to server: {url}");
@@ -776,8 +779,9 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
+    /// <param name="connectionType">--connection-type, Connection type (default: SignalR)</param>
     [Command("connect-battle")]
-    public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5)
+    public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR)
     {
         if (count <= 0 || count > 10)
         {
@@ -799,7 +803,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             logger.LogInformation($"Group name: {group}");
 
             // 新しいMultiClientManagerを使用
-            if (await multiClientManager.ConnectMultipleAsync(count, url, group))
+            if (await multiClientManager.ConnectMultipleAsync(count, url, group, connectionType))
             {
                 logger.LogInformation($"Successfully connected {count} clients to group: {group}");
                 logger.LogInformation($"If this completes the group (5 sessions), a battle should start automatically!");
@@ -835,14 +839,25 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         }
     }
 
+    /// <summary>
     /// <summary>Reproduce a battle with specific battle ID and seed value</summary>
+    /// </summary>
+    /// <param name="battleId">-b, BattleId to get reproduce result</param>
+    /// <param name="seed">-s, Battle Seed to specify reproduce result</param>
+    /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
+    /// <param name="groupName">-g, Group name (optional)</param>
+    /// <param name="serverUrl">-u, Server URL</param>
+    /// <param name="connectionType">--connection-type, Connection type (default: SignalR)</param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
     [Command("battle-reproduce")]
     public async Task ReproduceBattleAsync(
         string battleId,
         string seed,
         int count = 5,
         string groupName = "test-group",
-        string serverUrl = "http://localhost:5000")
+        string serverUrl = "http://localhost:5000",
+        ConnectionType connectionType = ConnectionType.SignalR)
     {
         // Validate parameters
         if (!Guid.TryParse(battleId, out var parsedBattleId))
@@ -882,7 +897,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             {
                 try
                 {
-                    var connection = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
+                    var connection = BattleClientFactory.Create(connectionType, loggerFactory);
 
                     var success = await connection.ConnectAsync(serverUrl, groupName);
                     if (!success)
@@ -960,12 +975,12 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         }
     }
 
-    private async Task<IBattleClient> ConnectWithOptionsAsync(ConnectionOptions options)
+    private async Task<IBattleClient> ConnectWithOptionsAsync(ConnectionOptions options, ConnectionType connectionType)
     {
         IBattleClient? client = null;
         try
         {
-            client = BattleClientFactory.Create(DefaultConnectionType, loggerFactory);
+            client = BattleClientFactory.Create(connectionType, loggerFactory);
 
             var success = await client.ConnectAsync(options.ServerUrl, options.GroupName);
             if (!success)
@@ -990,7 +1005,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         Console.WriteLine("""
         Available commands:
           connect [url] [group]  - Connect to server (default: http://localhost:5000)
-          connect-battle [url] [group] [count] - Connect multiple sessions (default: 5) to start a battle
+          connect-battle [url] [group] [count] [connectionType] - Connect multiple sessions (default: 5) to start a battle (use: SignalR or MagicOnion)
           disconnect             - Disconnect from server
           status                 - Show connection status
           server-status          - Show detailed server status

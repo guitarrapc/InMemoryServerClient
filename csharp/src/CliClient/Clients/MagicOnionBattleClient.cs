@@ -70,7 +70,10 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
             _logger.LogInformation("Connecting to MagicOnion server: {ServerUrl}", serverUrl);
 
             // Create gRPC channel
-            _channel = GrpcChannel.ForAddress(serverUrl);
+            _channel = GrpcChannel.ForAddress(serverUrl, new GrpcChannelOptions
+            {
+                UnsafeUseInsecureChannelCallCredentials = serverUrl.StartsWith("http://"),
+            });
 
             // Connect to the streaming hub
             _hub = await StreamingHubClient.ConnectAsync<IInMemoryHub, IInMemoryHubReceiver>(_channel, this);
