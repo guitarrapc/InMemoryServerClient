@@ -146,6 +146,143 @@ public class ClientIntegrationTests : IDisposable
         Assert.Equal("test-group", options.GroupName);
     }
 
+    /// <summary>
+    /// サーバーが起動している場合のみ実行される実際の接続テスト
+    /// </summary>
+    [Fact]
+    public async Task SignalR_ConnectToRunningServer_WhenServerAvailable()
+    {
+        // Arrange
+        const string serverUrl = "http://localhost:5000";
+        var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
+
+        if (!isServerAvailable)
+        {
+            // サーバーが利用できない場合はテストをスキップ
+            Console.WriteLine($"⚠️ Test skipped: Server is not available at {serverUrl}. Start the server to run this test.");
+            Assert.True(true, $"Test skipped: Server is not available at {serverUrl}");
+            return;
+        }
+
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+
+        try
+        {
+            // Act
+            var connectResult = await client.ConnectAsync(serverUrl);
+
+            // Assert
+            Assert.True(connectResult, "Should successfully connect to running server");
+            Assert.True(client.IsConnected, "Client should be connected");
+
+            Console.WriteLine("✓ Successfully connected to running server");
+        }
+        finally
+        {
+            // Cleanup
+            await client.DisconnectAsync();
+            await client.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// 実際のバトルリプレイ統合テスト（サーバーが必要）
+    /// </summary>
+    [Fact]
+    public async Task BattleReplay_Integration_WithRunningServer()
+    {
+        // Arrange
+        const string serverUrl = "http://localhost:5000";
+        const string groupName = "integration-test-group";
+
+        var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
+
+        if (!isServerAvailable)
+        {
+            // サーバーが利用できない場合はテストをスキップ
+            Console.WriteLine($"⚠️ Test skipped: Server is not available at {serverUrl}. Start the server to run this test.");
+            Assert.True(true, $"Test skipped: Server is not available at {serverUrl}");
+            return;
+        }
+
+        var manager = new MultiBattleClientManager(_loggerFactory);
+
+        try
+        {
+            // Act - 複数クライアントを接続
+            var connectResult = await manager.ConnectMultipleAsync(
+                2, serverUrl, groupName, ConnectionType.SignalR);
+
+            // サーバーに接続できた場合のテスト
+            Assert.True(connectResult, "Should successfully connect multiple clients to running server");
+            Assert.True(manager.ConnectedClientCount >= 2, "Should have connected multiple clients");
+
+            // バトル開始のテスト（実装に応じて調整）
+            // var battleResult = await manager.StartBattleAsync();
+            // Assert.True(battleResult, "Battle should start successfully");
+
+            Console.WriteLine($"✓ Successfully connected {manager.ConnectedClientCount} clients to running server");
+        }
+        finally
+        {
+            // Cleanup
+            await manager.CleanupClientsAsync();
+        }
+    }
+
+    /// <summary>
+    /// バトルリプレイファイル生成の統合テスト（モック使用）
+    /// </summary>
+    [IntegrationTest]
+    public async Task BattleReplay_FileGeneration_WithMockBattle()
+    {
+        // Arrange
+        var tempDir = Path.Combine(Path.GetTempPath(), $"battle_replay_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            // Act - モックバトルデータでリプレイファイルを生成
+            var replayData = CreateMockBattleReplayData();
+            var filePath = Path.Combine(tempDir, "test_battle_replay.json");
+
+            await File.WriteAllTextAsync(filePath, System.Text.Json.JsonSerializer.Serialize(replayData));
+
+            // Assert
+            Assert.True(File.Exists(filePath), "Replay file should be created");
+
+            var fileContent = await File.ReadAllTextAsync(filePath);
+            Assert.NotEmpty(fileContent);
+            Assert.Contains("battleId", fileContent);
+
+            Console.WriteLine($"✓ Battle replay file created: {filePath}");
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    private static object CreateMockBattleReplayData()
+    {
+        return new
+        {
+            battleId = Guid.NewGuid().ToString(),
+            timestamp = DateTime.UtcNow,
+            players = new[]
+            {
+                new { id = "player1", name = "TestPlayer1" },
+                new { id = "player2", name = "TestPlayer2" }
+            },
+            result = "victory",
+            duration = "00:05:30"
+        };
+    }
+
     public void Dispose()
     {
         _loggerFactory?.Dispose();

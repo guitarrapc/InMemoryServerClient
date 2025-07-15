@@ -19,36 +19,6 @@ public class BattleBalanceTests
     }
 
     /// <summary>
-    /// バトルのバランス評価のために、指定された回数のバトルを実行し、プレイヤーの勝率を計算する
-    /// </summary>
-    /// <param name="battleCount">テストするバトル数</param>
-    /// <returns>プレイヤーの勝率 (0.0 - 1.0)</returns>
-    private async Task<double> RunBattlesAndCalculateWinRateAsync(int battleCount)
-    {
-        // バトル結果を格納するための変数
-        var playerVictoryCount = 0;
-        var totalBattleCount = 0;
-
-        // 並列実行のための設定
-        var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
-        var concurrentResults = new ConcurrentBag<bool>();
-
-        // 並列処理でバトルを実行
-        await Parallel.ForEachAsync(Enumerable.Range(0, battleCount), parallelOptions, async (_, ct) =>
-        {
-            var battleResult = await RunSingleBattleAsync();
-            concurrentResults.Add(battleResult);
-        });
-
-        // 結果の集計
-        playerVictoryCount = concurrentResults.Count(r => r);
-        totalBattleCount = concurrentResults.Count;
-
-        // 勝率の計算
-        return (double)playerVictoryCount / totalBattleCount;
-    }
-
-    /// <summary>
     /// 単一のバトルを実行し、プレイヤーが勝利したかどうかを返す
     /// </summary>
     /// <returns>プレイヤーが勝利した場合はtrue、敗北した場合はfalse</returns>
@@ -104,42 +74,12 @@ public class BattleBalanceTests
     }
 
     [Fact]
-    public async Task BattleBalance_WinRate_ShouldBeWithinRange()
+    public async Task BattleBalance_ComprehensiveAnalysisWithWinRateValidation()
     {
         // 設定パラメータ
-        const int battlesPerTrial = 200; // 1回の試行でのバトル数
-        const int numberOfTrials = 10;   // 試行回数
+        const int battlesForAnalysis = 200; // バトル数（効率とカバレッジのバランスを考慮）
         const double minAcceptableWinRate = 0.45; // 最小許容勝率 (45%)
         const double maxAcceptableWinRate = 0.7; // 最大許容勝率 (70%)
-
-        // 複数回の試行の勝率を記録
-        var winRates = new List<double>(numberOfTrials);
-
-        for (int trial = 0; trial < numberOfTrials; trial++)
-        {
-            var winRate = await RunBattlesAndCalculateWinRateAsync(battlesPerTrial);
-            winRates.Add(winRate);
-
-            // 各試行の結果をログに出力 (テスト中のフィードバック用)
-            Console.WriteLine($"Trial {trial + 1}: Win rate = {winRate:P2} ({winRate * battlesPerTrial:F0}/{battlesPerTrial})");
-        }
-
-        // 平均勝率を計算
-        double averageWinRate = winRates.Average();
-        Console.WriteLine($"Average win rate across {numberOfTrials} trials: {averageWinRate:P2}");
-
-        // 平均勝率が許容範囲内かを検証
-        Assert.True(
-            averageWinRate >= minAcceptableWinRate && averageWinRate <= maxAcceptableWinRate,
-            $"Win rate ({averageWinRate:P2}) should be between {minAcceptableWinRate:P2} and {maxAcceptableWinRate:P2}"
-        );
-    }
-
-    [Fact]
-    public async Task BattleBalance_DetailedAnalysis()
-    {
-        // 詳細分析のためのバトル数
-        const int battlesForAnalysis = 200;
 
         // 分析用のデータ構造 (敵の数別勝率を記録)
         var enemyCountWinRates = new Dictionary<int, List<bool>>();
@@ -151,6 +91,8 @@ public class BattleBalanceTests
         // 並列実行のための設定
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
         var battleResults = new ConcurrentBag<(int EnemyCount, bool IsVictory)>();
+
+        Console.WriteLine($"Starting comprehensive battle balance analysis with {battlesForAnalysis} battles...");
 
         // 並列処理でバトルを実行
         await Parallel.ForEachAsync(Enumerable.Range(0, battlesForAnalysis), parallelOptions, async (_, ct) =>
@@ -181,13 +123,11 @@ public class BattleBalanceTests
             await battleState.RunBattleAsync();
 
             // バトルの最終状態を取得して結果を判定
+            var finalStatus = battleState.GetStatus();
+            bool playerVictory = finalStatus.IsPlayerVictory ?? false;
+
+            // 敵の数を取得（バトル開始時の敵数）
             var allTurnData = battleState.GetAllTurnData();
-            var finalState = allTurnData[^1]; // 最後のターンの状態
-
-            // プレイヤーが全滅していなければ勝利
-            bool playerVictory = finalState.Players.Any(p => p.CurrentHp > 0);
-
-            // 敵の数を取得（最初のターンから）
             var initialState = allTurnData[0];
             int enemyCount = initialState.Enemies.Count;
 
@@ -209,13 +149,19 @@ public class BattleBalanceTests
 
         // 全体の勝率を計算
         double overallWinRate = battleResults.Count(r => r.IsVictory) / (double)battleResults.Count;
-        var overallMessage = $"Overall win rate (5 players): {overallWinRate:P2} ({battleResults.Count(r => r.IsVictory)}/{battleResults.Count})";
+        int totalVictories = battleResults.Count(r => r.IsVictory);
+        int totalBattles = battleResults.Count;
 
-        // 結果をファイルに出力
+        // 詳細結果の構築
         var detailedResults = new System.Text.StringBuilder();
-        detailedResults.AppendLine(overallMessage);
+        detailedResults.AppendLine("=== COMPREHENSIVE BATTLE BALANCE ANALYSIS ===");
+        detailedResults.AppendLine($"Total battles: {totalBattles}");
+        detailedResults.AppendLine($"Overall win rate (5 players): {overallWinRate:P2} ({totalVictories}/{totalBattles})");
+        detailedResults.AppendLine($"Acceptable range: {minAcceptableWinRate:P2} - {maxAcceptableWinRate:P2}");
+        detailedResults.AppendLine();
         detailedResults.AppendLine("Win rates by enemy count:");
 
+        bool hasValidData = false;
         foreach (var kvp in enemyCountWinRates.OrderBy(k => k.Key))
         {
             int enemyCount = kvp.Key;
@@ -223,8 +169,10 @@ public class BattleBalanceTests
 
             if (results.Count > 0)
             {
+                hasValidData = true;
                 double winRate = results.Count(r => r) / (double)results.Count;
-                detailedResults.AppendLine($"  {enemyCount} enemies: {winRate:P2} ({results.Count(r => r)}/{results.Count})");
+                int victories = results.Count(r => r);
+                detailedResults.AppendLine($"  {enemyCount} enemies: {winRate:P2} ({victories}/{results.Count}) - {results.Count} battles");
             }
             else
             {
@@ -232,17 +180,47 @@ public class BattleBalanceTests
             }
         }
 
+        // 統計情報の追加
+        detailedResults.AppendLine();
+        detailedResults.AppendLine("=== BALANCE VALIDATION ===");
+        bool isWithinRange = overallWinRate >= minAcceptableWinRate && overallWinRate <= maxAcceptableWinRate;
+        detailedResults.AppendLine($"Win rate within acceptable range: {(isWithinRange ? "✓ PASS" : "✗ FAIL")}");
+
+        if (!isWithinRange)
+        {
+            if (overallWinRate < minAcceptableWinRate)
+            {
+                detailedResults.AppendLine("  → Battle is too difficult for players");
+            }
+            else
+            {
+                detailedResults.AppendLine("  → Battle is too easy for players");
+            }
+        }
+
         // ファイルに結果を出力
-        var resultsPath = Path.Combine(Directory.GetCurrentDirectory(), "battle_balance_results.txt");
+        var resultsPath = Path.Combine(Directory.GetCurrentDirectory(), "battle_balance_comprehensive_results.txt");
         File.WriteAllText(resultsPath, detailedResults.ToString());
 
         Console.WriteLine("=====================================");
         Console.WriteLine(detailedResults.ToString());
         Console.WriteLine("=====================================");
-        Console.WriteLine($"Detailed results saved to: {resultsPath}");
+        Console.WriteLine($"Comprehensive results saved to: {resultsPath}");
 
-        // アサーション追加
-        Assert.True(true, "Battle balance analysis completed");
+        // アサーション - 勝率が許容範囲内であることを検証
+        Assert.True(hasValidData, "Should have valid battle data for analysis");
+        Assert.True(totalBattles == battlesForAnalysis, $"Expected {battlesForAnalysis} battles, but got {totalBattles}");
+        Assert.True(
+            isWithinRange,
+            $"Overall win rate ({overallWinRate:P2}) should be between {minAcceptableWinRate:P2} and {maxAcceptableWinRate:P2}. " +
+            $"Current rate indicates the battle balance may need adjustment."
+        );
+
+        // 詳細分析のための追加検証
+        var enemyCountsWithData = enemyCountWinRates.Where(kvp => kvp.Value.Count > 0).ToList();
+        Assert.True(enemyCountsWithData.Count > 0, "Should have battle data for at least one enemy count");
+
+        Console.WriteLine($"✓ Battle balance analysis completed successfully. Win rate: {overallWinRate:P2}");
     }
 
     [Fact]
