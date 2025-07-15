@@ -12,7 +12,7 @@ namespace CliClient;
 internal readonly record struct ConnectionOptions
 {
     public string ServerUrl { get; init; }
-    public string GroupName { get; init; }
+    public string? GroupName { get; init; }
 }
 
 /// <summary>
@@ -202,7 +202,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Connect to InMemory server</summary>
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name (optional)</param>
-    /// <param name="connectionType">--connection-type, Connection type (default: SignalR)</param>
+    /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     private async Task ConnectAsync(
         string url = "http://localhost:5000",
         string group = "battle-group",
@@ -779,7 +779,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
-    /// <param name="connectionType">--connection-type, Connection type (default: SignalR)</param>
+    /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     [Command("connect-battle")]
     public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR)
     {
@@ -847,7 +847,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="groupName">-g, Group name (optional)</param>
     /// <param name="serverUrl">-u, Server URL</param>
-    /// <param name="connectionType">--connection-type, Connection type (default: SignalR)</param>
+    /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
     [Command("battle-reproduce")]
