@@ -531,60 +531,136 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         }
     }
 
+    /// <summary>
+    /// Renders a visual representation of the battle field using box-drawing characters
+    /// </summary>
     private void RenderBattleField(BattleStatus status)
     {
-        var field = new char[status.FieldHeight, status.FieldWidth];
+        // First build the field with entity positions
+        var field = BuildBattleField(status);
 
-        // Initialize field with empty spaces
+        // Calculate correct border width (each cell is 2 chars wide + separators)
+        // For a 20x20 field with 2 chars per cell and a space between: 20*2 + 19 = 59 chars total width
+        int borderWidth = status.FieldWidth * 2 + (status.FieldWidth - 1);
+
+        // Draw top border
+        _logger.LogInformation("[BATTLE FIELD] ┌{Border}┐", new string('─', borderWidth));
+
+        // Draw field rows
         for (int y = 0; y < status.FieldHeight; y++)
         {
+            var line = new System.Text.StringBuilder("│");
+
             for (int x = 0; x < status.FieldWidth; x++)
             {
-                field[y, x] = '.';
+                var cellContent = field[y, x];
+
+                if (cellContent == null)
+                {
+                    // Empty cell
+                    line.Append("  ");
+                }
+                else
+                {
+                    // Determine if this is a player or enemy
+                    bool isPlayer = status.Players.Any(p => p.EntityId == cellContent);
+
+                    if (isPlayer)
+                    {
+                        // Player: P1, P2, etc.
+                        int playerIdx = status.Players.FindIndex(p => p.EntityId == cellContent) + 1;
+                        line.Append($"P{playerIdx}");
+                    }
+                    else
+                    {
+                        // Enemy: E1, E2, etc.
+                        int enemyIdx = status.Enemies.FindIndex(e => e.EntityId == cellContent) + 1;
+                        line.Append($"E{enemyIdx}");
+                    }
+                }
+
+                // Add separator except for the last column
+                if (x < status.FieldWidth - 1)
+                {
+                    line.Append(' ');
+                }
             }
+
+            line.Append('│');
+            _logger.LogInformation("[BATTLE FIELD] {Line}", line.ToString());
         }
 
-        // Place players on the field
-        foreach (var player in status.Players.Where(p => p.CurrentHp > 0))
-        {
-            if (player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
-                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
-            {
-                field[player.Position.Y, player.Position.X] = 'P';
-            }
-        }
+        // Draw bottom border with the same width as the top border
+        _logger.LogInformation("[BATTLE FIELD] └{Border}┘", new string('─', borderWidth));
 
-        // Place enemies on the field
-        foreach (var enemy in status.Enemies.Where(e => e.CurrentHp > 0))
+        // Add a legend for easier identification
+        var playerLegend = new System.Text.StringBuilder("Players: ");
+        for (int i = 0; i < status.Players.Count; i++)
         {
-            if (enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
-                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
+            var player = status.Players[i];
+            if (player.CurrentHp > 0)
             {
-                field[enemy.Position.Y, enemy.Position.X] = 'E';
+                playerLegend.Append($"P{i + 1}={player.Name}({player.CurrentHp}/{player.MaxHp}) ");
             }
         }
+        _logger.LogInformation("[BATTLE FIELD] {PlayerLegend}", playerLegend.ToString());
 
-        // Render the field
-        _logger.LogInformation("[BATTLE] Battle Field:");
-        for (int y = 0; y < status.FieldHeight; y++)
+        var enemyLegend = new System.Text.StringBuilder("Enemies: ");
+        for (int i = 0; i < status.Enemies.Count; i++)
         {
-            var row = "";
-            for (int x = 0; x < status.FieldWidth; x++)
+            var enemy = status.Enemies[i];
+            if (enemy.CurrentHp > 0)
             {
-                row += field[y, x] + " ";
+                enemyLegend.Append($"E{i + 1}={enemy.Name}({enemy.CurrentHp}/{enemy.MaxHp}) ");
             }
-            _logger.LogInformation("[BATTLE] {Row}", row);
         }
+        _logger.LogInformation("[BATTLE FIELD] {EnemyLegend}", enemyLegend.ToString());
     }
 
-    private static string GenerateHealthBar(int currentHp, int maxHp, int barLength)
+    /// <summary>
+    /// Generate a text-based health bar
+    /// </summary>
+    private string GenerateHealthBar(int current, int max, int length)
     {
-        var percentage = (double)currentHp / maxHp;
-        var filledLength = (int)(percentage * barLength);
-        var emptyLength = barLength - filledLength;
+        int filledLength = (int)Math.Round((double)current / max * length);
 
-        var bar = new string('█', filledLength) + new string('░', emptyLength);
-        return $"[{bar}]";
+        // ASCII-compatible characters for better Windows cmd.exe compatibility
+        string filled = new string('=', filledLength);
+        string empty = new string('-', length - filledLength);
+
+        return $"[{filled}{empty}]";
+    }
+
+    /// <summary>
+    /// Builds a 2D field array from player and enemy positions
+    /// </summary>
+    private Guid?[,] BuildBattleField(BattleStatus status)
+    {
+        var field = new Guid?[status.FieldHeight, status.FieldWidth];
+
+        // Place players on field
+        foreach (var player in status.Players)
+        {
+            if (player.CurrentHp > 0 &&
+                player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
+                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
+            {
+                field[player.Position.Y, player.Position.X] = player.EntityId;
+            }
+        }
+
+        // Place enemies on field
+        foreach (var enemy in status.Enemies)
+        {
+            if (enemy.CurrentHp > 0 &&
+                enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
+                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
+            {
+                field[enemy.Position.Y, enemy.Position.X] = enemy.EntityId;
+            }
+        }
+
+        return field;
     }
 
     public async ValueTask DisposeAsync()
