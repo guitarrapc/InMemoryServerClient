@@ -1,8 +1,9 @@
 ﻿namespace Shared.Models;
 
 /// <summary>
-/// Data for ConnectionsReady SignalR event
+/// Data for ConnectionsReady event
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct ConnectionsReadyData
 {
     /// <summary>
@@ -17,8 +18,9 @@ public readonly record struct ConnectionsReadyData
 }
 
 /// <summary>
-/// Data for BattleStarted SignalR event
+/// Data for BattleStarted event
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct BattleStartedData
 {
     /// <summary>
@@ -33,8 +35,9 @@ public readonly record struct BattleStartedData
 }
 
 /// <summary>
-/// Data for GroupExtended SignalR event
+/// Data for GroupExtended event
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct GroupExtendedData
 {
     /// <summary>
@@ -64,8 +67,9 @@ public readonly record struct GroupExtendedData
 }
 
 /// <summary>
-/// Data for GroupDissolved SignalR event
+/// Data for GroupDissolved event
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct GroupDissolvedData
 {
     /// <summary>
@@ -87,6 +91,7 @@ public readonly record struct GroupDissolvedData
 /// <summary>
 /// Data for MemberJoined SignalR event
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct MemberJoinedData
 {
     /// <summary>
@@ -118,6 +123,7 @@ public readonly record struct MemberJoinedData
 /// <summary>
 /// Data for MemberLeft SignalR event
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct MemberLeftData
 {
     /// <summary>

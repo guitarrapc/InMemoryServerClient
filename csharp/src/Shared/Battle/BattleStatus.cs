@@ -5,6 +5,7 @@ namespace Shared.Battle;
 /// <summary>
 /// Battle status for client-server communication
 /// </summary>
+[MessagePackObject(true)]
 public class BattleStatus
 {
     /// <summary>

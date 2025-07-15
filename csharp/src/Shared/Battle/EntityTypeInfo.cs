@@ -3,6 +3,7 @@
 /// <summary>
 /// Complete entity type information combining type and enemy size
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct EntityTypeInfo(EntityType Type, EnemySize? EnemySize = null)
 {
     /// <summary>

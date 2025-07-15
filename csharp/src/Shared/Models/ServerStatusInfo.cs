@@ -3,6 +3,7 @@
 /// <summary>
 /// Server status information for client abstraction
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct ServerStatusInfo(
     TimeSpan Uptime,
     int TotalConnections,
@@ -14,6 +15,7 @@ public readonly record struct ServerStatusInfo(
 /// <summary>
 /// Group information for client abstraction
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct ClientGroupInfo(
     string GroupId,
     string GroupName,

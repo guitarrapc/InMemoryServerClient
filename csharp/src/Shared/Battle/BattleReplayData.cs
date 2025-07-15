@@ -3,6 +3,7 @@
 /// <summary>
 /// Battle replay data for chunked transmission
 /// </summary>
+[MessagePackObject(true)]
 public readonly struct BattleReplayData
 {
     /// <summary>

@@ -8,6 +8,7 @@ using BattleLogic.Models;
 using BattleLogic.Constans;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
+using MessagePack;
 
 namespace InMemoryServer.Http2Server;
 
@@ -206,7 +207,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// <summary>
     /// Get battle replay data
     /// </summary>
-    public async Task<string?> GetBattleReplayAsync(Guid battleId)
+    public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         var connectionId = Context.ContextId.ToString();
         logger.LogInformation("Client {ConnectionId} requested battle replay for battle: {BattleId}", connectionId, battleId);
@@ -216,7 +217,8 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
         {
             try
             {
-                return await File.ReadAllTextAsync(replayPath);
+                var bytes = await File.ReadAllBytesAsync(replayPath);
+                return MessagePackSerializer.Deserialize<BattleReplayData>(bytes);
             }
             catch (Exception ex)
             {

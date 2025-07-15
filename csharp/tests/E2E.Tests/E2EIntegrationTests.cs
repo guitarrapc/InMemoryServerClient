@@ -2,7 +2,6 @@
 using Shared.Constants;
 using Shared.Models;
 using Xunit;
-using System.Threading;
 
 namespace E2E.Tests;
 

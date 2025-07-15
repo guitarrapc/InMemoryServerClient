@@ -6,6 +6,7 @@ namespace Shared.Battle;
 /// <summary>
 /// Entity information for client-server communication
 /// </summary>
+[MessagePackObject(true)]
 public readonly record struct EntityInfo
 {
     /// <summary>

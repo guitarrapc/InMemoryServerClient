@@ -6,6 +6,7 @@
 /// <remarks>
 /// Creates a new Vector2
 /// </remarks>
+[MessagePackObject(true)]
 [System.Text.Json.Serialization.JsonConverter(typeof(Vector2JsonConverter))]
 public readonly record struct Vector2
 {

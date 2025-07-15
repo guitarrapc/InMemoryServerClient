@@ -1,6 +1,5 @@
-using MagicOnion;
+﻿using MagicOnion;
 using Shared.Battle;
-using Shared.Models;
 
 namespace Shared.Contracts.MagicOnion;
 

@@ -1,11 +1,8 @@
-using MagicOnion;
+﻿using MagicOnion;
 using MagicOnion.Server;
 using Shared.Contracts.MagicOnion;
 using Shared.Battle;
-using Shared.Models;
 using BattleLogic.Constans;
-using BattleLogic.Models;
-using InMemoryServer.Services;
 
 namespace InMemoryServer.Http2Server;
 
