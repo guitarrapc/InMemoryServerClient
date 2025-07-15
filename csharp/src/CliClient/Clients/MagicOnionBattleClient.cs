@@ -173,9 +173,6 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     {
         EnsureConnected();
         var battleReplayData = await _hub.GetBattleReplayAsync(battleId);
-
-        // TODO: Parse the JSON string into BattleReplayData if needed
-        // For now, return null as the server returns raw JSON
         return battleReplayData;
     }
 
@@ -219,17 +216,17 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
     {
         EnsureConnected();
-        var group = await _hub.GetCurrentGroupAsync();
+        var groupInfo = await _hub.GetCurrentGroupAsync();
 
-        if (group == null) return null;
+        if (groupInfo == null) return null;
 
         // Convert GroupInfo to ClientGroupInfo
         return new ClientGroupInfo(
-            group.GroupId,
-            group.Name,
-            group.ConnectionCount,
-            group.MaxConnections,
-            group.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
+            groupInfo.GroupId,
+            groupInfo.Name,
+            groupInfo.ConnectionCount,
+            groupInfo.MaxConnections,
+            groupInfo.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
         );
     }
 
@@ -248,7 +245,11 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
     {
         EnsureConnected();
-        return await _hub.ReproduceBattleAsync(battleId, seedValue, groupName);
+        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
+            battleId, seedValue, groupName);
+
+        var result = await _hub.ReproduceBattleAsync(battleId, seedValue, groupName);
+        return result;
     }
 
     public async Task<ServerStatusInfo> GetServerStatusAsync()
@@ -257,18 +258,20 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         var serverStatus = await _hub.GetServerStatusAsync();
 
         // Convert ServerStatus to ServerStatusInfo
+        var groups = serverStatus.Groups.Select(g => new ClientGroupInfo(
+            g.GroupId,
+            g.Name,
+            g.ConnectionCount,
+            SystemDefines.MaxConnectionsPerGroup,
+            TimeSpan.Zero // TODO: Calculate remaining time
+        )).ToList() ?? [];
+
         return new ServerStatusInfo(
             serverStatus.Uptime,
             serverStatus.TotalConnections,
             serverStatus.GroupCount,
             serverStatus.ActiveBattleCount,
-            serverStatus.Groups.Select(g => new ClientGroupInfo(
-                g.GroupId,
-                g.Name,
-                g.ConnectionCount,
-                SystemDefines.MaxConnectionsPerGroup,
-                TimeSpan.Zero // TODO: Calculate remaining time
-            )).ToList()
+            groups
         );
     }
 

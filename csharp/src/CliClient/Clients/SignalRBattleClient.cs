@@ -168,6 +168,103 @@ internal class SignalRBattleClient : IBattleClient
         await Task.CompletedTask;
     }
 
+    public async Task<bool> BroadcastMessageAsync(string message)
+    {
+        EnsureConnected();
+        return await _connection!.InvokeAsync<bool>("BroadcastAsync", message);
+    }
+
+    public async Task<bool> JoinGroupAsync(string groupName)
+    {
+        EnsureConnected();
+        _currentGroupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
+        _logger.LogInformation("Joined group: {GroupName} (ID: {GroupId})", groupName, _currentGroupId);
+        return !string.IsNullOrEmpty(_currentGroupId);
+    }
+
+    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
+    {
+        EnsureConnected();
+        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
+
+        // Convert GroupInfo to ClientGroupInfo
+        return groups.Select(g => new ClientGroupInfo(
+            g.GroupId,
+            g.Name,
+            g.ConnectionCount,
+            g.MaxConnections,
+            g.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
+        )).ToList();
+    }
+
+    public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
+    {
+        EnsureConnected();
+        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
+        if (groupInfo == null) return null;
+
+        return new ClientGroupInfo(
+            groupInfo.GroupId,
+            groupInfo.Name,
+            groupInfo.ConnectionCount,
+            groupInfo.MaxConnections,
+            groupInfo.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
+        );
+    }
+
+    public async Task<BattleStatus?> GetBattleStatusAsync()
+    {
+        EnsureConnected();
+        return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
+    }
+
+    public async Task<bool> ConfirmConnectionReadyAsync()
+    {
+        EnsureConnected();
+        return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
+    }
+
+    public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
+    {
+        EnsureConnected();
+        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
+            battleId, seedValue, groupName);
+
+            var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
+            return result;
+    }
+
+    public async Task<ServerStatusInfo> GetServerStatusAsync()
+    {
+        EnsureConnected();
+        var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
+
+        // Convert ServerStatus to ServerStatusInfo
+        var groups = serverStatus.Groups.Select(g => new ClientGroupInfo(
+            g.GroupId,
+            g.Name,
+            g.ConnectionCount,
+            SystemDefines.MaxConnectionsPerGroup,
+            TimeSpan.Zero // TODO: Calculate remaining time
+        )).ToList() ?? [];
+
+        return new ServerStatusInfo(
+            serverStatus.Uptime,
+            serverStatus.TotalConnections,
+            serverStatus.GroupCount,
+            serverStatus.ActiveBattleCount,
+            groups
+        );
+    }
+
+    private void EnsureConnected()
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("Not connected to server. Call ConnectAsync first.");
+        }
+    }
+
     private void SetupEventHandlers()
     {
         if (_connection == null) return;
@@ -534,112 +631,8 @@ internal class SignalRBattleClient : IBattleClient
         return field;
     }
 
-    private void EnsureConnected()
-    {
-        if (!IsConnected)
-        {
-            throw new InvalidOperationException("Not connected to server");
-        }
-    }
-
-    public async ValueTask DisposeAsync()
+   public async ValueTask DisposeAsync()
     {
         await DisconnectAsync();
-    }
-
-    public async Task<bool> JoinGroupAsync(string groupName)
-    {
-        EnsureConnected();
-        _currentGroupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
-        _logger.LogInformation("Joined group: {GroupName} (ID: {GroupId})", groupName, _currentGroupId);
-        return !string.IsNullOrEmpty(_currentGroupId);
-    }
-
-    public async Task<bool> BroadcastMessageAsync(string message)
-    {
-        EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("BroadcastAsync", message);
-    }
-
-    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
-    {
-        EnsureConnected();
-        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
-        return groups.Select(g => new ClientGroupInfo(
-            g.GroupId,
-            g.Name,
-            g.ConnectionCount,
-            g.MaxConnections,
-            g.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
-        )).ToList();
-    }
-
-    public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
-    {
-        EnsureConnected();
-        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
-        if (groupInfo == null) return null;
-
-        return new ClientGroupInfo(
-            groupInfo.GroupId,
-            groupInfo.Name,
-            groupInfo.ConnectionCount,
-            groupInfo.MaxConnections,
-            groupInfo.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
-        );
-    }
-
-    public async Task<bool> ConfirmConnectionReadyAsync()
-    {
-        EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
-    }
-
-    public async Task<BattleStatus?> GetBattleStatusAsync()
-    {
-        EnsureConnected();
-        return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
-    }
-
-    public async Task<ServerStatusInfo> GetServerStatusAsync()
-    {
-        EnsureConnected();
-        var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
-        var groups = serverStatus.Groups?.Select(g => new ClientGroupInfo(
-            g.GroupId,
-            g.Name,
-            g.ConnectionCount,
-            5, // MaxMembers - hardcoded to 5 for battle groups
-            TimeSpan.Zero // RemainingTime - not available in GroupSummary
-        )).ToList() ?? [];
-
-        return new ServerStatusInfo(
-            serverStatus.Uptime,
-            serverStatus.TotalConnections,
-            serverStatus.GroupCount,
-            serverStatus.ActiveBattleCount,
-            groups
-        );
-    }
-
-    public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
-    {
-        EnsureConnected();
-        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
-            battleId, seedValue, groupName);
-
-        try
-        {
-            var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
-            _logger.LogInformation("Battle reproduction request result: {Result} for BattleId: {BattleId}, Seed: {Seed}",
-                result, battleId, seedValue);
-            return result;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to request battle reproduction - BattleId: {BattleId}, Seed: {Seed}",
-                battleId, seedValue);
-            return false;
-        }
     }
 }
