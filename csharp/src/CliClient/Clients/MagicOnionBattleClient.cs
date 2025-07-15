@@ -6,6 +6,7 @@ using Shared.Contracts;
 using Shared.Contracts.MagicOnion;
 using Shared.Models;
 using Grpc.Net.Client;
+using System.Diagnostics.CodeAnalysis;
 
 namespace CliClient.Clients;
 
@@ -124,19 +125,19 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<string?> GetAsync(string key)
     {
         EnsureConnected();
-        return await _hub!.GetAsync(key);
+        return await _hub.GetAsync(key);
     }
 
     public async Task<bool> SetAsync(string key, string value)
     {
         EnsureConnected();
-        return await _hub!.SetAsync(key, value);
+        return await _hub.SetAsync(key, value);
     }
 
     public async Task<bool> DeleteAsync(string key)
     {
         EnsureConnected();
-        return await _hub!.DeleteAsync(key);
+        return await _hub.DeleteAsync(key);
     }
 
     public async Task<IReadOnlyList<string>> ListKeysAsync(string? pattern = null)
@@ -147,7 +148,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<IReadOnlyList<string>> ListAsync(string? pattern = null)
     {
         EnsureConnected();
-        var result = await _hub!.ListKeysAsync(pattern);
+        var result = await _hub.ListKeysAsync(pattern);
         return result.ToList();
     }
 
@@ -155,7 +156,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     {
         EnsureConnected();
         _logger.LogInformation("Watching key: {Key}", key);
-        await _hub!.WatchAsync(key);
+        await _hub.WatchAsync(key);
     }
 
     public async Task<bool> BroadcastAsync(string message)
@@ -171,11 +172,11 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
-        var replayString = await _hub!.GetBattleReplayAsync(battleId);
+        var replayString = await _hub.GetBattleReplayAsync(battleId);
 
         // TODO: Parse the JSON string into BattleReplayData if needed
         // For now, return null as the server returns raw JSON
-        return null;
+        return replayString;
     }
 
     public async Task PlayBattleReplayAsync(BattleReplayData replayData)
@@ -189,13 +190,13 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<bool> BroadcastMessageAsync(string message)
     {
         EnsureConnected();
-        return await _hub!.BroadcastAsync(message);
+        return await _hub.BroadcastAsync(message);
     }
 
     public async Task<bool> JoinGroupAsync(string groupName)
     {
         EnsureConnected();
-        _currentGroupId = await _hub!.JoinGroupAsync(groupName);
+        _currentGroupId = await _hub.JoinGroupAsync(groupName);
         _logger.LogInformation("Joined group: {GroupId}", _currentGroupId);
         return !string.IsNullOrEmpty(_currentGroupId);
     }
@@ -203,7 +204,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
     {
         EnsureConnected();
-        var groups = await _hub!.GetGroupsAsync();
+        var groups = await _hub.GetGroupsAsync();
 
         // Convert GroupInfo to ClientGroupInfo
         return groups.Select(g => new ClientGroupInfo(
@@ -218,7 +219,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
     {
         EnsureConnected();
-        var group = await _hub!.GetCurrentGroupAsync();
+        var group = await _hub.GetCurrentGroupAsync();
 
         if (group == null) return null;
 
@@ -235,25 +236,25 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
         EnsureConnected();
-        return await _hub!.GetBattleStatusAsync();
+        return await _hub.GetBattleStatusAsync();
     }
 
     public async Task<bool> ConfirmConnectionReadyAsync()
     {
         EnsureConnected();
-        return await _hub!.ConfirmConnectionReadyAsync();
+        return await _hub.ConfirmConnectionReadyAsync();
     }
 
     public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
     {
         EnsureConnected();
-        return await _hub!.ReproduceBattleAsync(battleId, seedValue, groupName);
+        return await _hub.ReproduceBattleAsync(battleId, seedValue, groupName);
     }
 
     public async Task<ServerStatusInfo> GetServerStatusAsync()
     {
         EnsureConnected();
-        var serverStatus = await _hub!.GetServerStatusAsync();
+        var serverStatus = await _hub.GetServerStatusAsync();
 
         // Convert ServerStatus to ServerStatusInfo
         return new ServerStatusInfo(
@@ -271,6 +272,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         );
     }
 
+    [MemberNotNull(nameof(_hub))]
     private void EnsureConnected()
     {
         if (_hub == null)

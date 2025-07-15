@@ -71,6 +71,7 @@ internal class SignalRBattleClient : IBattleClient
 
             SetupEventHandlers();
             await _connection.StartAsync();
+            _logger.LogInformation("Connected to SignalR server");
 
             if (!string.IsNullOrEmpty(groupName))
             {
@@ -82,6 +83,7 @@ internal class SignalRBattleClient : IBattleClient
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to connect to server");
+            await DisconnectAsync();
             return false;
         }
     }

@@ -1,4 +1,4 @@
-using MagicOnion;
+﻿using MagicOnion;
 using Shared.Battle;
 using Shared.Models;
 
@@ -46,7 +46,7 @@ public interface IInMemoryHub : IStreamingHub<IInMemoryHub, IInMemoryHubReceiver
     /// </summary>
     /// <param name="battleId">Battle ID to get replay for</param>
     /// <returns>Battle replay data as JSON string, null if not found</returns>
-    Task<string?> GetBattleReplayAsync(Guid battleId);
+    Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId);
 
     /// <summary>
     /// Confirm that client has received ConnectionsReady notification
