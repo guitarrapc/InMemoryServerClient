@@ -174,29 +174,28 @@ internal class SignalRBattleClient : IBattleClient
 
         _connection.On<string, string>("KeyChanged", (key, value) => OnKeyChanged?.Invoke(key, value));
         _connection.On<string>("KeyDeleted", key => OnKeyDeleted?.Invoke(key));
-        _connection.On<MemberJoinedData>("MemberJoined", (memberData) =>
+        _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
+        _connection.On<MemberJoinedData>("MemberJoined", (data) =>
         {
             _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}",
-                memberData.ConnectionId, memberData.GroupName);
+                data.ConnectionId, data.GroupName);
             _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
-                memberData.CurrentMemberCount, memberData.MaxMembers);
-            if (memberData.CurrentMemberCount == memberData.MaxMembers)
+                data.CurrentMemberCount, data.MaxMembers);
+            if (data.CurrentMemberCount == data.MaxMembers)
             {
                 _logger.LogInformation("[GROUP] ✅ Group is now full! Battle will start soon...");
             }
-            OnMemberJoined?.Invoke(memberData);
+            OnMemberJoined?.Invoke(data);
         });
-        _connection.On<MemberLeftData>("MemberLeft", (memberData) =>
+        _connection.On<MemberLeftData>("MemberLeft", (data) =>
         {
             _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}",
-                memberData.ConnectionId, memberData.GroupName);
+                data.ConnectionId, data.GroupName);
             _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
-                memberData.CurrentMemberCount, memberData.MaxMembers);
-            OnMemberLeft?.Invoke(memberData);
+                data.CurrentMemberCount, data.MaxMembers);
+            OnMemberLeft?.Invoke(data);
         });
-        _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
-
-        _connection.On<ConnectionsReadyData>("ConnectionsReady", async (data) =>
+        _connection.On<ConnectionsReadyData>("ConnectionsReady", data =>
         {
             _logger.LogInformation("[BATTLE] ========== Connections Ready! ==========");
             _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", data.BattleId);
@@ -208,16 +207,19 @@ internal class SignalRBattleClient : IBattleClient
             OnConnectionsReady?.Invoke(data);
 
             // Automatically confirm connection ready
-            try
+            _ = Task.Run(async () =>
             {
-                _logger.LogInformation("[BATTLE] Confirming connection ready status...");
-                var result = await ConfirmConnectionReadyAsync();
-                _logger.LogInformation("[BATTLE] ✅ Connection ready confirmation sent successfully. Result: {Result}", result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[BATTLE] ❌ Failed to confirm connection ready status");
-            }
+                try
+                {
+                    _logger.LogInformation("[BATTLE] Confirming connection ready status...");
+                    var result = await ConfirmConnectionReadyAsync();
+                    _logger.LogInformation("[BATTLE] ✅ Connection ready confirmation sent successfully. Result: {Result}", result);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[BATTLE] ❌ Failed to confirm connection ready status");
+                }
+            });
         });
 
         _connection.On<BattleStartedData>("BattleStarted", (data) =>
@@ -398,60 +400,6 @@ internal class SignalRBattleClient : IBattleClient
 
             _logger.LogInformation("[BATTLE] ========================================");
         }
-        // else
-        // {
-        //     // Always show simple progress for every turn
-        //     var alivePlayerCount = status.Players.Count(e => e.CurrentHp > 0);
-        //     var aliveEnemyCount = status.Enemies.Count(e => e.CurrentHp > 0);
-        //     _logger.LogInformation("[BATTLE] Turn {CurrentTurn}/{TotalTurns} - Players: {AlivePlayerCount}, Enemies: {AliveEnemyCount}",
-        //         currentTurn, totalTurns, alivePlayerCount, aliveEnemyCount);
-        // }
-    }
-
-    /// <summary>
-    /// Generate a text-based health bar
-    /// </summary>
-    private string GenerateHealthBar(int current, int max, int length)
-    {
-        int filledLength = (int)Math.Round((double)current / max * length);
-
-        // ASCII-compatible characters for better Windows cmd.exe compatibility
-        string filled = new string('=', filledLength);
-        string empty = new string('-', length - filledLength);
-
-        return $"[{filled}{empty}]";
-    }
-
-    /// <summary>
-    /// Builds a 2D field array from player and enemy positions
-    /// </summary>
-    private Guid?[,] BuildBattleField(BattleStatus status)
-    {
-        var field = new Guid?[status.FieldHeight, status.FieldWidth];
-
-        // Place players on field
-        foreach (var player in status.Players)
-        {
-            if (player.CurrentHp > 0 &&
-                player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
-                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
-            {
-                field[player.Position.Y, player.Position.X] = player.EntityId;
-            }
-        }
-
-        // Place enemies on field
-        foreach (var enemy in status.Enemies)
-        {
-            if (enemy.CurrentHp > 0 &&
-                enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
-                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
-            {
-                field[enemy.Position.Y, enemy.Position.X] = enemy.EntityId;
-            }
-        }
-
-        return field;
     }
 
     /// <summary>
@@ -538,6 +486,52 @@ internal class SignalRBattleClient : IBattleClient
             }
         }
         _logger.LogInformation("[BATTLE FIELD] {EnemyLegend}", enemyLegend.ToString());
+    }
+
+    /// <summary>
+    /// Generate a text-based health bar
+    /// </summary>
+    private string GenerateHealthBar(int current, int max, int length)
+    {
+        int filledLength = (int)Math.Round((double)current / max * length);
+
+        // ASCII-compatible characters for better Windows cmd.exe compatibility
+        string filled = new string('=', filledLength);
+        string empty = new string('-', length - filledLength);
+
+        return $"[{filled}{empty}]";
+    }
+
+    /// <summary>
+    /// Builds a 2D field array from player and enemy positions
+    /// </summary>
+    private Guid?[,] BuildBattleField(BattleStatus status)
+    {
+        var field = new Guid?[status.FieldHeight, status.FieldWidth];
+
+        // Place players on field
+        foreach (var player in status.Players)
+        {
+            if (player.CurrentHp > 0 &&
+                player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
+                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
+            {
+                field[player.Position.Y, player.Position.X] = player.EntityId;
+            }
+        }
+
+        // Place enemies on field
+        foreach (var enemy in status.Enemies)
+        {
+            if (enemy.CurrentHp > 0 &&
+                enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
+                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
+            {
+                field[enemy.Position.Y, enemy.Position.X] = enemy.EntityId;
+            }
+        }
+
+        return field;
     }
 
     private void EnsureConnected()

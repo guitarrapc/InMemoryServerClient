@@ -172,11 +172,11 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
-        var replayString = await _hub.GetBattleReplayAsync(battleId);
+        var battleReplayData = await _hub.GetBattleReplayAsync(battleId);
 
         // TODO: Parse the JSON string into BattleReplayData if needed
         // For now, return null as the server returns raw JSON
-        return replayString;
+        return battleReplayData;
     }
 
     public async Task PlayBattleReplayAsync(BattleReplayData replayData)
