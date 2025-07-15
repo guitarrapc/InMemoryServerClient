@@ -98,20 +98,40 @@ dotnet run
 ```
 
 #### Multi-Client Battle Testing
+
 To test a battle with multiple clients using a single command:
 ```bash
 cd csharp/src/CliClient
+
+# SignalR
 dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+
+# MagicOnion
+dotnet run -- connect-battle -u http://localhost:5001 -g test-battle -c 5 -t MagicOnion
 ```
+
 This will create 5 client connections in the same group to trigger an automatic battle.
 
 #### Single Command Examples
+
+SignalR:
+
 ```bash
 # Connect single sessions for battle testing
 dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 1
 
 # Connect multiple sessions for battle testing
-dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 5
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 4
+```
+
+MagicOnion:
+
+```bash
+# Connect single sessions for battle testing
+dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -c 1 -t MagicOnion
+
+# Connect multiple sessions for battle testing
+dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -c 4 -t MagicOnion
 ```
 
 #### Interactive Mode Commands
