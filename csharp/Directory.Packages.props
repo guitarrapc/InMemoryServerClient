@@ -4,16 +4,22 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Server -->
+    <PackageVersion Include="MagicOnion.Server" Version="7.0.5" />
     <!-- Client -->
     <PackageVersion Include="ConsoleAppFramework" Version="5.5.0" />
+    <PackageVersion Include="MagicOnion.Client" Version="7.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.7" />
+    <!-- Server/Client -->
+    <PackageVersion Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
+    <!-- Shared -->
+    <PackageVersion Include="MagicOnion.Abstractions" Version="7.0.5" />
     <!-- Tests -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <PackageVersion Include="xunit.v3" Version="2.0.3" />
     <PackageVersion Include="xunit.v3.assert" Version="2.0.3" />
     <PackageVersion Include="xunit.v3.core" Version="2.0.3" />
