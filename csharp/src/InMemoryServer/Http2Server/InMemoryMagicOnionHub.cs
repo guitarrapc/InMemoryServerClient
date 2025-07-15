@@ -21,24 +21,69 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     private readonly GroupManager groupManager;
     private readonly ILoggerFactory loggerFactory;
     private readonly BattleReplayWriterFactory replayWriterFactory;
+    private readonly MagicOnionGroupService magicOnionGroupService;
     private static readonly object _eventSetupLock = new();
     private static bool _eventHandlersSetup = false;
-
-    // Store the MagicOnion group reference for this connection
-    private IGroup<IInMemoryHubReceiver>? currentGroup;
 
     public InMemoryMagicOnionHub(
         ILogger<InMemoryMagicOnionHub> logger,
         InMemoryState state,
         GroupManager groupManager,
         ILoggerFactory loggerFactory,
-        BattleReplayWriterFactory replayWriterFactory)
+        BattleReplayWriterFactory replayWriterFactory,
+        MagicOnionGroupService magicOnionGroupService)
     {
         this.logger = logger;
         this.state = state;
         this.groupManager = groupManager;
         this.loggerFactory = loggerFactory;
         this.replayWriterFactory = replayWriterFactory;
+        this.magicOnionGroupService = magicOnionGroupService;
+    }
+
+    /// <summary>
+    /// Called when a client connects
+    /// </summary>
+    protected override ValueTask OnConnected()
+    {
+        var connectionId = Context.ContextId;
+        logger.LogInformation("MagicOnion client {ConnectionId} connected", connectionId);
+        return default;
+    }
+
+    /// <summary>
+    /// Called when a client disconnects
+    /// </summary>
+    protected override ValueTask OnDisconnected()
+    {
+        var connectionId = Context.ContextId.ToString();
+        var groupId = groupManager.GetGroupIdForConnection(connectionId);
+
+        if (!string.IsNullOrEmpty(groupId))
+        {
+            // Remove from MagicOnion group
+            magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);
+
+            // Remove from GroupManager (fire and forget)
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await groupManager.LeaveGroupAsync(connectionId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error removing client {ConnectionId} from group", connectionId);
+                }
+            });
+            logger.LogInformation("MagicOnion client {ConnectionId} disconnected and left group {GroupId}", connectionId, groupId);
+        }
+        else
+        {
+            logger.LogInformation("MagicOnion client {ConnectionId} disconnected", connectionId);
+        }
+
+        return default;
     }
 
     /// <summary>
@@ -57,11 +102,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
 
         logger.LogInformation("Client {ConnectionId} broadcasting message to group {GroupId}", connectionId, groupId);
 
-        if (currentGroup == null)
-        {
-            currentGroup = await Group.AddAsync(groupId);
-        }
-        currentGroup.All.OnGroupMessage(connectionId, message);
+        magicOnionGroupService.SendToAll(groupId, receiver => receiver.OnGroupMessage(connectionId, message));
         return true;
     }
 
@@ -74,12 +115,14 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
 
         // Find or create group
         var group = await groupManager.JoinGroupAsync(connectionId, groupName);
-        currentGroup = await Group.AddAsync(group.GroupId);
+
+        // Add to MagicOnion group
+        magicOnionGroupService.AddClientToGroup(group.GroupId, Context.ContextId, Client);
 
         logger.LogInformation("Client {ConnectionId} joined group: {GroupName} (ID: {GroupId})",
             connectionId, group.Name, group.GroupId);
 
-        // Notify other members
+        // Notify other members using MagicOnion group service
         var memberJoinedData = new MemberJoinedData
         {
             ConnectionId = connectionId,
@@ -88,7 +131,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             CurrentMemberCount = group.ConnectionCount,
             MaxMembers = SystemDefines.MaxConnectionsPerGroup
         };
-        currentGroup.All.OnMemberJoined(memberJoinedData);
+        magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnMemberJoined(memberJoinedData));
 
         // Check if group is full and battle should start
         if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
@@ -237,7 +280,9 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
 
         // Get or create group for reproduction
         var group = await groupManager.JoinGroupAsync(connectionId, groupName);
-        currentGroup = await Group.AddAsync(group.GroupId);
+
+        // Add to MagicOnion group
+        magicOnionGroupService.AddClientToGroup(group.GroupId, Context.ContextId, Client);
 
         logger.LogInformation("Client {ConnectionId} joined reproduction group: {GroupName} (ID: {GroupId})",
             connectionId, group.Name, group.GroupId);
@@ -270,11 +315,11 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
         var battle = new BattleState(battleId, seed, group, battleLogger, replayWriterFactory);
         state.BattleStates[battleId.ToString()] = battle;
 
-        // 1. Notify all clients that connections are ready
+        // Get the correct MagicOnion group for broadcasting
         logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
             battleId, seed);
         var connectionsReadyData = new ConnectionsReadyData { BattleId = battleId, Seed = seed };
-        currentGroup!.All.OnConnectionsReady(connectionsReadyData);
+        magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnConnectionsReady(connectionsReadyData));
 
         // 2. Start battle processing in background after all clients confirm readiness
         _ = Task.Run(async () =>
@@ -318,7 +363,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
 
             // 3. Send BattleStarted notification once all clients have confirmed
             var battleStartedData = new BattleStartedData { BattleId = battleId, Seed = seed };
-            currentGroup.All.OnBattleStarted(battleStartedData);
+            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleStarted(battleStartedData));
 
             // 4. Run pre-computation (螳悟・縺ｫ繧ｵ繝ｼ繝舌・繧ｵ繧､繝峨〒險育ｮ怜ｮ御ｺ・
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
@@ -331,7 +376,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             await SendBattleReplayData(group, battle, battleId, seed);
 
             // 6. Battle completed notification
-            currentGroup.All.OnBattleCompleted(battle.GetStatus());
+            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleCompleted(battle.GetStatus()));
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
                 battleId, seed);
 
@@ -356,11 +401,11 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
         var battle = new BattleState(battleId, seed, group, battleLogger, replayWriterFactory);
         state.BattleStates[battleId.ToString()] = battle;
 
-        // 1. Notify all clients that connections are ready
+        // Get the correct MagicOnion group for broadcasting
         logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
             battleId, seed);
         var connectionsReadyData = new ConnectionsReadyData { BattleId = battleId, Seed = seed };
-        currentGroup!.All.OnConnectionsReady(connectionsReadyData);
+        magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnConnectionsReady(connectionsReadyData));
 
         // 2. Start battle processing in background after all clients confirm readiness
         _ = Task.Run(async () =>
@@ -404,7 +449,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
 
             // 3. Send BattleStarted notification once all clients have confirmed
             var battleStartedData = new BattleStartedData { BattleId = battleId, Seed = seed };
-            currentGroup.All.OnBattleStarted(battleStartedData);
+            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleStarted(battleStartedData));
 
             // 4. Run pre-computation (螳悟・縺ｫ繧ｵ繝ｼ繝舌・繧ｵ繧､繝峨〒險育ｮ怜ｮ御ｺ・
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
@@ -417,7 +462,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             await SendBattleReplayData(group, battle, battleId, seed);
 
             // 6. Battle completed notification
-            currentGroup.All.OnBattleCompleted(battle.GetStatus());
+            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleCompleted(battle.GetStatus()));
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
                 battleId, seed);
 
@@ -457,7 +502,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
                 IsLastChunk = isLastChunk,
             };
 
-            currentGroup!.All.OnBattleReplayData(replayData);
+            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleReplayData(replayData));
 
             // Clear chunk data immediately after sending to reduce memory pressure
             turnDataList.Clear();
@@ -512,36 +557,6 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
         return ValueTask.CompletedTask;
     }
 
-    protected override ValueTask OnDisconnected()
-    {
-        var connectionId = Context.ContextId.ToString();
-        logger.LogInformation("Client {ConnectionId} disconnected from MagicOnion hub", connectionId);
-        state.ConnectionCount--;
-
-        // Remove from group
-        _ = Task.Run(async () =>
-        {
-            var (group, newCount) = await groupManager.LeaveGroupAsync(connectionId);
-            if (group != null)
-            {
-                logger.LogInformation("Client {ConnectionId} left group {GroupId}", connectionId, group.GroupId);
-
-                // Notify other members about the disconnection
-                var memberLeftData = new MemberLeftData
-                {
-                    ConnectionId = connectionId,
-                    GroupId = group.GroupId,
-                    GroupName = group.Name,
-                    CurrentMemberCount = newCount,
-                    MaxMembers = SystemDefines.MaxConnectionsPerGroup
-                };
-                currentGroup!.All.OnMemberLeft(memberLeftData);
-            }
-        });
-
-        return ValueTask.CompletedTask;
-    }
-
     /// <summary>
     /// Notify clients about group dissolution
     /// </summary>
@@ -557,7 +572,7 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             Reason = reason
         };
 
-        currentGroup!.All.OnGroupDissolved(groupDissolvedData);
+        magicOnionGroupService.SendToAll(groupId, receiver => receiver.OnGroupDissolved(groupDissolvedData));
     }
 
     // Key-Value operations

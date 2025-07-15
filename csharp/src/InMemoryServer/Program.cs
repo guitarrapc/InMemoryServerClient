@@ -32,6 +32,7 @@ public class Program
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<GroupManager>();
         builder.Services.AddSingleton<InMemoryHub>();
+        builder.Services.AddSingleton<MagicOnionGroupService>();
 
         // Register BattleReplayWriterFactory and options
         builder.Services.AddSingleton<BattleReplayWriterFactory>();
