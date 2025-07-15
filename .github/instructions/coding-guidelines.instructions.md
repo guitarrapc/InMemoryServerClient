@@ -4,9 +4,7 @@ applyTo: "**"
 
 # コーディングガイドライン
 
-## 技術スタック
-
-### C#実装
+## C#実装
 
 C#の基礎的なルールは次の通り
 
@@ -38,11 +36,13 @@ C#ライブラリとコーディングパターンに注意します。
 - 設定管理にはIConfiguration/IOptionsパターンを使用し、appsettings.jsonと環境変数の両方をサポート
 - CLIパーシングにConsoleAppFrameworkを用います。使い方は[こちら](https://github.com/Cysharp/ConsoleAppFramework)を参照します。
 - JWT認証用に`System.IdentityModel.Tokens.Jwt`を用います。
-- WebSocket通信用に[SignalR](https://github.com/SignalR/SignalR)を用います。
-- 後々のgRPC対応にMagicOnionを検討します。
+- 通信フレームワークはHTTP/1とHTTP/2それぞれに別のライブラリを使用します。
+  - HTTP/1通信用に[SignalR](https://github.com/SignalR/SignalR)を用います。SignalRはWebSocket/SSE/LongPolingの上に構築されたリアルタイム通信フレームワークで、簡単に双方向通信を実現できます。
+  - HTTP/2通信用に[MagicOnion](https://github.com/cysharp/MagicOnion)を用います。MagicOnionはgRPCの上に構築されたC#向けのフレームワークで、シンプルなAPI設計と高いパフォーマンスを提供します。
+  - それぞれの通信フレームワークの処理は、ディレクトリ構造に分けて実装します。
 - ユニットテストに`xunit.v3`(xUnitのバージョン3)、モックに`NSubstirute`を用います。xunit.v3の使い方は[こちら](https://xunit.net/docs/getting-started/v3/whats-new)を参照します。
 
-### Go実装（将来）
+## Go実装（将来）
 - Go 1.21以上
 - CLIパーシング用のCobra
 - 設定管理にはViperライブラリを使用（YAML/JSON設定ファイルと環境変数の両方をサポート）
@@ -50,7 +50,7 @@ C#ライブラリとコーディングパターンに注意します。
 - WebSocket通信用のgorilla/websocket
 - gRPC用の標準ライブラリとprotobuf
 
-## 開発ガイドライン
+# 開発ガイドライン
 - クリーンで読みやすく保守しやすいコードを書く
 - 適切なコメントを含める
 - インメモリ状態のパフォーマンスへの影響を考慮する
@@ -68,7 +68,7 @@ C#ライブラリとコーディングパターンに注意します。
   - クライアントに返すエラーは適切に抽象化する
   - ログには詳細なエラー情報を記録する
 
-## テスト
+# テスト
 - サーバーコマンドハンドラーのユニットテスト
 - クライアントコマンドパーシングのユニットテスト
 - サーバー-クライアント通信の統合テスト
