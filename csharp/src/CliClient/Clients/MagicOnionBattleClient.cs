@@ -3,7 +3,7 @@ using Shared.Battle;
 using Shared.Contracts;
 using Shared.Models;
 
-namespace CliClient;
+namespace CliClient.Clients;
 
 /// <summary>
 /// MagicOnion implementation of IInMemoryServerClient

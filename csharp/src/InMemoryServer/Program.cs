@@ -1,8 +1,8 @@
 ﻿using Shared.Constants;
 using BattleLogic.Constans;
 using BattleLogic.Infrastructures.BattleReplayWriter;
-using InMemoryServer.Http1Server;
 using InMemoryServer.Services;
+using InMemoryServer.Http1Server;
 
 namespace InMemoryServer;
 
@@ -28,6 +28,7 @@ public class Program
 
         // Add services to the container
         builder.Services.AddSignalR();
+        builder.Services.AddMagicOnion();
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<GroupManager>();
         builder.Services.AddSingleton<InMemoryHub>();
@@ -38,8 +39,11 @@ public class Program
         // Build the app
         var app = builder.Build();
 
-        // Configure the SignalR endpoint
+        // Configure the SignalR endpoint (HTTP/1)
         app.MapHub<InMemoryHub>(SystemDefines.HubRoute);
+
+        // Configure MagicOnion endpoint (HTTP/2)
+        app.MapMagicOnionService();
 
         // Add a basic health check endpoint
         app.MapGet("/health", () => "Healthy");
@@ -48,11 +52,13 @@ public class Program
         Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
 
         // Start the server
-        Console.WriteLine($"InMemory Server starting on port {SystemDefines.DefaultServerPort}...");
-        Console.WriteLine($"Hub available at {SystemDefines.HubRoute}");
+        Console.WriteLine($"InMemory Server starting...");
+        Console.WriteLine($"HTTP/1 (SignalR) available on port {SystemDefines.DefaultServerPort}");
+        Console.WriteLine($"HTTP/2 (MagicOnion) available on port {SystemDefines.DefaultHttp2ServerPort}");
+        Console.WriteLine($"SignalR Hub available at {SystemDefines.HubRoute}");
 
-        // Configure the app to listen on the specified port
-        app.Urls.Add($"http://0.0.0.0:{SystemDefines.DefaultServerPort}");
+        // Configure the app to listen on the specified ports (Kestrel configuration from appsettings.json will be used)
+        // Note: URLs are configured in appsettings.json
 
         // Run the app
         await app.RunAsync();

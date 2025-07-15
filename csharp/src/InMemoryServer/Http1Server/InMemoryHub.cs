@@ -6,8 +6,9 @@ using Shared.Models;
 using Shared.Constants;
 using BattleLogic.Constans;
 using BattleLogic.Infrastructures.BattleReplayWriter;
+using InMemoryServer.Services;
 
-namespace InMemoryServer;
+namespace InMemoryServer.Http1Server;
 
 /// <summary>
 /// InMemory SignalR Hub

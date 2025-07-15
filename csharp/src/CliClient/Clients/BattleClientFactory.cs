@@ -2,7 +2,7 @@
 using Shared.Contracts;
 using Shared.Models;
 
-namespace CliClient;
+namespace CliClient.Clients;
 
 /// <summary>
 /// Factory for creating IInMemoryServerClient instances

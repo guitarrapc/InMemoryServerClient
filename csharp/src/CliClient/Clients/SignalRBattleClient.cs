@@ -5,7 +5,7 @@ using Shared.Constants;
 using Shared.Contracts;
 using Shared.Models;
 
-namespace CliClient;
+namespace CliClient.Clients;
 
 /// <summary>
 /// SignalR implementation of IInMemoryServerClient

@@ -1,9 +1,8 @@
-﻿using CliClient.Clients;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Shared.Contracts;
 using Shared.Models;
 
-namespace CliClient;
+namespace CliClient.Clients;
 
 /// <summary>
 /// Service to manage multiple independent client instances

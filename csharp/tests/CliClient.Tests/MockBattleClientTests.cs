@@ -1,3 +1,5 @@
+﻿using CliClient.Clients;
+
 namespace CliClient.Tests;
 
 /// <summary>

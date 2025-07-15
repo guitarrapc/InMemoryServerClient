@@ -2,7 +2,7 @@
 using Shared.Models;
 using System.Collections.Concurrent;
 
-namespace InMemoryServer;
+namespace InMemoryServer.Services;
 
 /// <summary>
 /// Manages client groups
