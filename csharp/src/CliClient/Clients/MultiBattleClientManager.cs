@@ -102,10 +102,8 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
 
         foreach (var client in _clients)
         {
-            if (client is SignalRBattleClient signalRClient)
-            {
-                completionTasks.Add(signalRClient.BattleCompletionSource.Task);
-            }
+            // Use the BattleCompletionSource from the interface for protocol-independent implementation
+            completionTasks.Add(client.BattleCompletionSource.Task);
         }
 
         if (completionTasks.Count > 0)

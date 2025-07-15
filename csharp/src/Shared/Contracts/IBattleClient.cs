@@ -15,6 +15,11 @@ public interface IBattleClient : IAsyncDisposable
     bool IsConnected { get; }
 
     /// <summary>
+    /// Battle completion source for waiting until the battle is complete
+    /// </summary>
+    TaskCompletionSource<bool> BattleCompletionSource { get; }
+
+    /// <summary>
     /// Connect to the InMemory server
     /// </summary>
     /// <param name="serverUrl">Server URL</param>
