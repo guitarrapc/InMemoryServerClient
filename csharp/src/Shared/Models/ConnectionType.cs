@@ -11,7 +11,7 @@ public enum ConnectionType
     SignalR,
 
     /// <summary>
-    /// MagicOnion connection (future implementation)
+    /// MagicOnion connection
     /// </summary>
     MagicOnion
 }

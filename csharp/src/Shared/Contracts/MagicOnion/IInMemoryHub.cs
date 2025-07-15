@@ -62,6 +62,49 @@ public interface IInMemoryHub : IStreamingHub<IInMemoryHub, IInMemoryHubReceiver
     /// <param name="groupName">Group name for the reproduction session</param>
     /// <returns>True if reproduction was started successfully</returns>
     Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName);
+
+    // Key-Value operations
+    /// <summary>
+    /// Get value by key
+    /// </summary>
+    /// <param name="key">The key to get</param>
+    /// <returns>The value if found, null otherwise</returns>
+    Task<string?> GetAsync(string key);
+
+    /// <summary>
+    /// Set key-value pair
+    /// </summary>
+    /// <param name="key">The key to set</param>
+    /// <param name="value">The value to set</param>
+    /// <returns>True if successful</returns>
+    Task<bool> SetAsync(string key, string value);
+
+    /// <summary>
+    /// Delete a key
+    /// </summary>
+    /// <param name="key">The key to delete</param>
+    /// <returns>True if the key was deleted, false if it didn't exist</returns>
+    Task<bool> DeleteAsync(string key);
+
+    /// <summary>
+    /// List all keys matching a pattern
+    /// </summary>
+    /// <param name="pattern">Optional pattern to filter keys</param>
+    /// <returns>List of matching keys</returns>
+    Task<IEnumerable<string>> ListKeysAsync(string? pattern = null);
+
+    /// <summary>
+    /// Watch a key for changes
+    /// </summary>
+    /// <param name="key">The key to watch</param>
+    /// <returns>True if watch was set up successfully</returns>
+    Task<bool> WatchAsync(string key);
+
+    /// <summary>
+    /// Get server status information
+    /// </summary>
+    /// <returns>Server status information</returns>
+    Task<ServerStatus> GetServerStatusAsync();
 }
 
 /// <summary>

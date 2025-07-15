@@ -559,4 +559,168 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
 
         currentGroup!.All.OnGroupDissolved(groupDissolvedData);
     }
+
+    // Key-Value operations
+    /// <summary>
+    /// Get value by key
+    /// </summary>
+    public async Task<string?> GetAsync(string key)
+    {
+        try
+        {
+            return state.GetValue(key);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error getting key {Key}", key);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Set key-value pair
+    /// </summary>
+    public async Task<bool> SetAsync(string key, string value)
+    {
+        try
+        {
+            var connectionId = Context.ContextId.ToString();
+            state.SetValue(key, value);
+
+            // Notify watchers about the key change
+            var watchers = state.GetWatchers(key);
+            foreach (var watcherConnectionId in watchers)
+            {
+                // Send notification to specific watchers
+                var group = await Group.AddAsync($"watcher_{watcherConnectionId}");
+                group.All.OnKeyChanged(key, value);
+            }
+
+            logger.LogInformation("Key '{Key}' set by connection {ConnectionId}", key, connectionId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error setting key {Key}", key);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Delete a key
+    /// </summary>
+    public async Task<bool> DeleteAsync(string key)
+    {
+        try
+        {
+            var connectionId = Context.ContextId.ToString();
+            var deleted = state.DeleteValue(key);
+
+            if (deleted)
+            {
+                // Notify watchers about the key deletion
+                var watchers = state.GetWatchers(key);
+                foreach (var watcherConnectionId in watchers)
+                {
+                    // Send notification to specific watchers
+                    var group = await Group.AddAsync($"watcher_{watcherConnectionId}");
+                    group.All.OnKeyDeleted(key);
+                }
+                logger.LogInformation("Key '{Key}' deleted by connection {ConnectionId}", key, connectionId);
+            }
+
+            return deleted;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error deleting key {Key}", key);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// List all keys matching a pattern
+    /// </summary>
+    public async Task<IEnumerable<string>> ListKeysAsync(string? pattern = null)
+    {
+        try
+        {
+            return state.ListKeys(pattern);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error listing keys with pattern {Pattern}", pattern);
+            return Array.Empty<string>();
+        }
+    }
+
+    /// <summary>
+    /// Watch a key for changes
+    /// </summary>
+    public async Task<bool> WatchAsync(string key)
+    {
+        try
+        {
+            var connectionId = Context.ContextId.ToString();
+            state.AddWatcher(connectionId, key);
+
+            // Join a watcher group for this connection to receive notifications
+            await Group.AddAsync($"watcher_{connectionId}");
+
+            logger.LogInformation("Connection {ConnectionId} watching key '{Key}'", connectionId, key);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error setting up watch for key {Key}", key);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Get server status information
+    /// </summary>
+    public async Task<ServerStatus> GetServerStatusAsync()
+    {
+        logger.LogInformation($"Client {Context.ContextId} requested server status");
+
+        var status = new ServerStatus
+        {
+            Uptime = DateTime.UtcNow - state.StartTime,
+            TotalConnections = state.ConnectionCount,
+            GroupCount = groupManager.GetAllGroups().Count(),
+            ActiveBattleCount = state.BattleStates.Count
+        };
+
+        // Get group summaries
+        foreach (var group in groupManager.GetAllGroups())
+        {
+            status.Groups.Add(new GroupSummary
+            {
+                GroupId = group.GroupId,
+                Name = group.Name,
+                ConnectionCount = group.ConnectionCount,
+                BattleId = group.BattleId
+            });
+        }
+
+        // Get battle summaries
+        foreach (var battleEntry in state.BattleStates)
+        {
+            var battleState = battleEntry.Value;
+            var battleStatus = battleState.GetStatus();
+
+            status.ActiveBattles.Add(new BattleSummary
+            {
+                BattleId = battleEntry.Key,
+                GroupId = battleState.GroupId,
+                CurrentTurn = battleStatus.CurrentTurn,
+                PlayerCount = battleStatus.Players.Count,
+                EnemyCount = battleStatus.Enemies.Count,
+                StartedAt = battleState.StartTime
+            });
+        }
+
+        return status;
+    }
 }

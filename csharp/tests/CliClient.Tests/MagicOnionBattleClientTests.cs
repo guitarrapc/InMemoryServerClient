@@ -45,136 +45,145 @@ public class MagicOnionBattleClientTests : IDisposable
     }
 
     [Fact]
-    public async Task ConnectAsync_WithInvalidUrl_ThrowsNotImplementedException()
+    public async Task ConnectAsync_WithInvalidUrl_ReturnsFalse()
     {
-        // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.ConnectAsync("invalid-url"));
+        // Act
+        var result = await _client.ConnectAsync("invalid-url");
+
+        // Assert
+        Assert.False(result);
     }
 
     [Fact]
-    public async Task ConnectAsync_WithEmptyUrl_ThrowsNotImplementedException()
+    public async Task ConnectAsync_WithEmptyUrl_ReturnsFalse()
     {
-        // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.ConnectAsync(""));
+        // Act
+        var result = await _client.ConnectAsync("");
+
+        // Assert
+        Assert.False(result);
     }
 
     [Fact]
-    public async Task ConnectAsync_WithNullUrl_ThrowsNotImplementedException()
+    public async Task ConnectAsync_WithNullUrl_ReturnsFalse()
     {
-        // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.ConnectAsync(null!));
+        // Act
+        var result = await _client.ConnectAsync(null!);
+
+        // Assert
+        Assert.False(result);
     }
 
     [Fact]
-    public async Task DisconnectAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task DisconnectAsync_WhenNotConnected_DoesNotThrow()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.DisconnectAsync());
+        await _client.DisconnectAsync(); // Should not throw
     }
 
     [Fact]
-    public async Task GetAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task GetAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.GetAsync("test-key"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetAsync("test-key"));
     }
 
     [Fact]
-    public async Task SetAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task SetAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.SetAsync("test-key", "test-value"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.SetAsync("test-key", "test-value"));
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task DeleteAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.DeleteAsync("test-key"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.DeleteAsync("test-key"));
     }
 
     [Fact]
-    public async Task ListKeysAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task ListKeysAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.ListKeysAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.ListKeysAsync());
     }
 
     [Fact]
-    public async Task JoinGroupAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task JoinGroupAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.JoinGroupAsync("test-group"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.JoinGroupAsync("test-group"));
     }
 
     [Fact]
-    public async Task BroadcastMessageAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task BroadcastMessageAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.BroadcastMessageAsync("test-message"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.BroadcastMessageAsync("test-message"));
     }
 
     [Fact]
-    public async Task GetGroupsAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task GetGroupsAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.GetGroupsAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetGroupsAsync());
     }
 
     [Fact]
-    public async Task GetCurrentGroupAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task GetCurrentGroupAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.GetCurrentGroupAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetCurrentGroupAsync());
     }
 
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public async Task GetAsync_WithInvalidKey_HandlesGracefully(string? key)
+    public async Task GetAsync_WithInvalidKey_ThrowsInvalidOperationException(string? key)
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.GetAsync(key!));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetAsync(key!));
     }
 
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public async Task SetAsync_WithInvalidKey_ThrowsNotImplementedException(string? key)
+    public async Task SetAsync_WithInvalidKey_ThrowsInvalidOperationException(string? key)
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.SetAsync(key!, "value"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.SetAsync(key!, "value"));
     }
 
     [Fact]
-    public async Task ListAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task ListAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.ListAsync("*"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.ListAsync("*"));
     }
 
     [Fact]
-    public async Task BroadcastAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task BroadcastAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.BroadcastAsync("test-message"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.BroadcastAsync("test-message"));
     }
 
     [Fact]
-    public async Task GetMyGroupAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task GetMyGroupAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.GetMyGroupAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetMyGroupAsync());
     }
 
     [Fact]
-    public async Task GetBattleReplayAsync_WhenNotConnected_ThrowsNotImplementedException()
+    public async Task GetBattleReplayAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Act & Assert
         var battleId = Guid.NewGuid();
-        await Assert.ThrowsAsync<NotImplementedException>(() => _client.GetBattleReplayAsync(battleId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetBattleReplayAsync(battleId));
     }
 
     [Fact]

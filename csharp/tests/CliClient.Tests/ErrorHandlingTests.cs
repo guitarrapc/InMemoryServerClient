@@ -36,9 +36,13 @@ public class ErrorHandlingTests : IDisposable
         // Arrange
         var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<NotImplementedException>(() => client.ConnectAsync("http://localhost:5000"));
-        await Assert.ThrowsAsync<NotImplementedException>(() => client.ConnectAsync("http://localhost:5001"));
+        // Act
+        var result1 = await client.ConnectAsync("http://localhost:5000");
+        var result2 = await client.ConnectAsync("http://localhost:5001");
+
+        // Assert
+        Assert.False(result1);
+        Assert.False(result2);
         Assert.False(client.IsConnected);
     }
 

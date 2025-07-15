@@ -86,8 +86,9 @@ public class ClientIntegrationTests : IDisposable
         // Act & Assert - Initial state
         Assert.False(client.IsConnected);
 
-        // Act - Try to connect (will throw NotImplementedException)
-        await Assert.ThrowsAsync<NotImplementedException>(() => client.ConnectAsync("http://localhost:5000"));
+        // Act - Try to connect (will return false for invalid URL)
+        var result = await client.ConnectAsync("http://localhost:5000");
+        Assert.False(result);
 
         // Act - Dispose
         await client.DisposeAsync(); // Should not throw
