@@ -74,11 +74,13 @@ public class BattleStateTests
         var battleState = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
         await battleState.RunBattleAsync();
         var status = battleState.GetStatus();
-
+       
         // Assert
         Assert.False(status.IsInProgress); // Battle should be completed
         Assert.NotNull(status.IsPlayerVictory); // Should have a victory result
         Assert.True(status.IsPlayerVictory == true || status.IsPlayerVictory == false); // Should be either true or false
+
+        Console.WriteLine($"Battle resut, IsPlayerVictory: {status.IsPlayerVictory}, Players alive: {status.Players.Count(p => p.CurrentHp > 0)}, Enemies alive: {status.Enemies.Count(e => e.CurrentHp > 0)}, TotalTurns: {status.TotalTurns}");
 
         // Additional checks based on the result
         if (status.IsPlayerVictory == true)
