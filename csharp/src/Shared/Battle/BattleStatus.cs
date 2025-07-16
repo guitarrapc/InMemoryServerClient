@@ -60,6 +60,12 @@ public class BattleStatus
     public bool? IsPlayerVictory { get; set; }
 
     /// <summary>
+    /// Whether the battle ended due to turn limit being reached
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsEndedByTurnLimit => IsInProgress ? null : CurrentTurn >= TotalTurns;
+
+    /// <summary>
     /// Clears all references to reduce memory pressure
     /// </summary>
     public void Clear()

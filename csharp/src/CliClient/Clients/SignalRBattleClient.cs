@@ -434,7 +434,20 @@ internal class SignalRBattleClient : IBattleClient
                 _logger.LogInformation("[BATTLE REPLAY] {EnemyName}: HP {CurrentHp}/{MaxHp} {HealthBar}", enemy.Name, enemy.CurrentHp, enemy.MaxHp, healthBar);
             }
         }
-        _logger.LogInformation("[BATTLE REPLAY] Total turns: {TotalTurns}", finalStatus.CurrentTurn);
+
+        // Display battle completion details
+        _logger.LogInformation("[BATTLE REPLAY] Total turns: {CurrentTurn}/{TotalTurns}", finalStatus.CurrentTurn, finalStatus.TotalTurns);
+
+        // Display how the battle ended using the new property
+        if (finalStatus.IsEndedByTurnLimit == true)
+        {
+            _logger.LogInformation("[BATTLE REPLAY] ⏰ Battle ended due to turn limit reached!");
+        }
+        else if (finalStatus.IsEndedByTurnLimit == false)
+        {
+            _logger.LogInformation("[BATTLE REPLAY] ⚔️ Battle ended due to complete elimination!");
+        }
+
         _logger.LogInformation("[BATTLE REPLAY] Battle completed - BattleId: {BattleId}, Seed: {Seed} (replay completed)",
             battleId, seed);
         _logger.LogInformation("[BATTLE REPLAY] ===============================================");

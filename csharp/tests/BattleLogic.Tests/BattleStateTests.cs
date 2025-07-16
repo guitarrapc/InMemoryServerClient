@@ -118,7 +118,17 @@ public class BattleStateTests
         }
 
         // Critical: Both sides should never be dead at the same time (this was the bug we fixed)
-        Assert.False(allPlayersDead && allEnemiesDead, "Both sides should never be dead simultaneously - this indicates a logic bug");
+        Assert.False(allPlayersDead && allEnemiesDead);
+
+        // Test the new IsEndedByTurnLimit property
+        if (status.CurrentTurn >= status.TotalTurns)
+        {
+            Assert.True(status.IsEndedByTurnLimit == true);
+        }
+        else
+        {
+            Assert.True(status.IsEndedByTurnLimit == false);
+        }
 
         // Clean up memory
         battleState.ClearBattleData();
@@ -536,5 +546,45 @@ public class BattleStateTests
         }
 
         Assert.Equal(entityIds1, entityIds2);
+    }
+
+    [Fact]
+    public async Task BattleStatus_IsEndedByTurnLimit_ShouldReflectTurnLimitStatus()
+    {
+        // Arrange - Create a battle that will likely end by turn limit
+        var battleId = BattleSeed.NewTimestampId();
+        var seed = 12345; // Fixed seed for reproducibility
+        var mockGroup = Substitute.For<IBattleGroupContext>();
+        mockGroup.ConnectedCount.Returns(1); // Single player to reduce combat effectiveness
+        mockGroup.ClientIds.Returns(new List<string> { "client1" });
+
+        // Act - Create battle and force it to run until turn limit
+        var battleState = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
+
+        // Get initial status to check that IsEndedByTurnLimit is null during battle
+        var initialStatus = battleState.GetStatus();
+        Assert.True(initialStatus.IsInProgress);
+        Assert.Null(initialStatus.IsEndedByTurnLimit);
+
+        // Force run battle (note: this battle may end by elimination or turn limit)
+        await battleState.RunBattleAsync();
+
+        // Get final status
+        var finalStatus = battleState.GetStatus();
+
+        // Assert - Battle should be completed
+        Assert.False(finalStatus.IsInProgress);
+        Assert.NotNull(finalStatus.IsEndedByTurnLimit);
+
+        // Verify the property logic
+        bool expectedTurnLimit = finalStatus.CurrentTurn >= finalStatus.TotalTurns;
+        Assert.Equal(expectedTurnLimit, finalStatus.IsEndedByTurnLimit.Value);
+
+        // Log the result for debugging
+        _logger.LogInformation("Battle ended - CurrentTurn: {CurrentTurn}, TotalTurns: {TotalTurns}, IsEndedByTurnLimit: {IsEndedByTurnLimit}",
+            finalStatus.CurrentTurn, finalStatus.TotalTurns, finalStatus.IsEndedByTurnLimit);
+
+        // Clean up
+        battleState.ClearBattleData();
     }
 }

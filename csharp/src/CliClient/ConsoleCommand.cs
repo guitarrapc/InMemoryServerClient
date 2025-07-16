@@ -623,7 +623,32 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                 }
                 else
                 {
-                    logger.LogInformation("No active battle in progress.");
+                    // Battle is completed - show result
+                    logger.LogInformation($"[BATTLE] ========== Battle Completed ==========");
+                    logger.LogInformation($"[BATTLE] Battle ID: {battleStatus.BattleId}");
+                    logger.LogInformation($"[BATTLE] Final Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
+
+                    // Show how the battle ended
+                    if (battleStatus.IsEndedByTurnLimit == true)
+                    {
+                        logger.LogInformation("[BATTLE] ⏰ Battle ended due to turn limit reached!");
+                    }
+                    else if (battleStatus.IsEndedByTurnLimit == false)
+                    {
+                        logger.LogInformation("[BATTLE] ⚔️ Battle ended due to complete elimination!");
+                    }
+
+                    // Show result
+                    if (battleStatus.IsPlayerVictory == true)
+                    {
+                        logger.LogInformation("[BATTLE] 🎉 Result: Victory! 🎉");
+                    }
+                    else
+                    {
+                        logger.LogInformation("[BATTLE] ❌ Result: Defeat! ❌");
+                    }
+
+                    logger.LogInformation("[BATTLE] ===================================");
                 }
             }
             else
