@@ -4,7 +4,7 @@ using Shared.Models;
 
 namespace E2E.Tests;
 
-public class E2EIntegrationTests : IDisposable
+public class SignalRE2EIntegrationTests : IDisposable
 {
     private CustomWebApplicationFactory<InMemoryServer.Program>? _factory;
 
