@@ -1,4 +1,4 @@
-﻿using BattleLogic.Models;
+using BattleLogic.Models;
 
 namespace BattleLogic.Constans;
 
@@ -30,7 +30,7 @@ public static class BattleSystemDefines
     /// <summary>
     /// Attack power range for player
     /// </summary>
-    public static readonly StatusRange PlayerAttackPower = new(25, 34);
+    public static readonly StatusRange PlayerAttackPower = new(26, 36);
 
     /// <summary>
     /// Defense power range for player
@@ -45,7 +45,7 @@ public static class BattleSystemDefines
     /// <summary>
     /// Accuracy range for player (75-90%)
     /// </summary>
-    public static readonly StatusRange PlayerAccuracy = new(85, 100);
+    public static readonly StatusRange PlayerAccuracy = new(87, 100);
 
     /// <summary>
     /// Evasion range for player (15-30%)
