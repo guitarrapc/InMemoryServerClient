@@ -239,8 +239,13 @@ public class BattleState
         if (!_isCompleted)
         {
             _isCompleted = true;
-            var (_, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
-            _playerVictory = isPlayerVictory;
+            // Use special turn limit victory determination logic
+            _playerVictory = _battleUtilities.DetermineVictoryOnTurnLimit(_players, _enemies);
+
+            _logger.LogInformation("Battle ended due to turn limit - Players alive: {PlayersAlive}, Enemies alive: {EnemiesAlive}, Result: {Result}",
+                _players.Count(p => p.CurrentHp > 0),
+                _enemies.Count(e => e.CurrentHp > 0),
+                _playerVictory ? "Victory" : "Defeat");
         }
 
         // Add final battle log

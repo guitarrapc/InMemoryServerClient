@@ -267,7 +267,7 @@ internal class BattleUtilities
 
         if (allPlayersDead && allEnemiesDead)
         {
-            return (true, false); // Battle over, player defeat
+            return (true, false); // Battle over, player defeat (both sides eliminated)
         }
         else if (allPlayersDead)
         {
@@ -279,6 +279,31 @@ internal class BattleUtilities
         }
 
         return (false, false); // Battle continues
+    }
+
+    /// <summary>
+    /// Check battle result when turn limit is reached
+    /// </summary>
+    public bool DetermineVictoryOnTurnLimit(List<EntityInfo> players, List<EntityInfo> enemies)
+    {
+        bool allPlayersDead = players.All(p => p.CurrentHp <= 0);
+        bool allEnemiesDead = enemies.All(e => e.CurrentHp <= 0);
+
+        // If either side is completely eliminated, follow normal victory rules
+        if (allPlayersDead)
+        {
+            return false; // Player defeat
+        }
+        else if (allEnemiesDead)
+        {
+            return true; // Player victory
+        }
+
+        // If both sides have survivors, player wins if they have more survivors
+        int alivePlayers = players.Count(p => p.CurrentHp > 0);
+        int aliveEnemies = enemies.Count(e => e.CurrentHp > 0);
+
+        return alivePlayers > aliveEnemies; // Player wins if more survivors
     }
 
     /// <summary>
