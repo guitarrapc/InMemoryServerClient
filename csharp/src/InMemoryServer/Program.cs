@@ -30,9 +30,11 @@ public class Program
         builder.Services.AddSignalR();
         builder.Services.AddMagicOnion();
         builder.Services.AddSingleton<InMemoryState>();
+        builder.Services.AddSingleton<ConnectionManager>();
         builder.Services.AddSingleton<GroupManager>();
         builder.Services.AddSingleton<InMemoryHub>();
         builder.Services.AddSingleton<MagicOnionGroupService>();
+        builder.Services.AddSingleton<CrossProtocolNotificationService>();
 
         // Register BattleReplayWriterFactory and options
         builder.Services.AddSingleton<BattleReplayWriterFactory>();

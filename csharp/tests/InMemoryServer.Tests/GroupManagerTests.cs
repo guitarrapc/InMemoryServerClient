@@ -1,4 +1,5 @@
 ﻿using InMemoryServer.Services;
+using InMemoryServer.Models;
 
 namespace InMemoryServer.Tests;
 
@@ -8,12 +9,16 @@ namespace InMemoryServer.Tests;
 public class GroupManagerTests
 {
     private readonly ILogger<GroupManager> _logger;
+    private readonly ILogger<ConnectionManager> _connectionManagerLogger;
+    private readonly ConnectionManager _connectionManager;
     private readonly GroupManager _groupManager;
 
     public GroupManagerTests()
     {
         _logger = Substitute.For<ILogger<GroupManager>>();
-        _groupManager = new GroupManager(_logger);
+        _connectionManagerLogger = Substitute.For<ILogger<ConnectionManager>>();
+        _connectionManager = new ConnectionManager(_connectionManagerLogger);
+        _groupManager = new GroupManager(_logger, _connectionManager);
     }
 
     [Fact]
@@ -22,9 +27,10 @@ public class GroupManagerTests
         // Arrange
         const string connectionId = "test_connection";
         const string groupName = "test_group";
+        var normalizedConnectionId = _connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
         // Act
-        var result = await _groupManager.JoinGroupAsync(connectionId, groupName);
+        var result = await _groupManager.JoinGroupAsync(normalizedConnectionId, groupName);
 
         // Assert
         Assert.NotNull(result);
@@ -40,10 +46,12 @@ public class GroupManagerTests
         const string connectionId1 = "test_connection_1";
         const string connectionId2 = "test_connection_2";
         const string groupName = "test_group";
+        var normalizedConnectionId1 = _connectionManager.RegisterConnection(connectionId1, ConnectionProtocol.SignalR);
+        var normalizedConnectionId2 = _connectionManager.RegisterConnection(connectionId2, ConnectionProtocol.MagicOnion);
 
         // Act
-        var group1 = await _groupManager.JoinGroupAsync(connectionId1, groupName);
-        var group2 = await _groupManager.JoinGroupAsync(connectionId2, groupName);
+        var group1 = await _groupManager.JoinGroupAsync(normalizedConnectionId1, groupName);
+        var group2 = await _groupManager.JoinGroupAsync(normalizedConnectionId2, groupName);
 
         // Assert
         Assert.Equal(group1.GroupId, group2.GroupId);
@@ -56,10 +64,11 @@ public class GroupManagerTests
         // Arrange
         const string connectionId = "test_connection";
         const string groupName = "test_group";
+        var normalizedConnectionId = _connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
         // Act
-        var group = await _groupManager.JoinGroupAsync(connectionId, groupName);
-        await _groupManager.LeaveGroupAsync(connectionId);
+        var group = await _groupManager.JoinGroupAsync(normalizedConnectionId, groupName);
+        await _groupManager.LeaveGroupAsync(normalizedConnectionId);
 
         // Assert
         var groupInfo = _groupManager.GetGroupInfo(group.GroupId);
@@ -71,9 +80,10 @@ public class GroupManagerTests
     {
         // Arrange
         const string connectionId = "test_connection";
+        var normalizedConnectionId = _connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
         // Act
-        var result = _groupManager.GetGroupIdForConnection(connectionId);
+        var result = _groupManager.GetGroupIdForConnection(normalizedConnectionId);
 
         // Assert
         Assert.Null(result);

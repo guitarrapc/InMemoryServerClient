@@ -15,7 +15,10 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             // Add the same services as in Program.RunServerAsync
             services.AddSignalR();
             services.AddSingleton<InMemoryServer.InMemoryState>();
-            services.AddSingleton<GroupManager>();
+            services.AddSingleton<InMemoryServer.Services.ConnectionManager>();
+            services.AddSingleton<InMemoryServer.Services.GroupManager>();
+            services.AddSingleton<InMemoryServer.Services.MagicOnionGroupService>();
+            services.AddSingleton<InMemoryServer.Services.CrossProtocolNotificationService>();
             services.AddSingleton<InMemoryHub>();
             services.AddSingleton<BattleLogic.Infrastructures.BattleReplayWriter.BattleReplayWriterFactory>();
 

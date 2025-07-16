@@ -5,17 +5,19 @@ using System.Collections.Concurrent;
 namespace InMemoryServer.Services;
 
 /// <summary>
-/// Manages client groups
+/// Manages client groups across different protocols
 /// </summary>
 public class GroupManager
 {
     private readonly ILogger<GroupManager> _logger;
+    private readonly ConnectionManager _connectionManager;
     private readonly ConcurrentDictionary<string, GroupInfo> _groups = new(Environment.ProcessorCount * 2, 10); // Pre-allocate for typical usage
     private readonly ConcurrentDictionary<string, string> _connectionToGroup = new(Environment.ProcessorCount * 2, 50); // Pre-allocate for typical connections
 
-    public GroupManager(ILogger<GroupManager> logger)
+    public GroupManager(ILogger<GroupManager> logger, ConnectionManager connectionManager)
     {
         _logger = logger;
+        _connectionManager = connectionManager;
 
         // Start group cleanup timer
         StartCleanupTimer();
