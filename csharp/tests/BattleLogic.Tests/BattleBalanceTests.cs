@@ -245,21 +245,69 @@ public class BattleBalanceTests
         Assert.False(finalStatus.IsInProgress); // Battle should be completed
         Assert.NotNull(finalStatus.IsPlayerVictory); // Should have a victory result
 
-        // Calculate victory using the old method
-        bool calculatedVictory = finalTurnData.Players.Any(p => p.CurrentHp > 0);
+        // Calculate victory using the correct method based on how the battle ended
+        bool calculatedVictory;
+        if (finalStatus.IsEndedByTurnLimit == true)
+        {
+            // Battle ended by turn limit - use survivor count comparison
+            int alivePlayers = finalTurnData.Players.Count(p => p.CurrentHp > 0);
+            int aliveEnemies = finalTurnData.Enemies.Count(e => e.CurrentHp > 0);
 
-        // Verify consistency between new property and old calculation
+            if (finalTurnData.Players.All(p => p.CurrentHp <= 0))
+            {
+                calculatedVictory = false; // All players dead = defeat
+            }
+            else if (finalTurnData.Enemies.All(e => e.CurrentHp <= 0))
+            {
+                calculatedVictory = true; // All enemies dead = victory
+            }
+            else
+            {
+                calculatedVictory = alivePlayers > aliveEnemies; // More survivors wins
+            }
+        }
+        else
+        {
+            // Battle ended by elimination - check if any players survived
+            calculatedVictory = finalTurnData.Players.Any(p => p.CurrentHp > 0);
+        }
+
+        // Verify consistency between new property and correct calculation
         Assert.Equal(calculatedVictory, finalStatus.IsPlayerVictory.Value);
 
         // Verify battle state consistency
         if (finalStatus.IsPlayerVictory.Value)
         {
-            Assert.True(finalTurnData.Players.Any(p => p.CurrentHp > 0), "At least one player should be alive if players won");
-            Assert.True(finalTurnData.Enemies.All(e => e.CurrentHp <= 0), "All enemies should be defeated if players won");
+            if (finalStatus.IsEndedByTurnLimit == true)
+            {
+                // Turn limit victory: either all enemies dead OR more players alive
+                bool allEnemiesDead = finalTurnData.Enemies.All(e => e.CurrentHp <= 0);
+                bool morePlayersAlive = finalTurnData.Players.Count(p => p.CurrentHp > 0) > finalTurnData.Enemies.Count(e => e.CurrentHp > 0);
+                Assert.True(allEnemiesDead || morePlayersAlive,
+                    "Turn limit victory should have either all enemies defeated or more players alive than enemies");
+            }
+            else
+            {
+                // Elimination victory: at least one player alive and all enemies dead
+                Assert.True(finalTurnData.Players.Any(p => p.CurrentHp > 0), "At least one player should be alive if players won by elimination");
+                Assert.True(finalTurnData.Enemies.All(e => e.CurrentHp <= 0), "All enemies should be defeated if players won by elimination");
+            }
         }
         else
         {
-            Assert.True(finalTurnData.Players.All(p => p.CurrentHp <= 0), "All players should be defeated if players lost");
+            if (finalStatus.IsEndedByTurnLimit == true)
+            {
+                // Turn limit defeat: either all players dead OR fewer/equal players alive
+                bool allPlayersDead = finalTurnData.Players.All(p => p.CurrentHp <= 0);
+                bool fewerOrEqualPlayersAlive = finalTurnData.Players.Count(p => p.CurrentHp > 0) <= finalTurnData.Enemies.Count(e => e.CurrentHp > 0);
+                Assert.True(allPlayersDead || fewerOrEqualPlayersAlive,
+                    "Turn limit defeat should have either all players defeated or fewer/equal players alive than enemies");
+            }
+            else
+            {
+                // Elimination defeat: all players dead
+                Assert.True(finalTurnData.Players.All(p => p.CurrentHp <= 0), "All players should be defeated if players lost by elimination");
+            }
         }
 
         // Clean up
