@@ -1,6 +1,4 @@
-using Shared.Constants;
-
-namespace InMemoryServer.Models;
+﻿namespace InMemoryServer.Models;
 
 /// <summary>
 /// Represents a client connection with protocol information

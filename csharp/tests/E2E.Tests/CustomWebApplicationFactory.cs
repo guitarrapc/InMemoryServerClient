@@ -1,5 +1,4 @@
 ﻿using InMemoryServer.Http1Server;
-using InMemoryServer.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;

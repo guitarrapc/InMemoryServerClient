@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Shared.Constants;
 using Shared.Models;
-using Xunit;
 
 namespace E2E.Tests;
 
