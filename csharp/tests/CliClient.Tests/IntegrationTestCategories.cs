@@ -1,7 +1,7 @@
 namespace CliClient.Tests;
 
 /// <summary>
-/// 統合テストのカテゴリを定義する属性クラス
+/// モック・スタブ使用の統合テスト用の属性（サーバー不要）
 /// </summary>
 public class IntegrationTestAttribute : FactAttribute
 {
@@ -23,23 +23,43 @@ public class IntegrationTestAttribute : FactAttribute
 }
 
 /// <summary>
-/// サーバーが必要な統合テスト用の属性
+/// 内蔵テストサーバーを使用する統合テスト用の属性
 /// </summary>
-public class ServerRequiredTestAttribute : FactAttribute
+public class EmbeddedServerTestAttribute : FactAttribute
 {
-    public ServerRequiredTestAttribute()
+    public EmbeddedServerTestAttribute()
     {
-        // サーバーが起動していない場合はスキップ
-        if (SkipServerTests())
+        // 内蔵サーバーテストをスキップする場合
+        if (SkipEmbeddedServerTests())
         {
-            Skip = "Server integration tests require a running server";
+            Skip = "Embedded server tests are disabled";
         }
     }
 
-    private static bool SkipServerTests()
+    private static bool SkipEmbeddedServerTests()
     {
-        // サーバーが必要なテストを環境変数で制御
-        var skip = Environment.GetEnvironmentVariable("SKIP_SERVER_TESTS");
+        var skip = Environment.GetEnvironmentVariable("SKIP_EMBEDDED_SERVER_TESTS");
+        return !string.IsNullOrEmpty(skip) && bool.TryParse(skip, out var result) && result;
+    }
+}
+
+/// <summary>
+/// 外部サーバーが必要な統合テスト用の属性（非推奨）
+/// </summary>
+public class ExternalServerRequiredTestAttribute : FactAttribute
+{
+    public ExternalServerRequiredTestAttribute()
+    {
+        // 外部サーバーが必要なテストを環境変数で制御
+        if (SkipExternalServerTests())
+        {
+            Skip = "External server integration tests are disabled";
+        }
+    }
+
+    private static bool SkipExternalServerTests()
+    {
+        var skip = Environment.GetEnvironmentVariable("SKIP_EXTERNAL_SERVER_TESTS");
         return !string.IsNullOrEmpty(skip) && bool.TryParse(skip, out var result) && result;
     }
 }
