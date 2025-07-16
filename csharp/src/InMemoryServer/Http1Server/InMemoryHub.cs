@@ -115,26 +115,19 @@ public class InMemoryHub(
     /// </summary>
     public async Task<string> JoinGroupAsync(string? groupName = null)
     {
-        var originalConnectionId = Context.ConnectionId;
-        var normalizedConnectionId = connectionManager.GetNormalizedConnectionId(originalConnectionId);
-
-        if (normalizedConnectionId == null)
-        {
-            logger.LogError("Failed to find normalized connection ID for SignalR client {ConnectionId}", originalConnectionId);
-            throw new InvalidOperationException("Connection not properly registered");
-        }
+        var connectionId = Context.ConnectionId;
 
         // Find or create group
-        var group = await groupManager.JoinGroupAsync(normalizedConnectionId, groupName);
-        await Groups.AddToGroupAsync(originalConnectionId, group.GroupId);
+        var group = await groupManager.JoinGroupAsync(connectionId, groupName);
+        await Groups.AddToGroupAsync(connectionId, group.GroupId);
 
-        logger.LogInformation("SignalR client {OriginalId} ({NormalizedId}) joined group: {GroupName} (ID: {GroupId})",
-            originalConnectionId, normalizedConnectionId, group.Name, group.GroupId);
+        logger.LogInformation("SignalR client {ConnectionId} joined group: {GroupName} (ID: {GroupId})",
+            connectionId, group.Name, group.GroupId);
 
         // Notify all members across protocols
         var memberJoinedData = new MemberJoinedData
         {
-            ConnectionId = normalizedConnectionId,
+            ConnectionId = connectionId,
             GroupId = group.GroupId,
             GroupName = group.Name,
             CurrentMemberCount = group.ConnectionCount,
@@ -156,20 +149,13 @@ public class InMemoryHub(
     /// </summary>
     public async Task<bool> BroadcastAsync(string message)
     {
-        var originalConnectionId = Context.ConnectionId;
-        var normalizedConnectionId = connectionManager.GetNormalizedConnectionId(originalConnectionId);
+        var connectionId = Context.ConnectionId;
 
-        if (normalizedConnectionId == null)
-        {
-            logger.LogError("Failed to find normalized connection ID for SignalR client {ConnectionId}", originalConnectionId);
-            return false;
-        }
-
-        var groupId = groupManager.GetGroupIdForConnection(normalizedConnectionId);
+        var groupId = groupManager.GetGroupIdForConnection(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            logger.LogWarning("SignalR client {OriginalId} ({NormalizedId}) tried to broadcast but is not in any group",
-                originalConnectionId, normalizedConnectionId);
+            logger.LogWarning("SignalR client {ConnectionId} tried to broadcast but is not in any group",
+                connectionId);
             return false;
         }
 
@@ -180,12 +166,12 @@ public class InMemoryHub(
             return false;
         }
 
-        logger.LogInformation("SignalR client {OriginalId} ({NormalizedId}) broadcasting message to group {GroupId}",
-            originalConnectionId, normalizedConnectionId, groupId);
+        logger.LogInformation("SignalR client {ConnectionId} broadcasting message to group {GroupId}",
+            connectionId, groupId);
 
         var messageData = new GroupMessageData
         {
-            SenderId = normalizedConnectionId,
+            SenderId = connectionId,
             Message = message
         };
         await notificationService.NotifyGroupAsync(groupId, group.ClientIds, "GroupMessage", messageData);
@@ -434,12 +420,12 @@ public class InMemoryHub(
     /// </summary>
     public override async Task OnConnectedAsync()
     {
-        var originalConnectionId = Context.ConnectionId;
-        var normalizedConnectionId = connectionManager.RegisterConnection(originalConnectionId, ConnectionProtocol.SignalR);
+        var connectionId = Context.ConnectionId;
+        connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
         state.ConnectionCount++;
-        logger.LogInformation("SignalR client {OriginalId} connected as {NormalizedId}. Total connections: {Count}",
-            originalConnectionId, normalizedConnectionId, state.ConnectionCount);
+        logger.LogInformation("SignalR client {ConnectionId} connected. Total connections: {Count}",
+            connectionId, state.ConnectionCount);
 
         await base.OnConnectedAsync();
     }
@@ -449,18 +435,33 @@ public class InMemoryHub(
     /// </summary>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        var originalConnectionId = Context.ConnectionId;
-        var normalizedConnectionId = connectionManager.UnregisterConnection(originalConnectionId);
+        var connectionId = Context.ConnectionId;
+        var connectionRemoved = connectionManager.UnregisterConnection(connectionId);
 
-        if (normalizedConnectionId != null)
+        if (connectionRemoved)
         {
-            state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);
+            state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);            // Leave group if in one and notify other members
+            var (leftGroup, newCount) = await groupManager.LeaveGroupAsync(connectionId);
+            if (leftGroup != null)
+            {
+                // Notify remaining group members that this client left
+                var memberLeftData = new MemberLeftData
+                {
+                    ConnectionId = connectionId,
+                    GroupId = leftGroup.GroupId,
+                    GroupName = leftGroup.Name,
+                    CurrentMemberCount = newCount,
+                    MaxMembers = SystemDefines.MaxConnectionsPerGroup
+                };
+                var remainingClients = leftGroup.ClientIds.Where(id => id != connectionId);
+                await Clients.Clients(remainingClients).SendAsync("MemberLeft", memberLeftData);
 
-            // Leave group if in one
-            await groupManager.LeaveGroupAsync(normalizedConnectionId);
+                logger.LogInformation("Notified {Count} remaining clients about member leaving group {GroupName}",
+                    remainingClients.Count(), leftGroup.Name);
+            }
 
-            logger.LogInformation("SignalR client {OriginalId} ({NormalizedId}) disconnected. Total connections: {Count}",
-                originalConnectionId, normalizedConnectionId, state.ConnectionCount);
+            logger.LogInformation("SignalR client {ConnectionId} disconnected. Total connections: {Count}",
+                connectionId, state.ConnectionCount);
         }
 
         await base.OnDisconnectedAsync(exception);

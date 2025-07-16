@@ -54,12 +54,12 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// </summary>
     protected override ValueTask OnConnected()
     {
-        var originalConnectionId = Context.ContextId.ToString();
-        var normalizedConnectionId = connectionManager.RegisterConnection(originalConnectionId, ConnectionProtocol.MagicOnion);
+        var connectionId = Context.ContextId.ToString();
+        connectionManager.RegisterConnection(connectionId, ConnectionProtocol.MagicOnion);
 
         state.ConnectionCount++;
-        logger.LogInformation("MagicOnion client {OriginalId} connected as {NormalizedId}. Total connections: {Count}",
-            originalConnectionId, normalizedConnectionId, state.ConnectionCount);
+        logger.LogInformation("MagicOnion client {ConnectionId} connected. Total connections: {Count}",
+            connectionId, state.ConnectionCount);
         return default;
     }
 
@@ -68,38 +68,55 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// </summary>
     protected override ValueTask OnDisconnected()
     {
-        var originalConnectionId = Context.ContextId.ToString();
-        var normalizedConnectionId = connectionManager.UnregisterConnection(originalConnectionId);
+        var connectionId = Context.ContextId.ToString();
+        var connectionRemoved = connectionManager.UnregisterConnection(connectionId);
 
-        if (normalizedConnectionId != null)
+        if (connectionRemoved)
         {
             state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);
 
-            var groupId = groupManager.GetGroupIdForConnection(normalizedConnectionId);
+            var groupId = groupManager.GetGroupIdForConnection(connectionId);
             if (!string.IsNullOrEmpty(groupId))
             {
                 // Remove from MagicOnion group
-                magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);
-
-                // Remove from GroupManager (fire and forget)
+                magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);                // Remove from GroupManager and notify other members
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await groupManager.LeaveGroupAsync(normalizedConnectionId);
+                        var (leftGroup, newCount) = await groupManager.LeaveGroupAsync(connectionId);
+                        if (leftGroup != null)
+                        {
+                            // Notify remaining group members that this client left
+                            var memberLeftData = new MemberLeftData
+                            {
+                                ConnectionId = connectionId,
+                                GroupId = leftGroup.GroupId,
+                                GroupName = leftGroup.Name,
+                                CurrentMemberCount = newCount,
+                                MaxMembers = SystemDefines.MaxConnectionsPerGroup
+                            };
+                            var remainingClients = leftGroup.ClientIds.Where(id => id != connectionId);
+
+                            // Send notification to remaining clients via cross-protocol service
+                            await notificationService.NotifyGroupAsync(leftGroup.GroupId, remainingClients, "MemberLeft", memberLeftData);
+
+                            logger.LogInformation("Notified {Count} remaining clients about member leaving group {GroupName}",
+                                remainingClients.Count(), leftGroup.Name);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        logger.LogError(ex, "Error removing client {NormalizedId} from group", normalizedConnectionId);
+                        logger.LogError(ex, "Error removing client {ConnectionId} from group", connectionId);
                     }
                 });
-                logger.LogInformation("MagicOnion client {OriginalId} ({NormalizedId}) disconnected and left group {GroupId}. Total connections: {Count}",
-                    originalConnectionId, normalizedConnectionId, groupId, state.ConnectionCount);
+                logger.LogInformation("MagicOnion client {ConnectionId} disconnected and left group {GroupId}. Total connections: {Count}",
+                    connectionId, groupId, state.ConnectionCount);
             }
             else
             {
-                logger.LogInformation("MagicOnion client {OriginalId} ({NormalizedId}) disconnected. Total connections: {Count}",
-                    originalConnectionId, normalizedConnectionId, state.ConnectionCount);
+                logger.LogInformation("MagicOnion client {ConnectionId} disconnected. Total connections: {Count}",
+                    connectionId, state.ConnectionCount);
             }
         }
 
@@ -111,20 +128,13 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// </summary>
     public async Task<bool> BroadcastAsync(string message)
     {
-        var originalConnectionId = Context.ContextId.ToString();
-        var normalizedConnectionId = connectionManager.GetNormalizedConnectionId(originalConnectionId);
+        var connectionId = Context.ContextId.ToString();
 
-        if (normalizedConnectionId == null)
-        {
-            logger.LogError("Failed to find normalized connection ID for MagicOnion client {ConnectionId}", originalConnectionId);
-            return false;
-        }
-
-        var groupId = groupManager.GetGroupIdForConnection(normalizedConnectionId);
+        var groupId = groupManager.GetGroupIdForConnection(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            logger.LogWarning("MagicOnion client {OriginalId} ({NormalizedId}) tried to broadcast but is not in any group",
-                originalConnectionId, normalizedConnectionId);
+            logger.LogWarning("MagicOnion client {ConnectionId} tried to broadcast but is not in any group",
+                connectionId);
             return false;
         }
 
@@ -135,12 +145,12 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             return false;
         }
 
-        logger.LogInformation("MagicOnion client {OriginalId} ({NormalizedId}) broadcasting message to group {GroupId}",
-            originalConnectionId, normalizedConnectionId, groupId);
+        logger.LogInformation("MagicOnion client {ConnectionId} broadcasting message to group {GroupId}",
+            connectionId, groupId);
 
         var messageData = new GroupMessageData
         {
-            SenderId = normalizedConnectionId,
+            SenderId = connectionId,
             Message = message
         };
         await notificationService.NotifyGroupAsync(groupId, group.ClientIds, "GroupMessage", messageData);
@@ -152,28 +162,21 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// </summary>
     public async Task<string> JoinGroupAsync(string? groupName = null)
     {
-        var originalConnectionId = Context.ContextId.ToString();
-        var normalizedConnectionId = connectionManager.GetNormalizedConnectionId(originalConnectionId);
-
-        if (normalizedConnectionId == null)
-        {
-            logger.LogError("Failed to find normalized connection ID for MagicOnion client {ConnectionId}", originalConnectionId);
-            throw new InvalidOperationException("Connection not properly registered");
-        }
+        var connectionId = Context.ContextId.ToString();
 
         // Find or create group
-        var group = await groupManager.JoinGroupAsync(normalizedConnectionId, groupName);
+        var group = await groupManager.JoinGroupAsync(connectionId, groupName);
 
         // Add to MagicOnion group
         magicOnionGroupService.AddClientToGroup(group.GroupId, Context.ContextId, Client);
 
-        logger.LogInformation("MagicOnion client {OriginalId} ({NormalizedId}) joined group: {GroupName} (ID: {GroupId})",
-            originalConnectionId, normalizedConnectionId, group.Name, group.GroupId);
+        logger.LogInformation("MagicOnion client {ConnectionId} joined group: {GroupName} (ID: {GroupId})",
+            connectionId, group.Name, group.GroupId);
 
         // Notify all members across protocols
         var memberJoinedData = new MemberJoinedData
         {
-            ConnectionId = normalizedConnectionId,
+            ConnectionId = connectionId,
             GroupId = group.GroupId,
             GroupName = group.Name,
             CurrentMemberCount = group.ConnectionCount,
@@ -205,20 +208,13 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// </summary>
     public async Task<GroupInfo?> GetCurrentGroupAsync()
     {
-        var originalConnectionId = Context.ContextId.ToString();
-        var normalizedConnectionId = connectionManager.GetNormalizedConnectionId(originalConnectionId);
+        var connectionId = Context.ContextId.ToString();
 
-        if (normalizedConnectionId == null)
-        {
-            logger.LogError("Failed to find normalized connection ID for MagicOnion client {ConnectionId}", originalConnectionId);
-            return null;
-        }
-
-        var groupId = groupManager.GetGroupIdForConnection(normalizedConnectionId);
+        var groupId = groupManager.GetGroupIdForConnection(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            logger.LogWarning("MagicOnion client {OriginalId} ({NormalizedId}) requested current group but is not in any group",
-                originalConnectionId, normalizedConnectionId);
+            logger.LogWarning("MagicOnion client {ConnectionId} requested current group but is not in any group",
+                connectionId);
             return null;
         }
 

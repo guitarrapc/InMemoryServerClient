@@ -143,19 +143,18 @@ public class CrossProtocolTests
     public void ConnectionManager_UnregisterConnection_ShouldCleanUpCorrectly()
     {
         // Arrange
-        var originalConnectionId = "test-unregister";
-        var normalizedConnectionId = _connectionManager.RegisterConnection(originalConnectionId, ConnectionProtocol.SignalR);
+        var connectionId = "test-unregister";
+        var registeredConnectionId = _connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
-        // Verify it's registered
-        Assert.NotNull(_connectionManager.GetConnectionInfo(normalizedConnectionId));
-        Assert.Equal(normalizedConnectionId, _connectionManager.GetNormalizedConnectionId(originalConnectionId));
+        // Verify it's registered (connection ID should be the same as input)
+        Assert.Equal(connectionId, registeredConnectionId);
+        Assert.NotNull(_connectionManager.GetConnectionInfo(connectionId));
 
         // Act
-        var removedConnectionId = _connectionManager.UnregisterConnection(originalConnectionId);
+        var removedSuccessfully = _connectionManager.UnregisterConnection(connectionId);
 
         // Assert
-        Assert.Equal(normalizedConnectionId, removedConnectionId);
-        Assert.Null(_connectionManager.GetConnectionInfo(normalizedConnectionId));
-        Assert.Null(_connectionManager.GetNormalizedConnectionId(originalConnectionId));
+        Assert.True(removedSuccessfully);
+        Assert.Null(_connectionManager.GetConnectionInfo(connectionId));
     }
 }

@@ -5,13 +5,13 @@ namespace InMemoryServer.Services;
 
 /// <summary>
 /// Manages connections across different protocols (SignalR and MagicOnion)
+/// Uses original connection IDs directly - both SignalR (128-bit cryptographic random)
+/// and MagicOnion (GUID) provide sufficient uniqueness guarantees
 /// </summary>
 public class ConnectionManager
 {
     private readonly ILogger<ConnectionManager> _logger;
     private readonly ConcurrentDictionary<string, Models.ConnectionInfo> _connections = new();
-    private readonly ConcurrentDictionary<string, string> _originalToNormalized = new();
-    private long _connectionCounter = 0;
 
     public ConnectionManager(ILogger<ConnectionManager> logger)
     {
@@ -19,71 +19,55 @@ public class ConnectionManager
     }
 
     /// <summary>
-    /// Register a new connection and return a normalized connection ID
+    /// Register a new connection using the original connection ID directly
     /// </summary>
-    /// <param name="originalConnectionId">Original connection ID from the protocol</param>
+    /// <param name="connectionId">Original connection ID from the protocol</param>
     /// <param name="protocol">Connection protocol</param>
-    /// <returns>Normalized connection ID</returns>
-    public string RegisterConnection(string originalConnectionId, ConnectionProtocol protocol)
+    /// <returns>The connection ID (same as input for simplified management)</returns>
+    public string RegisterConnection(string connectionId, ConnectionProtocol protocol)
     {
-        // Generate a normalized connection ID
-        var normalizedId = $"conn_{Interlocked.Increment(ref _connectionCounter):D6}_{protocol}";
 
         var connectionInfo = new Models.ConnectionInfo
         {
-            ConnectionId = normalizedId,
-            OriginalConnectionId = originalConnectionId,
+            ConnectionId = connectionId,
+            OriginalConnectionId = connectionId, // Same as ConnectionId in simplified approach
             Protocol = protocol
         };
 
-        _connections[normalizedId] = connectionInfo;
-        _originalToNormalized[originalConnectionId] = normalizedId;
+        _connections[connectionId] = connectionInfo;
 
-        _logger.LogInformation("Registered {Protocol} connection: {OriginalId} -> {NormalizedId}",
-            protocol, originalConnectionId, normalizedId);
+        _logger.LogInformation("Registered {Protocol} connection: {ConnectionId}",
+            protocol, connectionId);
 
-        return normalizedId;
+        return connectionId;
     }
 
     /// <summary>
     /// Unregister a connection
     /// </summary>
-    /// <param name="originalConnectionId">Original connection ID from the protocol</param>
-    /// <returns>The normalized connection ID that was removed, or null if not found</returns>
-    public string? UnregisterConnection(string originalConnectionId)
+    /// <param name="connectionId">Connection ID to unregister</param>
+    /// <returns>True if the connection was removed, false if not found</returns>
+    public bool UnregisterConnection(string connectionId)
     {
-        if (_originalToNormalized.TryRemove(originalConnectionId, out var normalizedId))
+        if (_connections.TryRemove(connectionId, out var connectionInfo))
         {
-            if (_connections.TryRemove(normalizedId, out var connectionInfo))
-            {
-                _logger.LogInformation("Unregistered {Protocol} connection: {OriginalId} -> {NormalizedId}",
-                    connectionInfo.Protocol, originalConnectionId, normalizedId);
-                return normalizedId;
-            }
+            _logger.LogInformation("Unregistered {Protocol} connection: {ConnectionId}",
+                connectionInfo.Protocol, connectionId);
+            return true;
         }
 
-        _logger.LogWarning("Attempted to unregister unknown connection: {OriginalId}", originalConnectionId);
-        return null;
+        _logger.LogWarning("Attempted to unregister unknown connection: {ConnectionId}", connectionId);
+        return false;
     }
 
     /// <summary>
-    /// Get normalized connection ID from original connection ID
+    /// Get connection info by connection ID
     /// </summary>
-    /// <param name="originalConnectionId">Original connection ID</param>
-    /// <returns>Normalized connection ID or null if not found</returns>
-    public string? GetNormalizedConnectionId(string originalConnectionId)
-    {
-        return _originalToNormalized.TryGetValue(originalConnectionId, out var normalizedId) ? normalizedId : null;
-    }
-
-    /// <summary>
-    /// Get connection info by normalized connection ID
-    /// </summary>
-    /// <param name="normalizedConnectionId">Normalized connection ID</param>
+    /// <param name="connectionId">Connection ID</param>
     /// <returns>Connection info or null if not found</returns>
-    public Models.ConnectionInfo? GetConnectionInfo(string normalizedConnectionId)
+    public Models.ConnectionInfo? GetConnectionInfo(string connectionId)
     {
-        return _connections.TryGetValue(normalizedConnectionId, out var connectionInfo) ? connectionInfo : null;
+        return _connections.TryGetValue(connectionId, out var connectionInfo) ? connectionInfo : null;
     }
 
     /// <summary>
