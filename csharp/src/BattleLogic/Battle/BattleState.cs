@@ -171,6 +171,16 @@ public class BattleState
                     _battleCombat.ExecuteDefend(entity, _players, _enemies, _battleLogs);
                     break;
             }
+
+            // Check for battle end after each entity action to prevent simultaneous death
+            var (isOver, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+            if (isOver)
+            {
+                _isCompleted = true;
+                _playerVictory = isPlayerVictory;
+                _battleLogs.Add($"Battle ended mid-turn after {entity.Name}'s action!");
+                return; // Early exit from turn processing
+            }
         }
 
         _battleLogs.Add($"Turn {_currentTurn} ends!");

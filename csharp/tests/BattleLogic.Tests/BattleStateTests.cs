@@ -117,6 +117,9 @@ public class BattleStateTests
                 "If players lost, either all players should be defeated OR enemies should have equal or more survivors than players");
         }
 
+        // Critical: Both sides should never be dead at the same time (this was the bug we fixed)
+        Assert.False(allPlayersDead && allEnemiesDead, "Both sides should never be dead simultaneously - this indicates a logic bug");
+
         // Clean up memory
         battleState.ClearBattleData();
     }
