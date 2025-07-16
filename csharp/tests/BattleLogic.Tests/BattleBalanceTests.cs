@@ -77,7 +77,7 @@ public class BattleBalanceTests
     public async Task BattleBalance_ComprehensiveAnalysisWithWinRateValidation()
     {
         // 設定パラメータ
-        const int battlesForAnalysis = 200; // バトル数（効率とカバレッジのバランスを考慮）
+        const int battlesForAnalysis = 500; // バトル数（効率とカバレッジのバランスを考慮）
         const double minAcceptableWinRate = 0.45; // 最小許容勝率 (45%)
         const double maxAcceptableWinRate = 0.7; // 最大許容勝率 (70%)
 
