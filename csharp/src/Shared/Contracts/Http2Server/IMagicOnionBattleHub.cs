@@ -2,12 +2,12 @@
 using Shared.Battle;
 using Shared.Models;
 
-namespace Shared.Contracts.MagicOnion;
+namespace Shared.Contracts.Http2Server;
 
 /// <summary>
 /// MagicOnion hub interface for real-time communication
 /// </summary>
-public interface IInMemoryHub : IStreamingHub<IInMemoryHub, IInMemoryHubReceiver>
+public interface IMagicOnionBattleHub : IStreamingHub<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>
 {
     /// <summary>
     /// Broadcast message to current group
@@ -110,7 +110,7 @@ public interface IInMemoryHub : IStreamingHub<IInMemoryHub, IInMemoryHubReceiver
 /// <summary>
 /// Client-side receiver interface for MagicOnion hub
 /// </summary>
-public interface IInMemoryHubReceiver
+public interface IMagicOnionBattleHubReceiver
 {
     /// <summary>
     /// Called when a key is changed

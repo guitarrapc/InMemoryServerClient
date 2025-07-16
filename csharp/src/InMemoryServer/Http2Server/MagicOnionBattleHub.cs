@@ -1,5 +1,5 @@
 ﻿using MagicOnion.Server.Hubs;
-using Shared.Contracts.MagicOnion;
+using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Shared.Battle;
 using Shared.Constants;
@@ -16,9 +16,9 @@ namespace InMemoryServer.Http2Server;
 /// <summary>
 /// MagicOnion streaming hub implementation for real-time communication
 /// </summary>
-public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHubReceiver>, IInMemoryHub
+public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>, IMagicOnionBattleHub
 {
-    private readonly ILogger<InMemoryMagicOnionHub> logger;
+    private readonly ILogger<MagicOnionBattleHub> logger;
     private readonly InMemoryState state;
     private readonly ConnectionManager connectionManager;
     private readonly GroupManager groupManager;
@@ -29,8 +29,8 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     private static readonly object _eventSetupLock = new();
     private static bool _eventHandlersSetup = false;
 
-    public InMemoryMagicOnionHub(
-        ILogger<InMemoryMagicOnionHub> logger,
+    public MagicOnionBattleHub(
+        ILogger<MagicOnionBattleHub> logger,
         InMemoryState state,
         ConnectionManager connectionManager,
         GroupManager groupManager,
@@ -79,7 +79,9 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             if (!string.IsNullOrEmpty(groupId))
             {
                 // Remove from MagicOnion group
-                magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);                // Remove from GroupManager and notify other members
+                magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);
+
+                // Remove from GroupManager and notify other members
                 _ = Task.Run(async () =>
                 {
                     try
@@ -163,17 +165,23 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     public async Task<string> JoinGroupAsync(string? groupName = null)
     {
         var connectionId = Context.ContextId.ToString();
+        logger.LogInformation("MagicOnion JoinGroupAsync called for connection {ConnectionId}, groupName: {GroupName}", connectionId, groupName);
 
         // Find or create group
+        logger.LogInformation("MagicOnion calling groupManager.JoinGroupAsync for connection {ConnectionId}", connectionId);
         var group = await groupManager.JoinGroupAsync(connectionId, groupName);
+        logger.LogInformation("MagicOnion groupManager.JoinGroupAsync completed for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
 
         // Add to MagicOnion group
+        logger.LogInformation("MagicOnion adding client to group for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
         magicOnionGroupService.AddClientToGroup(group.GroupId, Context.ContextId, Client);
+        logger.LogInformation("MagicOnion client added to group for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
 
         logger.LogInformation("MagicOnion client {ConnectionId} joined group: {GroupName} (ID: {GroupId})",
             connectionId, group.Name, group.GroupId);
 
         // Notify all members across protocols
+        logger.LogInformation("MagicOnion preparing MemberJoined notification for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
         var memberJoinedData = new MemberJoinedData
         {
             ConnectionId = connectionId,
@@ -182,14 +190,18 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
             CurrentMemberCount = group.ConnectionCount,
             MaxMembers = SystemDefines.MaxConnectionsPerGroup
         };
+        logger.LogInformation("MagicOnion calling NotifyGroupAsync for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
         await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "MemberJoined", memberJoinedData);
+        logger.LogInformation("MagicOnion NotifyGroupAsync completed for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
 
         // Check if group is full and battle should start
         if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
         {
+            logger.LogInformation("MagicOnion starting battle for full group {GroupId}", group.GroupId);
             await StartBattleAsync(group);
         }
 
+        logger.LogInformation("MagicOnion JoinGroupAsync completed for connection {ConnectionId}, returning groupId: {GroupId}", connectionId, group.GroupId);
         return group.GroupId;
     }
 
@@ -633,16 +645,21 @@ public class InMemoryMagicOnionHub : StreamingHubBase<IInMemoryHub, IInMemoryHub
     /// <summary>
     /// Get value by key
     /// </summary>
-    public async Task<string?> GetAsync(string key)
+    public Task<string?> GetAsync(string key)
     {
         try
         {
-            return state.GetValue(key);
+            logger.LogInformation("MagicOnion GetAsync called for key: {Key} from context: {ContextId}", key, Context.ContextId);
+            var result = state.GetValue(key);
+            logger.LogInformation("MagicOnion GetAsync result for key {Key}: {Result}, returning Task", key, result ?? "null");
+            var task = Task.FromResult(result);
+            logger.LogInformation("MagicOnion GetAsync Task created for key {Key}, task status: {Status}", key, task.Status);
+            return task;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error getting key {Key}", key);
-            return null;
+            return Task.FromResult<string?>(null);
         }
     }
 

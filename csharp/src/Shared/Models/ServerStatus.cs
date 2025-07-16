@@ -5,10 +5,11 @@ namespace Shared.Models;
 /// <summary>
 /// Server status information
 /// </summary>
+[MessagePackObject(true)]
 public class ServerStatus
 {
     /// <summary>
-    /// Server uptime
+    /// Server uptime in seconds
     /// </summary>
     public TimeSpan Uptime { get; set; }
 

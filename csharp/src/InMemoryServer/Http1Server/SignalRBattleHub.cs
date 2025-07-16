@@ -14,8 +14,8 @@ namespace InMemoryServer.Http1Server;
 /// <summary>
 /// InMemory SignalR Hub
 /// </summary>
-public class InMemoryHub(
-    ILogger<InMemoryHub> logger,
+public class SignalRBattleHub(
+    ILogger<SignalRBattleHub> logger,
     InMemoryState state,
     ConnectionManager connectionManager,
     GroupManager groupManager,

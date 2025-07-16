@@ -54,7 +54,7 @@ public class TestServerManager : IDisposable
                     services.AddSingleton<InMemoryServer.Services.GroupManager>();
                     services.AddSingleton<InMemoryServer.Services.MagicOnionGroupService>();
                     services.AddSingleton<InMemoryServer.Services.CrossProtocolNotificationService>();
-                    services.AddSingleton<InMemoryHub>();
+                    services.AddSingleton<SignalRBattleHub>();
                     services.AddSingleton<BattleLogic.Infrastructures.BattleReplayWriter.BattleReplayWriterFactory>();
 
                     // Configure test logging with reduced verbosity
@@ -71,7 +71,7 @@ public class TestServerManager : IDisposable
                     app.UseRouting();
                     app.UseEndpoints(endpoints =>
                     {
-                        endpoints.MapHub<InMemoryHub>(Shared.Constants.SystemDefines.HubRoute);
+                        endpoints.MapHub<SignalRBattleHub>(Shared.Constants.SystemDefines.HubRoute);
                         endpoints.MapMagicOnionService();
                         endpoints.MapGet("/health", () => "Healthy");
                     });

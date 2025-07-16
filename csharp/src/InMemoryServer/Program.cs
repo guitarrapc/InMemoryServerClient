@@ -32,7 +32,7 @@ public class Program
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();
         builder.Services.AddSingleton<GroupManager>();
-        builder.Services.AddSingleton<InMemoryHub>();
+        builder.Services.AddSingleton<SignalRBattleHub>();
         builder.Services.AddSingleton<MagicOnionGroupService>();
         builder.Services.AddSingleton<CrossProtocolNotificationService>();
 
@@ -43,7 +43,7 @@ public class Program
         var app = builder.Build();
 
         // Configure the SignalR endpoint (HTTP/1)
-        app.MapHub<InMemoryHub>(SystemDefines.HubRoute);
+        app.MapHub<SignalRBattleHub>(SystemDefines.HubRoute);
 
         // Configure MagicOnion endpoint (HTTP/2)
         app.MapMagicOnionService();

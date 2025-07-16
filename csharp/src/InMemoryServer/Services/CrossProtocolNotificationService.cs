@@ -13,13 +13,13 @@ public class CrossProtocolNotificationService
 {
     private readonly ILogger<CrossProtocolNotificationService> _logger;
     private readonly ConnectionManager _connectionManager;
-    private readonly IHubContext<InMemoryHub> _signalRHubContext;
+    private readonly IHubContext<SignalRBattleHub> _signalRHubContext;
     private readonly MagicOnionGroupService _magicOnionGroupService;
 
     public CrossProtocolNotificationService(
         ILogger<CrossProtocolNotificationService> logger,
         ConnectionManager connectionManager,
-        IHubContext<InMemoryHub> signalRHubContext,
+        IHubContext<SignalRBattleHub> signalRHubContext,
         MagicOnionGroupService magicOnionGroupService)
     {
         _logger = logger;
@@ -77,16 +77,24 @@ public class CrossProtocolNotificationService
         // Send to MagicOnion clients
         if (magicOnionConnections.Count > 0)
         {
+            _logger.LogInformation("CrossProtocolNotificationService sending {MethodName} to {Count} MagicOnion clients in group {GroupId}",
+                methodName, magicOnionConnections.Count, groupId);
             try
             {
                 // Use MagicOnion group service to send to all clients in the group
+                _logger.LogInformation("CrossProtocolNotificationService calling SendToAll for {MethodName} in group {GroupId}", methodName, groupId);
                 _magicOnionGroupService.SendToAll(groupId, receiver =>
                 {
+                    _logger.LogInformation("CrossProtocolNotificationService executing SendToAll action for {MethodName} in group {GroupId}", methodName, groupId);
                     switch (methodName)
                     {
                         case "MemberJoined":
                             if (data is MemberJoinedData memberJoinedData)
+                            {
+                                _logger.LogInformation("CrossProtocolNotificationService calling OnMemberJoined for group {GroupId}", groupId);
                                 receiver.OnMemberJoined(memberJoinedData);
+                                _logger.LogInformation("CrossProtocolNotificationService OnMemberJoined completed for group {GroupId}", groupId);
+                            }
                             break;
                         case "MemberLeft":
                             if (data is MemberLeftData memberLeftData)
@@ -117,7 +125,9 @@ public class CrossProtocolNotificationService
                                 receiver.OnGroupMessage(groupMessageData.SenderId, groupMessageData.Message);
                             break;
                     }
+                    _logger.LogInformation("CrossProtocolNotificationService SendToAll action completed for {MethodName} in group {GroupId}", methodName, groupId);
                 });
+                _logger.LogInformation("CrossProtocolNotificationService SendToAll completed for {MethodName} in group {GroupId}", methodName, groupId);
                 _logger.LogDebug("Sent {MethodName} to {Count} MagicOnion clients in group {GroupId}",
                     methodName, magicOnionConnections.Count, groupId);
             }

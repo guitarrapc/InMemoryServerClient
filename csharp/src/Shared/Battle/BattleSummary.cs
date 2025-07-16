@@ -3,6 +3,7 @@
 /// <summary>
 /// Battle summary information
 /// </summary>
+[MessagePackObject(true)]
 public readonly struct BattleSummary
 {
     /// <summary>

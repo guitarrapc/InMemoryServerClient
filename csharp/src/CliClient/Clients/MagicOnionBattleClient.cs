@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Shared.Battle;
 using Shared.Constants;
 using Shared.Contracts;
-using Shared.Contracts.MagicOnion;
+using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Grpc.Net.Client;
 using System.Diagnostics.CodeAnalysis;
@@ -13,10 +13,10 @@ namespace CliClient.Clients;
 /// <summary>
 /// MagicOnion implementation of IInMemoryServerClient
 /// </summary>
-internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAsyncDisposable
+public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceiver, IAsyncDisposable
 {
     private readonly ILogger<MagicOnionBattleClient> _logger;
-    private IInMemoryHub? _hub;
+    private IMagicOnionBattleHub? _hub;
     private GrpcChannel? _channel;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
@@ -77,7 +77,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
             });
 
             // Connect to the streaming hub
-            _hub = await StreamingHubClient.ConnectAsync<IInMemoryHub, IInMemoryHubReceiver>(_channel, this);
+            _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this);
 
             _logger.LogInformation("Connected to MagicOnion server");
 
@@ -91,6 +91,47 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to connect to MagicOnion server");
+            await DisconnectAsync();
+            return false;
+        }
+    }
+
+    public async Task<bool> ConnectAsync(string serverUrl, HttpMessageHandler httpHandler, string? groupName = null)
+    {
+        if (_hub != null && IsConnected)
+        {
+            _logger.LogInformation("Already connected to server, disconnecting first");
+            await DisconnectAsync();
+        }
+
+        _serverUrl = serverUrl;
+
+        try
+        {
+            _logger.LogInformation("Connecting to MagicOnion test server: {ServerUrl}", serverUrl);
+
+            // Create gRPC channel with test server handler
+            _channel = GrpcChannel.ForAddress(serverUrl, new GrpcChannelOptions
+            {
+                HttpHandler = httpHandler,
+                UnsafeUseInsecureChannelCallCredentials = serverUrl.StartsWith("http://"),
+            });
+
+            // Connect to the streaming hub
+            _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this);
+
+            _logger.LogInformation("Connected to MagicOnion test server");
+
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                await JoinGroupAsync(groupName);
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to connect to MagicOnion test server");
             await DisconnectAsync();
             return false;
         }
@@ -285,22 +326,22 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
     }
 
     // IInMemoryHubReceiver implementation
-    void IInMemoryHubReceiver.OnKeyChanged(string key, string value)
+    void IMagicOnionBattleHubReceiver.OnKeyChanged(string key, string value)
     {
         OnKeyChanged?.Invoke(key, value);
     }
 
-    void IInMemoryHubReceiver.OnKeyDeleted(string key)
+    void IMagicOnionBattleHubReceiver.OnKeyDeleted(string key)
     {
         OnKeyDeleted?.Invoke(key);
     }
 
-    void IInMemoryHubReceiver.OnGroupMessage(string senderId, string message)
+    void IMagicOnionBattleHubReceiver.OnGroupMessage(string senderId, string message)
     {
         OnGroupMessage?.Invoke(senderId, message);
     }
 
-    void IInMemoryHubReceiver.OnMemberJoined(MemberJoinedData data)
+    void IMagicOnionBattleHubReceiver.OnMemberJoined(MemberJoinedData data)
     {
         _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}",
             data.ConnectionId, data.GroupName);
@@ -313,7 +354,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         OnMemberJoined?.Invoke(data);
     }
 
-    void IInMemoryHubReceiver.OnMemberLeft(MemberLeftData data)
+    void IMagicOnionBattleHubReceiver.OnMemberLeft(MemberLeftData data)
     {
         _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}",
             data.ConnectionId, data.GroupName);
@@ -322,7 +363,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         OnMemberLeft?.Invoke(data);
     }
 
-    void IInMemoryHubReceiver.OnConnectionsReady(ConnectionsReadyData data)
+    void IMagicOnionBattleHubReceiver.OnConnectionsReady(ConnectionsReadyData data)
     {
         _logger.LogInformation("[BATTLE] ========== Connections Ready! ==========");
         _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", data.BattleId);
@@ -349,7 +390,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         });
     }
 
-    void IInMemoryHubReceiver.OnBattleStarted(BattleStartedData data)
+    void IMagicOnionBattleHubReceiver.OnBattleStarted(BattleStartedData data)
     {
         _logger.LogInformation("[BATTLE] ========== Battle Started! ==========");
         _logger.LogInformation("[BATTLE] 🏆 Battle ID: {BattleId}", data.BattleId);
@@ -358,7 +399,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         OnBattleStarted?.Invoke(data);
     }
 
-    void IInMemoryHubReceiver.OnBattleReplayData(BattleReplayData replayData)
+    void IMagicOnionBattleHubReceiver.OnBattleReplayData(BattleReplayData replayData)
     {
         _ = Task.Run(async () =>
         {
@@ -386,13 +427,13 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         });
     }
 
-    void IInMemoryHubReceiver.OnBattleCompleted(BattleStatus battleStatus)
+    void IMagicOnionBattleHubReceiver.OnBattleCompleted(BattleStatus battleStatus)
     {
         _logger.LogInformation("[BATTLE] Battle completed!");
         // Battle completion is handled in the replay playback
     }
 
-    void IInMemoryHubReceiver.OnGroupDissolved(GroupDissolvedData data)
+    void IMagicOnionBattleHubReceiver.OnGroupDissolved(GroupDissolvedData data)
     {
         _logger.LogWarning("[GROUP] ❌ Group dissolved! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
         _logger.LogWarning("[GROUP] 📄 Reason: {Reason}", data.Reason);
@@ -400,7 +441,7 @@ internal class MagicOnionBattleClient : IBattleClient, IInMemoryHubReceiver, IAs
         OnGroupDissolved?.Invoke(data);
     }
 
-    void IInMemoryHubReceiver.OnGroupExtended(GroupExtendedData data)
+    void IMagicOnionBattleHubReceiver.OnGroupExtended(GroupExtendedData data)
     {
         _logger.LogInformation("[GROUP] ⏰ Group extended! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
         _logger.LogInformation("[GROUP] 🔄 Extension count: {ExtensionCount}/{MaxExtensions}", data.ExtensionCount, data.MaxExtensions);

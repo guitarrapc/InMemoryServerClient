@@ -1,5 +1,5 @@
 ﻿using Cysharp.Runtime.Multicast;
-using Shared.Contracts.MagicOnion;
+using Shared.Contracts.Http2Server;
 
 namespace InMemoryServer.Services;
 
@@ -11,7 +11,7 @@ public class MagicOnionGroupService : IDisposable
 {
     private readonly ILogger<MagicOnionGroupService> logger;
     private readonly IMulticastGroupProvider groupProvider;
-    private readonly Dictionary<string, IMulticastSyncGroup<Guid, IInMemoryHubReceiver>> _groups = new();
+    private readonly Dictionary<string, IMulticastSyncGroup<Guid, IMagicOnionBattleHubReceiver>> _groups = new();
     private readonly Lock _lock = new();
 
     public MagicOnionGroupService(IMulticastGroupProvider groupProvider, ILogger<MagicOnionGroupService> logger)
@@ -23,13 +23,13 @@ public class MagicOnionGroupService : IDisposable
     /// <summary>
     /// Get or create a group for the specified group ID
     /// </summary>
-    public IMulticastSyncGroup<Guid, IInMemoryHubReceiver> GetOrCreateGroup(string groupId)
+    public IMulticastSyncGroup<Guid, IMagicOnionBattleHubReceiver> GetOrCreateGroup(string groupId)
     {
         lock (_lock)
         {
             if (!_groups.TryGetValue(groupId, out var group))
             {
-                group = groupProvider.GetOrAddSynchronousGroup<Guid, IInMemoryHubReceiver>(groupId);
+                group = groupProvider.GetOrAddSynchronousGroup<Guid, IMagicOnionBattleHubReceiver>(groupId);
                 _groups[groupId] = group;
                 logger.LogInformation("Created new MagicOnion group: {GroupId}", groupId);
             }
@@ -40,7 +40,7 @@ public class MagicOnionGroupService : IDisposable
     /// <summary>
     /// Add a client to a group
     /// </summary>
-    public void AddClientToGroup(string groupId, Guid connectionId, IInMemoryHubReceiver client)
+    public void AddClientToGroup(string groupId, Guid connectionId, IMagicOnionBattleHubReceiver client)
     {
         var group = GetOrCreateGroup(groupId);
         group.Add(connectionId, client);
@@ -65,15 +65,35 @@ public class MagicOnionGroupService : IDisposable
     /// <summary>
     /// Send a message to all clients in a group
     /// </summary>
-    public void SendToAll(string groupId, Action<IInMemoryHubReceiver> action)
+    public void SendToAll(string groupId, Action<IMagicOnionBattleHubReceiver> action)
     {
+        logger.LogInformation("MagicOnionGroupService.SendToAll called for group {GroupId}", groupId);
         lock (_lock)
         {
             if (_groups.TryGetValue(groupId, out var group))
             {
-                action(group.All);
+                logger.LogInformation("MagicOnionGroupService.SendToAll group found for group {GroupId}, calling action", groupId);
+
+                // Execute the action asynchronously to avoid potential deadlocks
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        action(group.All);
+                        logger.LogInformation("MagicOnionGroupService.SendToAll action completed for group {GroupId}", groupId);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "MagicOnionGroupService.SendToAll action failed for group {GroupId}", groupId);
+                    }
+                });
+            }
+            else
+            {
+                logger.LogWarning("MagicOnionGroupService.SendToAll group not found for group {GroupId}", groupId);
             }
         }
+        logger.LogInformation("MagicOnionGroupService.SendToAll exiting for group {GroupId}", groupId);
     }
 
     /// <summary>

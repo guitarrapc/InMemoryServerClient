@@ -3,6 +3,7 @@
 /// <summary>
 /// Group summary information
 /// </summary>
+[MessagePackObject(true)]
 public readonly struct GroupSummary
 {
     /// <summary>
