@@ -191,8 +191,19 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             MaxMembers = SystemDefines.MaxConnectionsPerGroup
         };
         logger.LogInformation("MagicOnion calling NotifyGroupAsync for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
-        await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "MemberJoined", memberJoinedData);
-        logger.LogInformation("MagicOnion NotifyGroupAsync completed for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "MemberJoined", memberJoinedData);
+                logger.LogInformation("MagicOnion NotifyGroupAsync completed for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "MagicOnion NotifyGroupAsync failed for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
+            }
+        });
+        logger.LogInformation("MagicOnion NotifyGroupAsync task started (fire-and-forget) for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
 
         // Check if group is full and battle should start
         if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))

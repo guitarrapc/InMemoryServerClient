@@ -74,19 +74,16 @@ public class MagicOnionGroupService : IDisposable
             {
                 logger.LogInformation("MagicOnionGroupService.SendToAll group found for group {GroupId}, calling action", groupId);
 
-                // Execute the action asynchronously to avoid potential deadlocks
-                Task.Run(() =>
+                try
                 {
-                    try
-                    {
-                        action(group.All);
-                        logger.LogInformation("MagicOnionGroupService.SendToAll action completed for group {GroupId}", groupId);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "MagicOnionGroupService.SendToAll action failed for group {GroupId}", groupId);
-                    }
-                });
+                    // Call action directly - MagicOnion StreamingHub requires synchronous calls
+                    action(group.All);
+                    logger.LogInformation("MagicOnionGroupService.SendToAll action completed for group {GroupId}", groupId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "MagicOnionGroupService.SendToAll action failed for group {GroupId}", groupId);
+                }
             }
             else
             {
