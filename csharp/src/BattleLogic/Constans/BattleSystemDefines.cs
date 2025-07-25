@@ -148,12 +148,12 @@ public static class BattleSystemDefines
     /// <summary>
     /// Minimum battle turns
     /// </summary>
-    public const int MinBattleTurns = 100;
+    public const int MinBattleTurns = 300;
 
     /// <summary>
     /// Maximum battle turns
     /// </summary>
-    public const int MaxBattleTurns = 300;
+    public const int MaxBattleTurns = 500;
 
     /// <summary>
     /// Battle replay frames per second
