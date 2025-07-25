@@ -1,11 +1,12 @@
 ﻿using BattleLogic.Constants;
+using BattleLogic.Models;
 
 namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles combat calculations and damage processing
 /// </summary>
-internal class BattleCombat(Random random, BattleField battleField, BattleUtilities utilities)
+internal class BattleCombat(Random random, BattleField battleField, BattleUtilities utilities, DamageCalculationFormula damageFormula)
 {
     /// <summary>
     /// Execute attack between entities
@@ -61,7 +62,7 @@ internal class BattleCombat(Random random, BattleField battleField, BattleUtilit
     private (int damage, bool isCriticalHit) CalculateDamage(int attackPower, int defensePower, int criticalRate, bool isDefending)
     {
         return DamageCalculationService.CalculateDamage(
-            BattleSystemDefines.CurrentDamageFormula,
+            damageFormula,
             attackPower,
             defensePower,
             criticalRate,

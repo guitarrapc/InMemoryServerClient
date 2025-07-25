@@ -36,4 +36,12 @@ internal static class TestHelpers
     {
         return new BattleState(battleId, seed, group, logger, CreateMemoryReplayWriterFactory(loggerFactory));
     }
+
+    /// <summary>
+    /// Creates a BattleState instance for testing with specific damage formula
+    /// </summary>
+    public static BattleState CreateBattleState(Guid battleId, int seed, IBattleGroupContext group, ILogger<BattleState> logger, ILoggerFactory loggerFactory, DamageCalculationFormula damageFormula)
+    {
+        return new BattleState(battleId, seed, group, logger, CreateMemoryReplayWriterFactory(loggerFactory), damageFormula);
+    }
 }

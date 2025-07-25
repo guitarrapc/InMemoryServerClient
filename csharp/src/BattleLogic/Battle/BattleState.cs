@@ -72,7 +72,7 @@ public class BattleState
     /// </summary>
     public DateTime StartTime { get; } = DateTime.UtcNow;
 
-    public BattleState(Guid battleId, int seed, IBattleGroupContext group, ILogger<BattleState> logger, BattleReplayWriterFactory replayWriterFactory)
+    public BattleState(Guid battleId, int seed, IBattleGroupContext group, ILogger<BattleState> logger, BattleReplayWriterFactory replayWriterFactory, DamageCalculationFormula? damageFormula = null)
     {
         _battleId = battleId;
         _seed = seed;
@@ -83,9 +83,12 @@ public class BattleState
         // Create battle seed with combined BattleId + seed for true deterministic behavior
         _battleSeed = new BattleSeed(battleId, seed);
 
+        // Use provided damage formula or fall back to system default
+        var selectedDamageFormula = damageFormula ?? BattleSystemDefines.CurrentDamageFormula;
+
         // Log both battle ID and seed for reproducibility
-        _logger.LogInformation("Battle initialized - BattleId: {BattleId}, UserSeed: {UserSeed}, DeterministicSeed: {DeterministicSeed}",
-            battleId, seed, _battleSeed.DeterministicSeed);
+        _logger.LogInformation("Battle initialized - BattleId: {BattleId}, UserSeed: {UserSeed}, DeterministicSeed: {DeterministicSeed}, DamageFormula: {DamageFormula}",
+            battleId, seed, _battleSeed.DeterministicSeed, selectedDamageFormula);
 
         // Initialize battle components with deterministic random
         _battleField = new BattleField(_battleSeed.Random);
@@ -93,7 +96,7 @@ public class BattleState
         _battleInitializer = new BattleInitializer(_battleSeed);
         _battleAI = new BattleAI(_battleUtilities, logger);
         _battleMovement = new BattleMovement(_battleSeed.Random, _battleField, _battleUtilities);
-        _battleCombat = new BattleCombat(_battleSeed.Random, _battleField, _battleUtilities);
+        _battleCombat = new BattleCombat(_battleSeed.Random, _battleField, _battleUtilities, selectedDamageFormula);
 
         // Store client IDs from the group
         foreach (var clientId in group.ClientIds)

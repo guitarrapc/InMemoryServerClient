@@ -1,5 +1,5 @@
 ﻿using BattleLogic.Constants;
-using static BattleLogic.Constants.BattleSystemDefines;
+using BattleLogic.Models;
 
 namespace BattleLogic.Services;
 

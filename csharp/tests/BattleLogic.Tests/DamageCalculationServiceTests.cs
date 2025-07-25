@@ -1,5 +1,4 @@
 ﻿using BattleLogic.Services;
-using static BattleLogic.Constants.BattleSystemDefines;
 
 namespace BattleLogic.Tests;
 
