@@ -52,6 +52,11 @@ public static class BattleSystemDefines
     /// </summary>
     public static readonly StatusRange PlayerEvasion = new(15, 30);
 
+    /// <summary>
+    /// Critical hit rate range for player (base 1%)
+    /// </summary>
+    public static readonly StatusRange PlayerCriticalRate = new(1, 1);
+
     // Enemy Status
     // Enemies get slightly weaker stats for balance
 
@@ -113,6 +118,16 @@ public static class BattleSystemDefines
         { EnemySize.Small, new (20, 30) },   // 高回避
         { EnemySize.Medium, new (13, 20) },  // 中回避
         { EnemySize.Large, new (10, 20) },   // 低回避
+    };
+
+    /// <summary>
+    /// Critical hit rate for enemy (large enemies have higher critical rate)
+    /// </summary>
+    public static readonly Dictionary<EnemySize, StatusRange> EnemyCriticalRate = new Dictionary<EnemySize, StatusRange>
+    {
+        { EnemySize.Small, new (1, 1) },   // 低クリティカル攻撃率
+        { EnemySize.Medium, new (3, 5) },  // 中クリティカル攻撃率
+        { EnemySize.Large, new (8, 8) },   // 高クリティカル攻撃率
     };
 
     /// <summary>
@@ -188,12 +203,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 0.7f,
                 AccuracyMultiplier = 0.9f,  // タンクは命中率がやや低い
                 EvasionMultiplier = 0.6f,   // タンクは低回避率（重装備）
+                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
                 HpBonus = 80,
                 AttackBonus = 0,
                 DefenseBonus = 10,
                 SpeedBonus = -1,
                 AccuracyBonus = -5,
-                EvasionBonus = -10
+                EvasionBonus = -10,
+                CriticalRateBonus = 2
             }
         },
         {
@@ -206,12 +223,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 1.2f,
                 AccuracyMultiplier = 1.0f,  // ウォリアーは標準的な命中率
                 EvasionMultiplier = 1.0f,   // ウォリアーは標準的な回避率
+                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
                 HpBonus = 50,
                 AttackBonus = 10,
                 DefenseBonus = 0,
                 SpeedBonus = 1,
                 AccuracyBonus = 5,
-                EvasionBonus = 0
+                EvasionBonus = 0,
+                CriticalRateBonus = 2
             }
         },
         {
@@ -224,12 +243,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 0.9f,
                 AccuracyMultiplier = 1.2f,  // メイジは高い命中率（魔法の精密性）
                 EvasionMultiplier = 0.8f,   // メイジは低い回避率（運動性が低い）
+                CriticalRateMultiplier = 1.0f, // 魔法のクリティカル攻撃率は低く1%
                 HpBonus = -30,
                 AttackBonus = 8,
                 DefenseBonus = -5,
                 SpeedBonus = 0,
                 AccuracyBonus = 10,
-                EvasionBonus = -15
+                EvasionBonus = -15,
+                CriticalRateBonus = 0
             }
         },
         {
@@ -242,12 +263,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 1.4f,
                 AccuracyMultiplier = 1.3f,  // アーチャーは最高の命中率（弓術の精度）
                 EvasionMultiplier = 1.5f,   // アーチャーは最高の回避率（機動性重視）
+                CriticalRateMultiplier = 10.0f, // シーフ系のクリティカル攻撃率は高く10%
                 HpBonus = -10,
                 AttackBonus = 3,
                 DefenseBonus = -2,
                 SpeedBonus = 1,
                 AccuracyBonus = 15,
-                EvasionBonus = 10
+                EvasionBonus = 10,
+                CriticalRateBonus = 9
             }
         }
     };
@@ -267,12 +290,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 1.0f,
                 AccuracyMultiplier = 1.0f,  // ブルーザーは標準的な命中率
                 EvasionMultiplier = 1.0f,    // ブルーザーは標準的な回避率
+                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
                 HpBonus = 30,
                 AttackBonus = 6,
                 DefenseBonus = 1,
                 SpeedBonus = 0,
                 AccuracyBonus = 0,
-                EvasionBonus = 0
+                EvasionBonus = 0,
+                CriticalRateBonus = 2
             }
         },
         {
@@ -285,12 +310,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 0.6f,
                 AccuracyMultiplier = 0.85f,  // ガーディアンは低い命中率（重装備のため）
                 EvasionMultiplier = 0.6f,    // ガーディアンは最低回避率（重装備）
+                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
                 HpBonus = 100,
                 AttackBonus = -2,
                 DefenseBonus = 20,
                 SpeedBonus = -1,
                 AccuracyBonus = -8,
-                EvasionBonus = -10
+                EvasionBonus = -10,
+                CriticalRateBonus = 2
             }
         },
         {
@@ -303,12 +330,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 1.2f,
                 AccuracyMultiplier = 1.15f,  // アサシンは高い命中率（精密攻撃）
                 EvasionMultiplier = 1.4f,    // アサシンは高い回避率（機動性）
+                CriticalRateMultiplier = 10.0f, // シーフ系のクリティカル攻撃率は高く10%
                 HpBonus = -30,
                 AttackBonus = 6,
                 DefenseBonus = -4,
                 SpeedBonus = 1,
                 AccuracyBonus = 8,
-                EvasionBonus = 12
+                EvasionBonus = 12,
+                CriticalRateBonus = 9
             }
         },
         {
@@ -321,12 +350,14 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 0.9f,
                 AccuracyMultiplier = 1.1f,   // キャスターは高い命中率（魔法の精度）
                 EvasionMultiplier = 0.9f,    // キャスターは少し低い回避率（運動性低め）
+                CriticalRateMultiplier = 1.0f, // 魔法のクリティカル攻撃率は低く1%
                 HpBonus = -20,
                 AttackBonus = 9,
                 DefenseBonus = -3,
                 SpeedBonus = 0,
                 AccuracyBonus = 5,
-                EvasionBonus = -2
+                EvasionBonus = -2,
+                CriticalRateBonus = 0
             }
         }
     };

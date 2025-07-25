@@ -32,6 +32,15 @@ internal class BattleCombat(Random random, BattleField battleField, BattleUtilit
         // Attack hits - Calculate damage
         int damage = Math.Max(1, attackerAttack - (target.IsDefending ? targetDefense * 2 : targetDefense) / 2);
 
+        // Critical hit check
+        bool isCriticalHit = false;
+        int criticalRoll = random.Next(1, 101); // 1-100の乱数
+        if (criticalRoll <= attacker.CriticalRate)
+        {
+            isCriticalHit = true;
+            damage *= 2; // クリティカルヒットで攻撃力2倍（防御貫通はしない）
+        }
+
         // Apply damage reduction if target is defending
         if (target.IsDefending)
         {
@@ -44,7 +53,8 @@ internal class BattleCombat(Random random, BattleField battleField, BattleUtilit
         utilities.UpdateEntityHp(target, newHp, players, enemies);
 
         // Log the attack
-        battleLogs.Add($"{attacker.Name} attacks {target.Name} for {damage} damage! (ATK: {attackerAttack}, DEF: {targetDefense})" + (target.IsDefending ? " (Reduced by defense)" : ""));
+        var criticalText = isCriticalHit ? " [CRITICAL HIT!]" : "";
+        battleLogs.Add($"{attacker.Name} attacks {target.Name} for {damage} damage! (ATK: {attackerAttack}, DEF: {targetDefense}){criticalText}" + (target.IsDefending ? " (Reduced by defense)" : ""));
 
         if (newHp <= 0)
         {

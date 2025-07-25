@@ -134,7 +134,9 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             // Check if attack can potentially defeat the enemy
             int estimatedDamage = Math.Max(1, entity.Attack - adjacentTarget.Value.Defense / 2);
             var finalHitChance = Math.Max(0, entity.Accuracy - adjacentTarget.Value.Evasion);
-            float expectedDamage = estimatedDamage * (finalHitChance / 100.0f);
+            // Factor in critical hit chance for expected damage calculation
+            float criticalMultiplier = 1.0f + (entity.CriticalRate / 100.0f); // Expected damage includes critical hits
+            float expectedDamage = estimatedDamage * (finalHitChance / 100.0f) * criticalMultiplier;
 
             if (adjacentTarget.Value.IsDefending)
             {

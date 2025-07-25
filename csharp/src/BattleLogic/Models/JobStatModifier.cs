@@ -36,6 +36,11 @@ public readonly record struct JobStatModifier
     public float EvasionMultiplier { get; init; }
 
     /// <summary>
+    /// Critical rate multiplier
+    /// </summary>
+    public float CriticalRateMultiplier { get; init; }
+
+    /// <summary>
     /// HP bonus (flat addition)
     /// </summary>
     public int HpBonus { get; init; }
@@ -64,4 +69,9 @@ public readonly record struct JobStatModifier
     /// Evasion bonus (flat addition)
     /// </summary>
     public int EvasionBonus { get; init; }
+
+    /// <summary>
+    /// Critical rate bonus (flat addition)
+    /// </summary>
+    public int CriticalRateBonus { get; init; }
 }

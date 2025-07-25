@@ -20,7 +20,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
             var player = CreatePlayer(i);
             players.Add(player);
 
-            battleLogs.Add($"{player.Name} (Job: {player.PlayerJob}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%, EVA: {player.Evasion}%");
+            battleLogs.Add($"{player.Name} (Job: {player.PlayerJob}) - HP: {player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, ACC: {player.Accuracy}%, EVA: {player.Evasion}%, CRIT: {player.CriticalRate}%");
         }
 
         return players;
@@ -41,7 +41,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
             var enemy = CreateEnemy(i, enemySizes);
             enemies.Add(enemy);
 
-            battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%, EVA: {enemy.Evasion}%");
+            battleLogs.Add($"{enemy.Name} (Job: {enemy.EnemyJob}) - HP: {enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, ACC: {enemy.Accuracy}%, EVA: {enemy.Evasion}%, CRIT: {enemy.CriticalRate}%");
         }
 
         return enemies;
@@ -64,6 +64,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
         var baseSpeed = battleSeed.Random.Next(BattleSystemDefines.PlayerMoveSpeed.Min, BattleSystemDefines.PlayerMoveSpeed.Max);
         var baseAccuracy = battleSeed.Random.Next(BattleSystemDefines.PlayerAccuracy.Min, BattleSystemDefines.PlayerAccuracy.Max);
         var baseEvasion = battleSeed.Random.Next(BattleSystemDefines.PlayerEvasion.Min, BattleSystemDefines.PlayerEvasion.Max);
+        var baseCriticalRate = battleSeed.Random.Next(BattleSystemDefines.PlayerCriticalRate.Min, BattleSystemDefines.PlayerCriticalRate.Max);
 
         // Apply job modifiers
         var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -72,6 +73,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
         var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
         var modifiedAccuracy = Math.Max(0, (int)(baseAccuracy * jobModifier.AccuracyMultiplier) + jobModifier.AccuracyBonus);
         var modifiedEvasion = Math.Max(0, (int)(baseEvasion * jobModifier.EvasionMultiplier) + jobModifier.EvasionBonus);
+        var modifiedCriticalRate = Math.Max(0, (int)(baseCriticalRate * jobModifier.CriticalRateMultiplier) + jobModifier.CriticalRateBonus);
 
         return new EntityInfo
         {
@@ -87,6 +89,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
             Speed = modifiedSpeed,
             Accuracy = modifiedAccuracy,
             Evasion = modifiedEvasion,
+            CriticalRate = modifiedCriticalRate,
             Position = Vector2.Zero,
             IsDefending = false
         };
@@ -111,6 +114,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
         var baseSpeed = battleSeed.Random.Next(BattleSystemDefines.EnemyMoveSpeed[enemySize].Min, BattleSystemDefines.EnemyMoveSpeed[enemySize].Max);
         var baseAccuracy = battleSeed.Random.Next(BattleSystemDefines.EnemyAccuracy[enemySize].Min, BattleSystemDefines.EnemyAccuracy[enemySize].Max);
         var baseEvasion = battleSeed.Random.Next(BattleSystemDefines.EnemyEvasion[enemySize].Min, BattleSystemDefines.EnemyEvasion[enemySize].Max);
+        var baseCriticalRate = battleSeed.Random.Next(BattleSystemDefines.EnemyCriticalRate[enemySize].Min, BattleSystemDefines.EnemyCriticalRate[enemySize].Max);
 
         // Apply job modifiers
         var modifiedMaxHp = Math.Max(1, (int)(baseMaxHp * jobModifier.HpMultiplier) + jobModifier.HpBonus);
@@ -119,6 +123,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
         var modifiedSpeed = Math.Max(1, (int)(baseSpeed * jobModifier.SpeedMultiplier) + jobModifier.SpeedBonus);
         var modifiedAccuracy = Math.Max(0, (int)(baseAccuracy * jobModifier.AccuracyMultiplier) + jobModifier.AccuracyBonus);
         var modifiedEvasion = Math.Max(0, (int)(baseEvasion * jobModifier.EvasionMultiplier) + jobModifier.EvasionBonus);
+        var modifiedCriticalRate = Math.Max(0, (int)(baseCriticalRate * jobModifier.CriticalRateMultiplier) + jobModifier.CriticalRateBonus);
 
         // Create entity type info based on enemy size
         var entityTypeInfo = enemySize switch
@@ -143,6 +148,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
             Speed = modifiedSpeed,
             Accuracy = modifiedAccuracy,
             Evasion = modifiedEvasion,
+            CriticalRate = modifiedCriticalRate,
             Position = Vector2.Zero,
             IsDefending = false
         };

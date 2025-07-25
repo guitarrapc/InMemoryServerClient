@@ -72,6 +72,11 @@ public readonly record struct EntityInfo
     public required int Evasion { get; init; }
 
     /// <summary>
+    /// Critical hit rate (0-100)
+    /// </summary>
+    public required int CriticalRate { get; init; }
+
+    /// <summary>
     /// Position on the battle field
     /// </summary>
     public required Vector2 Position { get; init; }
