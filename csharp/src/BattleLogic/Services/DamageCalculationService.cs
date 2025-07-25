@@ -130,13 +130,13 @@ public static class DamageCalculationService
 
     /// <summary>
     /// Dragon Quest formula: (Attack/2 - Defense/4) + random variance
-    /// Classic JRPG formula with significant random damage variance
+    /// Classic JRPG formula with random damage variance
     /// </summary>
     private static int CalculateDragonQuestDamage(int attackPower, int defensePower, Random random)
     {
         int baseDamage = attackPower / 2 - defensePower / 4;
-        // Dragon Quest style random variance: ±25% of attack power
-        int maxVariance = attackPower / 4;
+        // Dragon Quest style random variance: ±10% of attack power
+        int maxVariance = attackPower / 10;
         int variance = random.Next(-maxVariance, maxVariance + 1);
         return Math.Max(1, baseDamage + variance);
     }

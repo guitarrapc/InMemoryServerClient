@@ -159,8 +159,8 @@ public class DamageCalculationServiceTests(ITestOutputHelper output)
         // Assert
         Assert.False(isCriticalHit);
         Assert.True(damage >= 1);
-        // Base: 17, with ±25% of attack (±10) variance, should be around 7-27
-        Assert.True(damage > 5 && damage < 35, $"Expected damage in reasonable range for Dragon Quest formula, got {damage}");
+        // Base: 17, with ±10% of attack (±4) variance, should be around 13-21
+        Assert.True(damage > 10 && damage < 25, $"Expected damage in reasonable range for Dragon Quest formula, got {damage}");
     }
 
     [Fact]
@@ -191,8 +191,8 @@ public class DamageCalculationServiceTests(ITestOutputHelper output)
         _output.WriteLine($"  Avg Damage: {avgDamage:F1}");
         _output.WriteLine($"  Variance Range: {maxDamage - minDamage}");
 
-        // Dragon Quest should have significant variance
-        Assert.True(maxDamage - minDamage > 10, "Dragon Quest formula should have significant damage variance");
+        // Dragon Quest should have variance but not as extreme as before (±10% instead of ±25%)
+        Assert.True(maxDamage - minDamage > 5, "Dragon Quest formula should have damage variance");
         Assert.True(minDamage >= 1, "Minimum damage should be at least 1");
     }
 
