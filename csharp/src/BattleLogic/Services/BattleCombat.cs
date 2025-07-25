@@ -30,23 +30,7 @@ internal class BattleCombat(Random random, BattleField battleField, BattleUtilit
         }
 
         // Attack hits - Calculate damage
-        int damage = Math.Max(1, attackerAttack - (target.IsDefending ? targetDefense * 2 : targetDefense) / 2);
-
-        // Critical hit check
-        bool isCriticalHit = false;
-        int criticalRoll = random.Next(1, 101); // 1-100の乱数
-        if (criticalRoll <= attacker.CriticalRate)
-        {
-            isCriticalHit = true;
-            damage *= 2; // クリティカルヒットで攻撃力2倍（防御貫通はしない）
-        }
-
-        // Apply damage reduction if target is defending
-        if (target.IsDefending)
-        {
-            damage = damage * (100 - BattleSystemDefines.DefenseDamageReductionPercent) / 100;
-            damage = Math.Max(1, damage); // Minimum 1 damage
-        }
+        var (damage, isCriticalHit) = CalculateDamage(attackerAttack, targetDefense, attacker.CriticalRate, target.IsDefending);
 
         // Apply damage
         int newHp = Math.Max(0, target.CurrentHp - damage);
@@ -64,6 +48,39 @@ internal class BattleCombat(Random random, BattleField battleField, BattleUtilit
         {
             battleLogs.Add($"{target.Name} has {newHp}/{target.MaxHp} HP remaining.");
         }
+    }
+
+    /// <summary>
+    /// Calculate damage including critical hit and defense calculations
+    /// </summary>
+    /// <param name="attackPower">Attacker's attack power (after flavor)</param>
+    /// <param name="defensePower">Target's defense power (after flavor)</param>
+    /// <param name="criticalRate">Attacker's critical hit rate</param>
+    /// <param name="isDefending">Whether target is defending</param>
+    /// <returns>Calculated damage and whether it was a critical hit</returns>
+    private (int damage, bool isCriticalHit) CalculateDamage(int attackPower, int defensePower, int criticalRate, bool isDefending)
+    {
+        // Basic damage calculation: Attack - Defense
+        int baseDamage = Math.Max(1, attackPower - (isDefending ? defensePower * 2 : defensePower) / 2);
+
+        // Critical hit check
+        bool isCriticalHit = false;
+        int criticalRoll = random.Next(1, 101); // 1-100の乱数
+        if (criticalRoll <= criticalRate)
+        {
+            isCriticalHit = true;
+            baseDamage *= 2; // クリティカルヒットで攻撃力2倍（防御貫通はしない）
+        }
+
+        // Apply damage reduction if target is defending
+        int finalDamage = baseDamage;
+        if (isDefending)
+        {
+            finalDamage = finalDamage * (100 - BattleSystemDefines.DefenseDamageReductionPercent) / 100;
+            finalDamage = Math.Max(1, finalDamage); // Minimum 1 damage
+        }
+
+        return (finalDamage, isCriticalHit);
     }
 
     /// <summary>
