@@ -1,5 +1,4 @@
-﻿using MessagePack;
-using Shared.Contracts;
+﻿using Shared.Contracts;
 
 namespace Shared.Models;
 

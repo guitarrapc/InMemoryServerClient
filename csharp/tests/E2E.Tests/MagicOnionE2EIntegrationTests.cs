@@ -2,7 +2,6 @@
 using MagicOnion.Client;
 using Shared.Contracts.Http2Server;
 using Shared.Models;
-using Shared.Battle;
 
 namespace E2E.Tests;
 

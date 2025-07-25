@@ -1,6 +1,5 @@
-using BattleLogic.Constans;
-using BattleLogic.Services;
-using static BattleLogic.Constans.BattleSystemDefines;
+﻿using BattleLogic.Services;
+using static BattleLogic.Constants.BattleSystemDefines;
 
 namespace BattleLogic.Tests;
 

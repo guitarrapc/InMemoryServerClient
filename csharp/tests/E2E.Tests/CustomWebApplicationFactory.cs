@@ -60,6 +60,6 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.UseEnvironment("Testing");
 
         // Create directory for battle replays
-        Directory.CreateDirectory(BattleLogic.Constans.BattleSystemDefines.BattleReplayDirectory);
+        Directory.CreateDirectory(BattleLogic.Constants.BattleSystemDefines.BattleReplayDirectory);
     }
 }

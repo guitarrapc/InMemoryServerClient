@@ -1,4 +1,4 @@
-﻿using BattleLogic.Constans;
+﻿using BattleLogic.Constants;
 using BattleLogic.Models;
 
 namespace BattleLogic.Services;

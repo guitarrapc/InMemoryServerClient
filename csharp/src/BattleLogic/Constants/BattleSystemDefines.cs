@@ -1,6 +1,6 @@
 ﻿using BattleLogic.Models;
 
-namespace BattleLogic.Constans;
+namespace BattleLogic.Constants;
 
 public static class BattleSystemDefines
 {

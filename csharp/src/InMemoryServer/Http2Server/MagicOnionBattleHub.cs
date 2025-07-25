@@ -5,7 +5,7 @@ using Shared.Battle;
 using Shared.Constants;
 using BattleLogic.Battle;
 using BattleLogic.Models;
-using BattleLogic.Constans;
+using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Models;

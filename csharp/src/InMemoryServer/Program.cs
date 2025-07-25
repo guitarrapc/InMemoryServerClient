@@ -1,5 +1,5 @@
 ﻿using Shared.Constants;
-using BattleLogic.Constans;
+using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Http1Server;
