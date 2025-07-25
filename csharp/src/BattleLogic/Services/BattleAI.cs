@@ -10,6 +10,11 @@ namespace BattleLogic.Services;
 internal class BattleAI(BattleUtilities utilities, ILogger logger)
 {
     /// <summary>
+    /// Dictionary to track previous actions by entity ID
+    /// </summary>
+    private readonly Dictionary<Guid, string> _previousActions = new();
+
+    /// <summary>
     /// Decide what action an entity should take
     /// </summary>
     public (string action, EntityInfo? target) DecideAction(EntityInfo entity, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
@@ -20,7 +25,34 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
         var bestAction = possibleActions.OrderByDescending(a => a.Reward).First();
         logger.LogDebug("Entity {EntityName} chose {Action} with reward {Reward}", entity.Name, bestAction.Action, bestAction.Reward);
 
+        // Record the action for next turn's decision making
+        RecordAction(entity.EntityId, bestAction.Action);
+
         return (bestAction.Action, bestAction.TargetEntity);
+    }
+
+    /// <summary>
+    /// Record an entity's action for future reference
+    /// </summary>
+    private void RecordAction(Guid entityId, string action)
+    {
+        _previousActions[entityId] = action;
+    }
+
+    /// <summary>
+    /// Get the previous action of an entity
+    /// </summary>
+    private string? GetPreviousAction(Guid entityId)
+    {
+        return _previousActions.TryGetValue(entityId, out var action) ? action : null;
+    }
+
+    /// <summary>
+    /// Clear action history (call when battle ends)
+    /// </summary>
+    public void ClearActionHistory()
+    {
+        _previousActions.Clear();
     }
 
     /// <summary>
@@ -29,10 +61,11 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     private List<ActionReward> EvaluateAllActions(EntityInfo entity, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
     {
         var actions = new List<ActionReward>();
+        var previousAction = GetPreviousAction(entity.EntityId);
 
         EvaluateAttackAction(entity, actions, adjacentTarget, players, enemies);
-        EvaluateDefendAction(entity, actions, players, enemies, battleField);
-        EvaluateMoveAction(entity, actions, adjacentTarget, players, enemies);
+        EvaluateDefendAction(entity, actions, players, enemies, battleField, previousAction);
+        EvaluateMoveAction(entity, actions, adjacentTarget, players, enemies, previousAction);
 
         return actions;
     }
@@ -131,7 +164,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     /// <summary>
     /// Evaluate defend action
     /// </summary>
-    private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
+    private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
@@ -162,6 +195,14 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
         }
 
         float reward = 0.1f; // Very low base reward for defense
+
+        // MAJOR PENALTY for consecutive defense - significantly reduce stalemates
+        if (previousAction == "defend")
+        {
+            reward *= BattleAIDefines.ConsecutiveDefendPenalty; // Massive 95% reduction
+            actions.Add(new ActionReward("defend", reward));
+            return;
+        }
 
         // Increase reward if entity's HP is critically low
         float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
@@ -208,7 +249,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     /// <summary>
     /// Evaluate move action
     /// </summary>
-    private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies)
+    private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
@@ -228,20 +269,25 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         if (adjacentTarget != null)
         {
+            // MAJOR PENALTY for moving away from adjacent targets - avoid meaningless movement
             float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
             float enemyHpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
             if (isLastEnemy || isLastAlly)
             {
-                actions.Add(new ActionReward("move", 0.1f));
+                // If only one enemy/ally remains, strongly discourage movement from adjacent position
+                actions.Add(new ActionReward("move", 0.01f)); // Very low reward
             }
             else if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
             {
+                // Only allow movement if entity HP is low and enemy HP is high (retreat scenario)
                 actions.Add(new ActionReward("move", 3.0f));
             }
             else
             {
-                actions.Add(new ActionReward("move", 0.5f));
+                // Apply major penalty for moving away from adjacent targets
+                float moveReward = 0.5f * BattleAIDefines.AdjacentMovePenalty; // 90% reduction
+                actions.Add(new ActionReward("move", moveReward));
             }
             return;
         }

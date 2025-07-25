@@ -125,4 +125,18 @@ internal static class BattleAIDefines
     public const float LowHpEnemyMoveMultiplier = 3.0f;
 
     #endregion
+
+    #region 行動制限と禁止パターンの乗数
+
+    /// <summary>
+    /// 連続防御への大幅なペナルティ乗数
+    /// </summary>
+    public const float ConsecutiveDefendPenalty = 0.05f;
+
+    /// <summary>
+    /// 隣接状態からの移動への大幅なペナルティ乗数
+    /// </summary>
+    public const float AdjacentMovePenalty = 0.1f;
+
+    #endregion
 }

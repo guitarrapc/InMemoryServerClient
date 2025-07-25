@@ -282,6 +282,9 @@ public class BattleState
         _logger.LogInformation("Battle completed - BattleId: {BattleId}, UserSeed: {UserSeed}, DeterministicSeed: {DeterministicSeed} - Pre-computation completed in {Duration:F2} seconds", _battleId, _seed, _battleSeed.DeterministicSeed, duration.TotalSeconds);
         _logger.LogInformation("Battle finished - BattleId: {BattleId}, Seed: {Seed} - Processed {TurnCount} turns with final result: {Result}", _battleId, _seed, _currentTurn, _playerVictory ? "Victory" : "Defeat");
 
+        // Clear AI action history now that battle is complete
+        _battleAI.ClearActionHistory();
+
         // Store all turn data for client transmission
         _allTurnData = allTurnData;
     }
@@ -302,6 +305,9 @@ public class BattleState
     /// </summary>
     public void ClearBattleData()
     {
+        // Clear AI action history to free memory
+        _battleAI.ClearActionHistory();
+
         foreach (var turnData in _allTurnData)
         {
             turnData.Clear();

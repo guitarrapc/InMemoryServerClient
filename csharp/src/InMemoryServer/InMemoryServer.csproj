@@ -20,4 +20,8 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="battle_replay\" />
+  </ItemGroup>
+
 </Project>
