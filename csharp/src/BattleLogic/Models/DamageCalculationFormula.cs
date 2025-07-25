@@ -28,5 +28,11 @@ public enum DamageCalculationFormula
     /// <summary>
     /// Linear scaling: Attack * (1 - Defense / (Defense + 100))
     /// </summary>
-    LinearScaling
+    LinearScaling,
+
+    /// <summary>
+    /// Dragon Quest formula: (Attack/2 - Defense/4) + random variance
+    /// Classic JRPG formula with random damage variance
+    /// </summary>
+    DragonQuest
 }

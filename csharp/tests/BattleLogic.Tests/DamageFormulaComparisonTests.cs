@@ -61,6 +61,7 @@ public class DamageFormulaComparisonTests(ITestOutputHelper output)
     [InlineData(DamageCalculationFormula.SquareRoot)]
     [InlineData(DamageCalculationFormula.Logarithmic)]
     [InlineData(DamageCalculationFormula.LinearScaling)]
+    [InlineData(DamageCalculationFormula.DragonQuest)]
     public void TestIndividualFormula_ShouldProduceValidResults(DamageCalculationFormula formula)
     {
         // Arrange & Act

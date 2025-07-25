@@ -101,6 +101,7 @@ public class BattleFormulaWinRateTests(ITestOutputHelper output)
     [InlineData(DamageCalculationFormula.SquareRoot)]
     [InlineData(DamageCalculationFormula.Logarithmic)]
     [InlineData(DamageCalculationFormula.LinearScaling)]
+    [InlineData(DamageCalculationFormula.DragonQuest)]
     public async Task BattleFormula_IndividualFormulaTest_ShouldCompleteSuccessfully(DamageCalculationFormula formula)
     {
         // Arrange

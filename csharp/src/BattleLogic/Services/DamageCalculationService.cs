@@ -37,11 +37,12 @@ public static class DamageCalculationService
         // Calculate base damage using the specified formula
         int baseDamage = formula switch
         {
-            DamageCalculationFormula.Standard => CalculateStandardDamage(attackPower, defensePower),
-            DamageCalculationFormula.PercentageBased => CalculatePercentageBasedDamage(attackPower, defensePower),
-            DamageCalculationFormula.SquareRoot => CalculateSquareRootDamage(attackPower, defensePower),
-            DamageCalculationFormula.Logarithmic => CalculateLogarithmicDamage(attackPower, defensePower),
-            DamageCalculationFormula.LinearScaling => CalculateLinearScalingDamage(attackPower, defensePower),
+            DamageCalculationFormula.Standard => CalculateStandardDamage(attackPower, defensePower, random),
+            DamageCalculationFormula.PercentageBased => CalculatePercentageBasedDamage(attackPower, defensePower, random),
+            DamageCalculationFormula.SquareRoot => CalculateSquareRootDamage(attackPower, defensePower, random),
+            DamageCalculationFormula.Logarithmic => CalculateLogarithmicDamage(attackPower, defensePower, random),
+            DamageCalculationFormula.LinearScaling => CalculateLinearScalingDamage(attackPower, defensePower, random),
+            DamageCalculationFormula.DragonQuest => CalculateDragonQuestDamage(attackPower, defensePower, random),
             _ => throw new ArgumentOutOfRangeException(nameof(formula), formula, "Unknown damage calculation formula")
         };
 
@@ -62,57 +63,81 @@ public static class DamageCalculationService
     }
 
     /// <summary>
-    /// Standard formula: Attack - Defense/2, minimum 1 damage
+    /// Standard formula: (Attack - Defense/2) + random variance, minimum 1 damage
     /// </summary>
-    private static int CalculateStandardDamage(int attackPower, int defensePower)
+    private static int CalculateStandardDamage(int attackPower, int defensePower, Random random)
     {
-        return Math.Max(1, attackPower - defensePower / 2);
+        int baseDamage = attackPower - defensePower / 2;
+        // Add ±10% random variance
+        int variance = random.Next(-attackPower / 10, attackPower / 10 + 1);
+        return Math.Max(1, baseDamage + variance);
     }
 
     /// <summary>
-    /// Percentage-based formula: Attack * (100 - DefenseReduction%) / 100
+    /// Percentage-based formula: Attack * (100 - DefenseReduction%) / 100 + random variance
     /// Defense reduces damage by a percentage based on defense value
     /// </summary>
-    private static int CalculatePercentageBasedDamage(int attackPower, int defensePower)
+    private static int CalculatePercentageBasedDamage(int attackPower, int defensePower, Random random)
     {
         // Defense reduces damage by (Defense / 2)% up to maximum 80%
         int defenseReduction = Math.Min(80, defensePower / 2);
-        int damage = attackPower * (100 - defenseReduction) / 100;
-        return Math.Max(1, damage);
+        int baseDamage = attackPower * (100 - defenseReduction) / 100;
+        // Add ±8% random variance
+        int variance = random.Next(-baseDamage / 12, baseDamage / 12 + 1);
+        return Math.Max(1, baseDamage + variance);
     }
 
     /// <summary>
-    /// Square root formula: Attack - sqrt(Defense * AttackPower)
-    /// Non-linear defense scaling
+    /// Square root formula: Attack - sqrt(Defense * AttackPower) + random variance
+    /// Non-linear defense scaling with random variance
     /// </summary>
-    private static int CalculateSquareRootDamage(int attackPower, int defensePower)
+    private static int CalculateSquareRootDamage(int attackPower, int defensePower, Random random)
     {
         double defenseDamage = Math.Sqrt(defensePower * attackPower);
-        int damage = (int)(attackPower - defenseDamage);
-        return Math.Max(1, damage);
+        int baseDamage = (int)(attackPower - defenseDamage);
+        // Add ±12% random variance
+        int variance = random.Next(-attackPower / 8, attackPower / 8 + 1);
+        return Math.Max(1, baseDamage + variance);
     }
 
     /// <summary>
-    /// Logarithmic formula: Attack * log(Attack/Defense + 1)
-    /// High attack vs low defense gets bonus damage
+    /// Logarithmic formula: Attack * log(Attack/Defense + 1) + random variance
+    /// High attack vs low defense gets bonus damage with random variance
     /// </summary>
-    private static int CalculateLogarithmicDamage(int attackPower, int defensePower)
+    private static int CalculateLogarithmicDamage(int attackPower, int defensePower, Random random)
     {
         double ratio = Math.Max(0.1, attackPower / Math.Max(1, (double)defensePower));
         double multiplier = Math.Log(ratio + 1);
-        int damage = (int)(attackPower * multiplier);
-        return Math.Max(1, damage);
+        int baseDamage = (int)(attackPower * multiplier);
+        // Add ±15% random variance
+        int variance = random.Next(-baseDamage / 6, baseDamage / 6 + 1);
+        return Math.Max(1, baseDamage + variance);
     }
 
     /// <summary>
-    /// Linear scaling formula: Attack * (1 - Defense / (Defense + ScalingFactor))
-    /// Diminishing returns on defense
+    /// Linear scaling formula: Attack * (1 - Defense / (Defense + ScalingFactor)) + random variance
+    /// Diminishing returns on defense with random variance
     /// </summary>
-    private static int CalculateLinearScalingDamage(int attackPower, int defensePower)
+    private static int CalculateLinearScalingDamage(int attackPower, int defensePower, Random random)
     {
         const int scalingFactor = 100;
         double damageMultiplier = 1.0 - ((double)defensePower / (defensePower + scalingFactor));
-        int damage = (int)(attackPower * damageMultiplier);
-        return Math.Max(1, damage);
+        int baseDamage = (int)(attackPower * damageMultiplier);
+        // Add ±8% random variance
+        int variance = random.Next(-baseDamage / 12, baseDamage / 12 + 1);
+        return Math.Max(1, baseDamage + variance);
+    }
+
+    /// <summary>
+    /// Dragon Quest formula: (Attack/2 - Defense/4) + random variance
+    /// Classic JRPG formula with significant random damage variance
+    /// </summary>
+    private static int CalculateDragonQuestDamage(int attackPower, int defensePower, Random random)
+    {
+        int baseDamage = attackPower / 2 - defensePower / 4;
+        // Dragon Quest style random variance: ±25% of attack power
+        int maxVariance = attackPower / 4;
+        int variance = random.Next(-maxVariance, maxVariance + 1);
+        return Math.Max(1, baseDamage + variance);
     }
 }
