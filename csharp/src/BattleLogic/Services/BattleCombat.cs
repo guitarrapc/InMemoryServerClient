@@ -60,27 +60,13 @@ internal class BattleCombat(Random random, BattleField battleField, BattleUtilit
     /// <returns>Calculated damage and whether it was a critical hit</returns>
     private (int damage, bool isCriticalHit) CalculateDamage(int attackPower, int defensePower, int criticalRate, bool isDefending)
     {
-        // Basic damage calculation: Attack - Defense
-        int baseDamage = Math.Max(1, attackPower - (isDefending ? defensePower * 2 : defensePower) / 2);
-
-        // Critical hit check
-        bool isCriticalHit = false;
-        int criticalRoll = random.Next(1, 101); // 1-100の乱数
-        if (criticalRoll <= criticalRate)
-        {
-            isCriticalHit = true;
-            baseDamage *= 2; // クリティカルヒットで攻撃力2倍（防御貫通はしない）
-        }
-
-        // Apply damage reduction if target is defending
-        int finalDamage = baseDamage;
-        if (isDefending)
-        {
-            finalDamage = finalDamage * (100 - BattleSystemDefines.DefenseDamageReductionPercent) / 100;
-            finalDamage = Math.Max(1, finalDamage); // Minimum 1 damage
-        }
-
-        return (finalDamage, isCriticalHit);
+        return DamageCalculationService.CalculateDamage(
+            BattleSystemDefines.CurrentDamageFormula,
+            attackPower,
+            defensePower,
+            criticalRate,
+            isDefending,
+            random);
     }
 
     /// <summary>
