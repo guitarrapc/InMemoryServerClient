@@ -230,8 +230,13 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
 
-        Console.WriteLine("=== Creating single shared channel ===");
-        var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
+        Console.WriteLine("=== Creating separate channels for each client ===");
+        var channel1 = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
+        {
+            UnsafeUseInsecureChannelCallCredentials = true,
+            HttpHandler = factory.Server.CreateHandler()
+        });
+        var channel2 = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions
         {
             UnsafeUseInsecureChannelCallCredentials = true,
             HttpHandler = factory.Server.CreateHandler()
@@ -270,7 +275,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         {
             // Connect Client1 and wait for stable connection
             Console.WriteLine("=== Connecting Client1 ===");
-            client1 = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel, receiver1);
+            client1 = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel1, receiver1);
             Console.WriteLine($"✓ Client1 connected successfully (HashCode: {client1.GetHashCode():X8})");
 
             // Wait longer to ensure Client1 is fully registered
@@ -294,7 +299,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
             lock (allEventsLock)
             {
                 var totalEvents = client1Events.Count + client2Events.Count;
-                Assert.True(totalEvents == 1, $"Should receive at least one MemberJoined event, got {totalEvents}");
+                Assert.True(totalEvents >= 1, $"Should receive at least one MemberJoined event, got {totalEvents}");
 
                 var allEvents = client1Events.Concat(client2Events).ToList();
                 var validEvent = allEvents.Last();
@@ -302,9 +307,8 @@ public class MagicOnionE2EIntegrationTests : IDisposable
                 Assert.Equal(1, validEvent.CurrentMemberCount);
             }
 
-
             Console.WriteLine("=== Connecting Client2 ===");
-            client2 = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel, receiver2);
+            client2 = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel2, receiver2);
             Console.WriteLine($"✓ Client2 connected successfully (HashCode: {client2.GetHashCode():X8})");
 
             // Wait longer to ensure Client2 is fully registered
@@ -349,6 +353,8 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         finally
         {
             Console.WriteLine("\n=== Cleanup ===");
+
+            // clients
             if (client1 != null)
             {
                 await client1.DisposeAsync();
@@ -359,13 +365,26 @@ public class MagicOnionE2EIntegrationTests : IDisposable
                 await client2.DisposeAsync();
                 Console.WriteLine("✓ Client2 disposed");
             }
-            await channel.ShutdownAsync();
-            channel.Dispose();
-            Console.WriteLine("✓ Channel disposed");
+
+            // channels
+            if (channel1 != null)
+            {
+                await channel1.ShutdownAsync();
+                channel1.Dispose();
+                Console.WriteLine("✓ Channel1 disposed");
+            }
+
+            if (channel2 != null)
+            {
+                await channel2.ShutdownAsync();
+                channel2.Dispose();
+                Console.WriteLine("✓ Channel2 disposed");
+            }
         }
     }
 
-    [Fact(Skip = "Temporarily disabled - investigating timeout issues")]
+
+    [Fact(Timeout = 15000)] // タイムアウトを15秒に延長（デバッグ用）
     public async Task FiveClients_AutoStartBattle_WorksCorrectly()
     {
         // Arrange
@@ -373,6 +392,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         var channels = new List<GrpcChannel>();
         var clients = new List<IMagicOnionBattleHub>();
         var receivers = new List<TestReceiver>();
+        var groupIds = new List<string>();
 
         var connectionsReadyCount = 0;
         var battleStartedCount = 0;
@@ -426,35 +446,23 @@ public class MagicOnionE2EIntegrationTests : IDisposable
                 Console.WriteLine($"BattleStarted received - Client {clientIndex}, BattleId: {data.BattleId}");
             };
 
+            var groupId = await client.JoinGroupAsync("BattleTestGroup");
+            Console.WriteLine($"Client {i + 1} joined group {groupId}");
+
             channels.Add(channel);
             clients.Add(client);
             receivers.Add(receiver);
+            groupIds.Add(groupId);
         }
+
+        Console.WriteLine($"All clients joined. Unique group IDs: {groupIds.Distinct().Count()}");
+
+        // Give the server some time to process all joins and potentially auto-start the battle
+        Console.WriteLine("Waiting for server to process all joins and auto-start battle...");
+        await Task.Delay(1000);
 
         try
         {
-            // Act
-            Console.WriteLine("All clients connected");
-
-            // All clients join the same group sequentially to ensure deterministic order
-            var groupIds = new List<string>();
-            for (int i = 0; i < clients.Count; i++)
-            {
-                var client = clients[i];
-                var groupId = await client.JoinGroupAsync("BattleTestGroup");
-                groupIds.Add(groupId);
-                Console.WriteLine($"Client {i + 1} joined group {groupId}");
-
-                // Small delay to ensure proper sequencing
-                await Task.Delay(100);
-            }
-
-            Console.WriteLine($"All clients joined. Unique group IDs: {groupIds.Distinct().Count()}");
-
-            // Give the server some time to process all joins and potentially auto-start the battle
-            Console.WriteLine("Waiting for server to process all joins and auto-start battle...");
-            await Task.Delay(1000);
-
             // Wait for battle to auto-start with timeout
             var timeout = TimeSpan.FromSeconds(30);
             var checkInterval = TimeSpan.FromMilliseconds(500);
@@ -473,8 +481,8 @@ public class MagicOnionE2EIntegrationTests : IDisposable
 
             // Assert
             Assert.True(groupIds.All(id => id == groupIds[0]), "All clients should be in the same group");
-            Assert.True(connectionsReadyCount >= 5, $"Expected all 5 clients to receive ConnectionsReady, got {connectionsReadyCount}");
-            Assert.True(battleStartedCount >= 5, $"Expected all 5 clients to receive BattleStarted, got {battleStartedCount}");
+            Assert.True(connectionsReadyCount == 5, $"Expected all 5 clients to receive ConnectionsReady, got {connectionsReadyCount}");
+            Assert.True(battleStartedCount == 5, $"Expected all 5 clients to receive BattleStarted, got {battleStartedCount}");
 
             Console.WriteLine("MagicOnion battle test completed successfully");
         }
