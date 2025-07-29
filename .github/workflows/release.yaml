@@ -3,9 +3,26 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - '*.*.*' # 1.2.3
 
 jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Create GitHub Release via gh
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --title "v$TAG" --generate-notes --fail-on-no-commits --draft
+
   docker:
     strategy:
       matrix:
