@@ -1,4 +1,4 @@
-namespace CliClient.Tests;
+﻿namespace CliClient.Tests;
 
 /// <summary>
 /// モック・スタブ使用の統合テスト用の属性（サーバー不要）

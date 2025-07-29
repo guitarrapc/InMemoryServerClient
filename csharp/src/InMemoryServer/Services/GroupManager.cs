@@ -43,16 +43,16 @@ public class GroupManager
                     var groupLock = _groupLocks.GetOrAdd(existingGroup.GroupId, _ => new Lock());
                     lock (groupLock)
                     {
-                        if (existingGroup.ConnectionCount < SystemDefines.MaxConnectionsPerGroup)
+                        if (!existingGroup.IsFull())
                         {
                             // Add connection to group (thread-safe operations)
-                            existingGroup.ConnectionCount++;
+                            var newCount = existingGroup.IncrementConnectionCount();
                             _connectionToGroup[connectionId] = existingGroup.GroupId;
                             existingGroup.ClientIds.Add(connectionId);
                             _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.GroupId})");
 
                             // Check if group is full for battle start
-                            if (existingGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
+                            if (existingGroup.IsFull() && string.IsNullOrEmpty(existingGroup.BattleId))
                             {
                                 _logger.LogInformation($"Group {existingGroup.Name} is now full and ready for battle!");
                             }
@@ -93,7 +93,7 @@ public class GroupManager
 
         // Find an available group with space
         var availableGroup = _groups.Values
-            .Where(g => g.ConnectionCount < SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(g.BattleId))
+            .Where(g => !g.IsFull() && string.IsNullOrEmpty(g.BattleId))
             .OrderByDescending(g => g.ConnectionCount) // Prefer groups with more connections to fill them up
             .FirstOrDefault();
 
@@ -103,16 +103,16 @@ public class GroupManager
             lock (groupLock)
             {
                 // Double-check the condition inside the lock to prevent race conditions
-                if (availableGroup.ConnectionCount < SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+                if (!availableGroup.IsFull() && string.IsNullOrEmpty(availableGroup.BattleId))
                 {
                     // Add connection to group (thread-safe operations)
-                    availableGroup.ConnectionCount++;
+                    var newCount = availableGroup.IncrementConnectionCount();
                     _connectionToGroup[connectionId] = availableGroup.GroupId;
                     availableGroup.ClientIds.Add(connectionId);
                     _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.GroupId})");
 
                     // Check if group is full for battle start
-                    if (availableGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+                    if (availableGroup.IsFull() && string.IsNullOrEmpty(availableGroup.BattleId))
                     {
                         _logger.LogInformation($"Group {availableGroup.Name} is now full and ready for battle!");
                     }
@@ -158,13 +158,12 @@ public class GroupManager
                 var groupLock = _groupLocks.GetOrAdd(groupId, _ => new Lock());
                 lock (groupLock)
                 {
-                    group.ConnectionCount--;
+                    var newCount = group.DecrementConnectionCount();
                     group.ClientIds.Remove(connectionId);
-                    var newCount = group.ConnectionCount;
                     _logger.LogInformation($"Connection {connectionId} left group {group.Name} (ID: {groupId}). New count: {newCount}");
 
                     // Remove group if empty
-                    if (group.ConnectionCount <= 0)
+                    if (newCount <= 0)
                     {
                         _groups.TryRemove(groupId, out _);
                         _groupLocks.TryRemove(groupId, out _); // Clean up the lock as well
@@ -276,7 +275,7 @@ public class GroupManager
         var now = DateTime.UtcNow;
         return _groups.Values.Where(g =>
             g.ConnectionCount > 0 &&
-            g.ConnectionCount < SystemDefines.MaxConnectionsPerGroup &&
+            !g.IsFull() &&
             string.IsNullOrEmpty(g.BattleId) &&
             g.ExpiresAt <= now.AddMinutes(1) // Groups expiring within 1 minute
         );
@@ -317,7 +316,7 @@ public class GroupManager
                         {
                             // Extend the group
                             ExtendGroupWaitingTime(group.GroupId);
-                            _logger.LogInformation($"Auto-extended group {group.Name} (ID: {group.GroupId}) due to timeout. Members: {group.ConnectionCount}/{SystemDefines.MaxConnectionsPerGroup}");
+                            _logger.LogInformation($"Auto-extended group {group.Name} (ID: {group.GroupId}) due to timeout. Members: {group.ConnectionCount}/{group.MaxConnections}");
                         }
                         else
                         {

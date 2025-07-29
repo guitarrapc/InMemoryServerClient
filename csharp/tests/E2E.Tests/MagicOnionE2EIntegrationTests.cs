@@ -1,4 +1,4 @@
-using Grpc.Net.Client;
+﻿using Grpc.Net.Client;
 using MagicOnion.Client;
 using Shared.Contracts.Http2Server;
 using Shared.Models;

@@ -230,8 +230,8 @@ internal class SignalRBattleClient : IBattleClient
         _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
             battleId, seedValue, groupName);
 
-            var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
-            return result;
+        var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
+        return result;
     }
 
     public async Task<ServerStatusInfo> GetServerStatusAsync()
@@ -644,7 +644,7 @@ internal class SignalRBattleClient : IBattleClient
         return field;
     }
 
-   public async ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await DisconnectAsync();
     }

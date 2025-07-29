@@ -136,7 +136,7 @@ public class SignalRBattleHub(
         await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "MemberJoined", memberJoinedData);
 
         // Check if group is full and battle should start
-        if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
+        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
         {
             await StartBattleAsync(group);
         }
@@ -572,7 +572,7 @@ public class SignalRBattleHub(
             clientId, group.Name, group.GroupId);
 
         // Check if group is full and battle should start with reproduction
-        if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
+        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
         {
             await StartReproduceBattleAsync(group, battleId, seed);
         }

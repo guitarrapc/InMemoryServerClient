@@ -21,10 +21,21 @@ public class GroupInfo : IBattleGroupContext
     public required string Name { get; set; }
 
     /// <summary>
+    /// Private field for thread-safe connection count operations
+    /// </summary>
+    [IgnoreMember]
+    private int _connectionCount;
+
+    /// <summary>
     /// Current connection count
+    /// Prefer using IncrementConnectionCount() and DecrementConnectionCount() for thread-safe operations
     /// </summary>
     [Key(2)]
-    public int ConnectionCount { get; set; }
+    public int ConnectionCount
+    {
+        get => _connectionCount;
+        init => _connectionCount = value; // For initialization and serialization only
+    }
 
     /// <summary>
     /// Maximum allowed connections
@@ -86,4 +97,31 @@ public class GroupInfo : IBattleGroupContext
     /// </summary>
     [IgnoreMember]
     IReadOnlyList<string> IBattleGroupContext.ClientIds => ClientIds;
+
+    /// <summary>
+    /// Thread-safe increment of connection count
+    /// </summary>
+    /// <returns>The new connection count after increment</returns>
+    public int IncrementConnectionCount()
+    {
+        return Interlocked.Increment(ref _connectionCount);
+    }
+
+    /// <summary>
+    /// Thread-safe decrement of connection count
+    /// </summary>
+    /// <returns>The new connection count after decrement</returns>
+    public int DecrementConnectionCount()
+    {
+        return Interlocked.Decrement(ref _connectionCount);
+    }
+
+    /// <summary>
+    /// Thread-safe check if the group is full
+    /// </summary>
+    /// <returns>True if the group has reached maximum connections</returns>
+    public bool IsFull()
+    {
+        return Interlocked.CompareExchange(ref _connectionCount, 0, 0) >= MaxConnections;
+    }
 }

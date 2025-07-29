@@ -1,4 +1,4 @@
-namespace CliClient.Tests;
+﻿namespace CliClient.Tests;
 
 /// <summary>
 /// Tests for ConnectionOptions record struct

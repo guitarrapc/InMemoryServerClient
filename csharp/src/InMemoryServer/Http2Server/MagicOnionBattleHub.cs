@@ -206,7 +206,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         logger.LogInformation("MagicOnion NotifyGroupAsync task started (fire-and-forget) for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
 
         // Check if group is full and battle should start
-        if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
+        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
         {
             logger.LogInformation("MagicOnion starting battle for full group {GroupId}", group.GroupId);
             await StartBattleAsync(group);
@@ -365,7 +365,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             connectionId, group.Name, group.GroupId);
 
         // Check if group is full and battle should start with reproduction
-        if (group.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(group.BattleId))
+        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
         {
             await StartReproduceBattleAsync(group, battleId, seed);
         }
