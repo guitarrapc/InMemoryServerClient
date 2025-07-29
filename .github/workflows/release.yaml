@@ -56,9 +56,9 @@ jobs:
             ${{ steps.lower.outputs.repository }}
             ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=${{ steps.sha.outputs.sha-short }}-${{ matrix.tag }}
             type=raw,value=latest-${{ matrix.tag }}
-            type=ref,event=tag,suffix=-${{ matrix.tag }}
+            type=raw,value=${{ github.ref_name }}-${{ matrix.tag }}
+            type=sha,enable=true,priority=100,prefix=sha-,suffix=${{ matrix.tag }},format=short
       - name: Login to Docker Hub
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
@@ -78,7 +78,7 @@ jobs:
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: false
           file: "${{ matrix.dockerfile }}"
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
