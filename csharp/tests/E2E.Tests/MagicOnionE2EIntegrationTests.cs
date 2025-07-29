@@ -1,4 +1,4 @@
-﻿using Grpc.Net.Client;
+using Grpc.Net.Client;
 using MagicOnion.Client;
 using Shared.Contracts.Http2Server;
 using Shared.Models;
@@ -225,7 +225,6 @@ public class MagicOnionE2EIntegrationTests : IDisposable
     }
 
     [Fact(Timeout = 15000)] // タイムアウトを15秒に延長（デバッグ用）
-    //[Fact(Skip = "Temporarily disabled - investigating timeout issues")]
     public async Task MultipleClients_CanJoinSameGroup_ReceiveMemberJoinedEvent()
     {
         // Arrange
@@ -277,21 +276,8 @@ public class MagicOnionE2EIntegrationTests : IDisposable
             // Wait longer to ensure Client1 is fully registered
             await Task.Delay(1000);
 
-            Console.WriteLine("=== Connecting Client2 ===");
-            client2 = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel, receiver2);
-            Console.WriteLine($"✓ Client2 connected successfully (HashCode: {client2.GetHashCode():X8})");
-
-            // Wait longer to ensure Client2 is fully registered
-            await Task.Delay(1000);
-
-            // Phase 1: Client1 joins group (expected: Client1 ID should appear in logs)
-            Console.WriteLine("\n=== PHASE 1: Client1 joining group ===");
-            Console.WriteLine($"About to call client1.JoinGroupAsync... (Client1 HashCode: {client1.GetHashCode():X8})");
-            Console.WriteLine($"Expected Client1 context ID in server logs (see recent connection logs above)");
-
-            // Use explicit variable to ensure we're calling the right client
-            var client1Reference = client1;
-            var groupId1 = await client1Reference.JoinGroupAsync("MultiTestGroup");
+            // Use explicit variable to ensure we're calling the right client (+1 event for client1 joining group to client1)
+            var groupId1 = await client1.JoinGroupAsync(nameof(MultipleClients_CanJoinSameGroup_ReceiveMemberJoinedEvent));
             Console.WriteLine($"✓ Client1 joined group: {groupId1}");
 
             // Wait and check events
@@ -308,12 +294,46 @@ public class MagicOnionE2EIntegrationTests : IDisposable
             lock (allEventsLock)
             {
                 var totalEvents = client1Events.Count + client2Events.Count;
-                Assert.True(totalEvents >= 1, $"Should receive at least one MemberJoined event, got {totalEvents}");
+                Assert.True(totalEvents == 1, $"Should receive at least one MemberJoined event, got {totalEvents}");
 
                 var allEvents = client1Events.Concat(client2Events).ToList();
-                var validEvent = allEvents.First();
-                Assert.Equal("MultiTestGroup", validEvent.GroupName);
+                var validEvent = allEvents.Last();
+                Assert.Equal(nameof(MultipleClients_CanJoinSameGroup_ReceiveMemberJoinedEvent), validEvent.GroupName);
                 Assert.Equal(1, validEvent.CurrentMemberCount);
+            }
+
+
+            Console.WriteLine("=== Connecting Client2 ===");
+            client2 = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel, receiver2);
+            Console.WriteLine($"✓ Client2 connected successfully (HashCode: {client2.GetHashCode():X8})");
+
+            // Wait longer to ensure Client2 is fully registered
+            await Task.Delay(1000);
+
+            // Use explicit variable to ensure we're calling the right client (+2 event for client2 joining group to client1 & client2)
+            var groupId2 = await client2.JoinGroupAsync(nameof(MultipleClients_CanJoinSameGroup_ReceiveMemberJoinedEvent));
+            Console.WriteLine($"✓ Client2 joined group: {groupId2}");
+
+            // Wait and check events
+            await Task.Delay(2000);
+            lock (allEventsLock)
+            {
+                Console.WriteLine($"After Phase 1 - Client1 events: {client1Events.Count}, Client2 events: {client2Events.Count}");
+            }
+
+            // For now, just verify we get a valid group ID and one event
+            Assert.NotNull(groupId2);
+            Assert.NotEmpty(groupId2);
+
+            lock (allEventsLock)
+            {
+                var totalEvents = client1Events.Count + client2Events.Count;
+                Assert.True(totalEvents == 3, $"Should receive at least one MemberJoined event, got {totalEvents}");
+
+                var allEvents = client1Events.Concat(client2Events).ToList();
+                var validEvent = allEvents.Last();
+                Assert.Equal(nameof(MultipleClients_CanJoinSameGroup_ReceiveMemberJoinedEvent), validEvent.GroupName);
+                Assert.Equal(2, validEvent.CurrentMemberCount);
             }
 
             Console.WriteLine("✓ Test passed - Client1 successfully joined group and received/triggered event");
