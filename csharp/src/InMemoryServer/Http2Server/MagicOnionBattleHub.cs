@@ -1,4 +1,4 @@
-﻿using MagicOnion.Server.Hubs;
+using MagicOnion.Server.Hubs;
 using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Shared.Battle;
@@ -526,7 +526,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
 
             // 3. Send BattleStarted notification once all clients have confirmed
             var battleStartedData = new BattleStartedData { BattleId = battleId, Seed = seed };
-            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleStarted(battleStartedData));
+            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleStarted", battleStartedData);
 
             // 4. Run pre-computation (螳悟・縺ｫ繧ｵ繝ｼ繝舌・繧ｵ繧､繝峨〒險育ｮ怜ｮ御ｺ・
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation",
@@ -539,7 +539,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             await SendBattleReplayData(group, battle, battleId, seed);
 
             // 6. Battle completed notification
-            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleCompleted(battle.GetStatus()));
+            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleCompleted", battle.GetStatus());
             logger.LogInformation("Battle reproduction {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed",
                 battleId, seed);
 
@@ -579,7 +579,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
                 IsLastChunk = isLastChunk,
             };
 
-            magicOnionGroupService.SendToAll(group.GroupId, receiver => receiver.OnBattleReplayData(replayData));
+            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleReplayData", replayData);
 
             // Clear chunk data immediately after sending to reduce memory pressure
             turnDataList.Clear();

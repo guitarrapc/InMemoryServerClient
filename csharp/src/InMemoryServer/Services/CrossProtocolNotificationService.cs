@@ -40,11 +40,22 @@ public class CrossProtocolNotificationService
         var signalRConnections = new List<string>();
         var magicOnionConnections = new List<Models.ConnectionInfo>();
 
+        _logger.LogInformation("CrossProtocolNotificationService.NotifyGroupAsync: {MethodName} for group {GroupId} with {ConnectionCount} connections",
+            methodName, groupId, connectionIds.Count());
+
         // Categorize connections by protocol
         foreach (var normalizedConnectionId in connectionIds)
         {
             var connectionInfo = _connectionManager.GetConnectionInfo(normalizedConnectionId);
-            if (connectionInfo == null) continue;
+            if (connectionInfo == null)
+            {
+                _logger.LogWarning("CrossProtocolNotificationService: Connection info not found for {ConnectionId} in group {GroupId}",
+                    normalizedConnectionId, groupId);
+                continue;
+            }
+
+            _logger.LogInformation("CrossProtocolNotificationService: Found {Protocol} connection {ConnectionId} in group {GroupId}",
+                connectionInfo.Protocol, normalizedConnectionId, groupId);
 
             switch (connectionInfo.Protocol)
             {
@@ -62,9 +73,11 @@ public class CrossProtocolNotificationService
         {
             try
             {
+                _logger.LogInformation("CrossProtocolNotificationService sending {MethodName} to {Count} SignalR clients in group {GroupId}",
+                    methodName, signalRConnections.Count, groupId);
                 await _signalRHubContext.Clients.Clients(signalRConnections)
                     .SendAsync(methodName, data);
-                _logger.LogDebug("Sent {MethodName} to {Count} SignalR clients in group {GroupId}",
+                _logger.LogInformation("CrossProtocolNotificationService successfully sent {MethodName} to {Count} SignalR clients in group {GroupId}",
                     methodName, signalRConnections.Count, groupId);
             }
             catch (Exception ex)
@@ -72,6 +85,11 @@ public class CrossProtocolNotificationService
                 _logger.LogError(ex, "Error sending {MethodName} to SignalR clients in group {GroupId}",
                     methodName, groupId);
             }
+        }
+        else
+        {
+            _logger.LogInformation("CrossProtocolNotificationService: No SignalR clients found for {MethodName} in group {GroupId}",
+                methodName, groupId);
         }
 
         // Send to MagicOnion clients
@@ -119,6 +137,10 @@ public class CrossProtocolNotificationService
                         case "GroupExtended":
                             if (data is GroupExtendedData groupExtendedData)
                                 receiver.OnGroupExtended(groupExtendedData);
+                            break;
+                        case "BattleCompleted":
+                            if (data is BattleStatus battleStatus)
+                                receiver.OnBattleCompleted(battleStatus);
                             break;
                         case "GroupMessage":
                             if (data is GroupMessageData groupMessageData)
