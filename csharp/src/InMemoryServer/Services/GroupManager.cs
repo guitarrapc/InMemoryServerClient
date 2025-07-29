@@ -11,8 +11,11 @@ public class GroupManager
 {
     private readonly ILogger<GroupManager> _logger;
     private readonly ConnectionManager _connectionManager;
-    private readonly ConcurrentDictionary<string, GroupInfo> _groups = new(Environment.ProcessorCount * 2, 10); // Pre-allocate for typical usage
-    private readonly ConcurrentDictionary<string, string> _connectionToGroup = new(Environment.ProcessorCount * 2, 50); // Pre-allocate for typical connections
+    private readonly ConcurrentDictionary<string, GroupInfo> _groups = new(Environment.ProcessorCount * 2, 10); // Pre-allocate for typical usage (GroupId -> GroupInfo)
+    private readonly ConcurrentDictionary<string, string> _connectionToGroup = new(Environment.ProcessorCount * 2, 50); // Pre-allocate for typical connections (ConnectionId -> GroupId)
+    private readonly ConcurrentDictionary<string, Lock> _groupLocks = new(Environment.ProcessorCount * 2, 10); // Lock objects for each group (GroupId -> Lock)
+    private readonly ConcurrentDictionary<string, string> _groupNameToId = new(Environment.ProcessorCount * 2, 10); // Group name to ID mapping (GroupName -> GroupId)
+    private readonly ConcurrentDictionary<string, Lock> _groupNameLocks = new(Environment.ProcessorCount * 2, 10); // Lock objects for group name operations (GroupName -> Lock)
 
     public GroupManager(ILogger<GroupManager> logger, ConnectionManager connectionManager)
     {
@@ -29,27 +32,62 @@ public class GroupManager
     public async Task<GroupInfo> JoinGroupAsync(string connectionId, string? groupName = null)
     {
         // If group name is specified, try to join that group
-        if (!string.IsNullOrEmpty(groupName) && _groups.TryGetValue(groupName, out var existingGroup))
+        if (!string.IsNullOrEmpty(groupName))
         {
-            if (existingGroup.ConnectionCount < SystemDefines.MaxConnectionsPerGroup)
+            var groupNameLock = _groupNameLocks.GetOrAdd(groupName, _ => new Lock());
+            lock (groupNameLock)
             {
-                // Add connection to group
-                existingGroup.ConnectionCount++;
-                _connectionToGroup[connectionId] = existingGroup.GroupId;
-                existingGroup.ClientIds.Add(connectionId);
-                _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.GroupId})");
-
-                // Check if group is full for battle start
-                if (existingGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
+                // Check if group exists after acquiring the name lock
+                if (_groupNameToId.TryGetValue(groupName, out var existingGroupId) && _groups.TryGetValue(existingGroupId, out var existingGroup))
                 {
-                    _logger.LogInformation($"Group {existingGroup.Name} is now full and ready for battle!");
-                }
+                    var groupLock = _groupLocks.GetOrAdd(existingGroup.GroupId, _ => new Lock());
+                    lock (groupLock)
+                    {
+                        if (existingGroup.ConnectionCount < SystemDefines.MaxConnectionsPerGroup)
+                        {
+                            // Add connection to group (thread-safe operations)
+                            existingGroup.ConnectionCount++;
+                            _connectionToGroup[connectionId] = existingGroup.GroupId;
+                            existingGroup.ClientIds.Add(connectionId);
+                            _logger.LogInformation($"Connection {connectionId} joined existing group {existingGroup.Name} (ID: {existingGroup.GroupId})");
 
-                return existingGroup;
-            }
-            else
-            {
-                _logger.LogWarning($"Group {groupName} is full, connection {connectionId} will be assigned to a new group");
+                            // Check if group is full for battle start
+                            if (existingGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(existingGroup.BattleId))
+                            {
+                                _logger.LogInformation($"Group {existingGroup.Name} is now full and ready for battle!");
+                            }
+
+                            return existingGroup;
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Group {groupName} is full, connection {connectionId} will be assigned to a new group");
+                        }
+                    }
+                }
+                else
+                {
+                    // Create new group with the specified name (still holding the name lock)
+                    var namedGroupId = Guid.CreateVersion7().ToString(); // Use GUID v7 for timestamp ordering
+                    var namedGroup = new GroupInfo
+                    {
+                        GroupId = namedGroupId,
+                        Name = groupName,
+                        ConnectionCount = 1,
+                        MaxConnections = SystemDefines.MaxConnectionsPerGroup,
+                        CreatedAt = DateTime.UtcNow,
+                        ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExpirationMinutes),
+                        ClientIds = new List<string> { connectionId }
+                    };
+
+                    _groups[namedGroupId] = namedGroup;
+                    _connectionToGroup[connectionId] = namedGroupId;
+                    _groupLocks.GetOrAdd(namedGroupId, _ => new Lock()); // Initialize lock for new group
+                    _groupNameToId[groupName] = namedGroupId; // Map group name to ID
+
+                    _logger.LogInformation($"Created new group {groupName} (ID: {namedGroupId}) for connection {connectionId}");
+                    return namedGroup;
+                }
             }
         }
 
@@ -61,19 +99,28 @@ public class GroupManager
 
         if (availableGroup != null)
         {
-            // Add connection to group
-            availableGroup.ConnectionCount++;
-            _connectionToGroup[connectionId] = availableGroup.GroupId;
-            availableGroup.ClientIds.Add(connectionId);
-            _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.GroupId})");
-
-            // Check if group is full for battle start
-            if (availableGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+            var groupLock = _groupLocks.GetOrAdd(availableGroup.GroupId, _ => new Lock());
+            lock (groupLock)
             {
-                _logger.LogInformation($"Group {availableGroup.Name} is now full and ready for battle!");
-            }
+                // Double-check the condition inside the lock to prevent race conditions
+                if (availableGroup.ConnectionCount < SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+                {
+                    // Add connection to group (thread-safe operations)
+                    availableGroup.ConnectionCount++;
+                    _connectionToGroup[connectionId] = availableGroup.GroupId;
+                    availableGroup.ClientIds.Add(connectionId);
+                    _logger.LogInformation($"Connection {connectionId} joined available group {availableGroup.Name} (ID: {availableGroup.GroupId})");
 
-            return availableGroup;
+                    // Check if group is full for battle start
+                    if (availableGroup.ConnectionCount == SystemDefines.MaxConnectionsPerGroup && string.IsNullOrEmpty(availableGroup.BattleId))
+                    {
+                        _logger.LogInformation($"Group {availableGroup.Name} is now full and ready for battle!");
+                    }
+
+                    return availableGroup;
+                }
+                // Group became full while we were waiting for the lock, fall through to create a new group
+            }
         }
 
         // Create a new group
@@ -92,6 +139,8 @@ public class GroupManager
 
         _groups[newGroupId] = newGroup;
         _connectionToGroup[connectionId] = newGroupId;
+        _groupLocks.GetOrAdd(newGroupId, _ => new Lock()); // Initialize lock for new group
+        _groupNameToId[newGroupName] = newGroupId; // Map group name to ID
 
         _logger.LogInformation($"Created new group {newGroupName} (ID: {newGroupId}) for connection {connectionId}");
         return newGroup;
@@ -106,20 +155,27 @@ public class GroupManager
         {
             if (_groups.TryGetValue(groupId, out var group))
             {
-                group.ConnectionCount--;
-                group.ClientIds.Remove(connectionId);
-                var newCount = group.ConnectionCount;
-                _logger.LogInformation($"Connection {connectionId} left group {group.Name} (ID: {groupId}). New count: {newCount}");
-
-                // Remove group if empty
-                if (group.ConnectionCount <= 0)
+                var groupLock = _groupLocks.GetOrAdd(groupId, _ => new Lock());
+                lock (groupLock)
                 {
-                    _groups.TryRemove(groupId, out _);
-                    _logger.LogDebug($"Removed empty group {group.Name} (ID: {groupId})");
-                    return (null, 0);
-                }
+                    group.ConnectionCount--;
+                    group.ClientIds.Remove(connectionId);
+                    var newCount = group.ConnectionCount;
+                    _logger.LogInformation($"Connection {connectionId} left group {group.Name} (ID: {groupId}). New count: {newCount}");
 
-                return (group, newCount);
+                    // Remove group if empty
+                    if (group.ConnectionCount <= 0)
+                    {
+                        _groups.TryRemove(groupId, out _);
+                        _groupLocks.TryRemove(groupId, out _); // Clean up the lock as well
+                        _groupNameToId.TryRemove(group.Name, out _); // Clean up the name mapping
+                        _groupNameLocks.TryRemove(group.Name, out _); // Clean up the name lock as well
+                        _logger.LogDebug($"Removed empty group {group.Name} (ID: {groupId})");
+                        return (null, 0);
+                    }
+
+                    return (group, newCount);
+                }
             }
         }
 
@@ -160,20 +216,24 @@ public class GroupManager
             return false;
         }
 
-        // Check if extension is allowed
-        if (group.ExtensionCount >= SystemDefines.MaxGroupExtensions)
+        var groupLock = _groupLocks.GetOrAdd(groupId, _ => new Lock());
+        lock (groupLock)
         {
-            _logger.LogWarning($"Group {group.Name} (ID: {groupId}) has reached maximum extensions ({SystemDefines.MaxGroupExtensions})");
-            return false;
+            // Check if extension is allowed
+            if (group.ExtensionCount >= SystemDefines.MaxGroupExtensions)
+            {
+                _logger.LogWarning($"Group {group.Name} (ID: {groupId}) has reached maximum extensions ({SystemDefines.MaxGroupExtensions})");
+                return false;
+            }
+
+            // Extend the group
+            group.ExtensionCount++;
+            group.LastExtendedAt = DateTime.UtcNow;
+            group.ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExtensionMinutes);
+
+            _logger.LogInformation($"Extended group {group.Name} (ID: {groupId}) for {SystemDefines.GroupExtensionMinutes} minutes. Extension count: {group.ExtensionCount}/{SystemDefines.MaxGroupExtensions}");
+            return true;
         }
-
-        // Extend the group
-        group.ExtensionCount++;
-        group.LastExtendedAt = DateTime.UtcNow;
-        group.ExpiresAt = DateTime.UtcNow.AddMinutes(SystemDefines.GroupExtensionMinutes);
-
-        _logger.LogInformation($"Extended group {group.Name} (ID: {groupId}) for {SystemDefines.GroupExtensionMinutes} minutes. Extension count: {group.ExtensionCount}/{SystemDefines.MaxGroupExtensions}");
-        return true;
     }
 
     /// <summary>
@@ -186,13 +246,23 @@ public class GroupManager
             return new List<string>();
         }
 
-        var clientIds = new List<string>(group.ClientIds);
-
-        // Remove all connections from the group mapping
-        foreach (var clientId in clientIds)
+        var groupLock = _groupLocks.GetOrAdd(groupId, _ => new Lock());
+        List<string> clientIds;
+        lock (groupLock)
         {
-            _connectionToGroup.TryRemove(clientId, out _);
+            clientIds = new List<string>(group.ClientIds);
+
+            // Remove all connections from the group mapping
+            foreach (var clientId in clientIds)
+            {
+                _connectionToGroup.TryRemove(clientId, out _);
+            }
         }
+
+        // Clean up the lock after the group is dissolved
+        _groupLocks.TryRemove(groupId, out _);
+        _groupNameToId.TryRemove(group.Name, out _); // Clean up the name mapping
+        _groupNameLocks.TryRemove(group.Name, out _); // Clean up the name lock as well
 
         _logger.LogInformation($"Dissolved group {group.Name} (ID: {groupId}). Reason: {reason}. Affected clients: {clientIds.Count}");
         return clientIds;
