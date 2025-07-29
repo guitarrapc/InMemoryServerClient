@@ -81,7 +81,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
             var client = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(channel, receiver);
 
             // Join group (which will create it if it doesn't exist)
-            var groupId = await client.JoinGroupAsync("TestGroup");
+            var groupId = await client.JoinGroupAsync(nameof(JoinGroup_CreatesAndJoinsGroup_WorksCorrectly));
 
             // Assert
             Assert.NotNull(groupId);
@@ -158,7 +158,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
             Console.WriteLine("Single client connected");
 
             Console.WriteLine("About to call JoinGroupAsync...");
-            var groupId = await client.JoinGroupAsync("DebugGroup");
+            var groupId = await client.JoinGroupAsync(nameof(SingleClient_CanJoinGroup_DebugTest));
             Console.WriteLine($"Single client joined group: {groupId}");
 
             // Cleanup
@@ -195,7 +195,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
 
             // Client joins group
             Console.WriteLine($"About to call JoinGroupAsync for Client (ID: {clientId})...");
-            var groupId = await client.JoinGroupAsync("SingleTestGroup");
+            var groupId = await client.JoinGroupAsync(nameof(SingleClient_CanJoinGroup_WorksCorrectly));
             Console.WriteLine($"Client (ID: {clientId}) joined group: {groupId}");
 
             // Verify the client can get group info
@@ -204,7 +204,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
 
             // Assert
             Assert.NotNull(groupInfo);
-            Assert.Equal("SingleTestGroup", groupInfo.Name);
+            Assert.Equal(nameof(SingleClient_CanJoinGroup_WorksCorrectly), groupInfo.Name);
             Assert.Equal(1, groupInfo.ConnectionCount);
 
             // Cleanup
@@ -446,7 +446,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
                 Console.WriteLine($"BattleStarted received - Client {clientIndex}, BattleId: {data.BattleId}");
             };
 
-            var groupId = await client.JoinGroupAsync("BattleTestGroup");
+            var groupId = await client.JoinGroupAsync(nameof(FiveClients_AutoStartBattle_WorksCorrectly));
             Console.WriteLine($"Client {i + 1} joined group {groupId}");
 
             channels.Add(channel);

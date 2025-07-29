@@ -75,7 +75,7 @@ public class SignalRE2EIntegrationTests : IDisposable
             await connection.StartAsync();
 
             // Join group (which will create it if it doesn't exist)
-            var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", "TestGroup");
+            var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", nameof(JoinGroup_CreatesAndJoinsGroup_WorksCorrectly));
 
             // Assert
             Assert.NotNull(groupId);
@@ -124,18 +124,18 @@ public class SignalRE2EIntegrationTests : IDisposable
             await connection2.StartAsync();
 
             // First client joins group
-            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", "MultiTestGroup");
+            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", nameof(MultipleClients_CanJoinSameGroup));
             await Task.Delay(100);
 
             // Second client joins the same group
-            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", "MultiTestGroup");
+            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", nameof(MultipleClients_CanJoinSameGroup));
             await Task.Delay(100);
 
             // Assert
             Assert.Equal(groupId1, groupId2); // Both should be in the same group
             Assert.True(connection1ReceivedMemberJoined); // Connection1 should receive the MemberJoined event
             Assert.NotNull(memberData);
-            Assert.Equal("MultiTestGroup", memberData.Value.GroupName);
+            Assert.Equal(nameof(MultipleClients_CanJoinSameGroup), memberData.Value.GroupName);
             Assert.Equal(2, memberData.Value.CurrentMemberCount); // Should be 2 after second join
         }
         finally
@@ -219,7 +219,7 @@ public class SignalRE2EIntegrationTests : IDisposable
             for (int i = 0; i < connections.Count; i++)
             {
                 var connection = connections[i];
-                var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", "BattleTestGroup");
+                var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", nameof(FiveClients_AutoStartBattle_WorksCorrectly));
                 groupIds.Add(groupId);
                 Console.WriteLine($"Client {i + 1} joined group {groupId}");
 
@@ -327,8 +327,8 @@ public class SignalRE2EIntegrationTests : IDisposable
             await connection2.StartAsync();
 
             // Both clients join the same group
-            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", "LeaveTestGroup");
-            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", "LeaveTestGroup");
+            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", nameof(ClientDisconnection_LeavesGroup_WorksCorrectly));
+            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", nameof(ClientDisconnection_LeavesGroup_WorksCorrectly));
             await Task.Delay(100);
 
             Assert.Equal(groupId1, groupId2); // Ensure they're in the same group
@@ -340,7 +340,7 @@ public class SignalRE2EIntegrationTests : IDisposable
             // Assert
             Assert.True(memberLeftReceived);
             Assert.NotNull(memberLeftData);
-            Assert.Equal("LeaveTestGroup", memberLeftData.Value.GroupName);
+            Assert.Equal(nameof(ClientDisconnection_LeavesGroup_WorksCorrectly), memberLeftData.Value.GroupName);
             Assert.Equal(1, memberLeftData.Value.CurrentMemberCount); // One member should remain
         }
         finally
@@ -390,12 +390,12 @@ public class SignalRE2EIntegrationTests : IDisposable
             await connection2.StartAsync();
             Console.WriteLine("Both connections started");
 
-            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", "SimpleTestGroup");
+            var groupId1 = await connection1.InvokeAsync<string>("JoinGroupAsync", nameof(TwoClients_JoinGroup_ReceivesEvents));
             Console.WriteLine($"Connection1 joined group: {groupId1}");
 
             await Task.Delay(200); // Allow processing time
 
-            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", "SimpleTestGroup");
+            var groupId2 = await connection2.InvokeAsync<string>("JoinGroupAsync", nameof(TwoClients_JoinGroup_ReceivesEvents));
             Console.WriteLine($"Connection2 joined group: {groupId2}");
 
             await Task.Delay(500); // Allow event processing time
@@ -404,7 +404,7 @@ public class SignalRE2EIntegrationTests : IDisposable
             Assert.Equal(groupId1, groupId2);
             Assert.True(memberJoinedReceived, "Connection1 should have received MemberJoined event");
             Assert.NotNull(memberData);
-            Assert.Equal("SimpleTestGroup", memberData.Value.GroupName);
+            Assert.Equal(nameof(TwoClients_JoinGroup_ReceivesEvents), memberData.Value.GroupName);
             Assert.Equal(2, memberData.Value.CurrentMemberCount);
 
             Console.WriteLine("Simple test completed successfully");
