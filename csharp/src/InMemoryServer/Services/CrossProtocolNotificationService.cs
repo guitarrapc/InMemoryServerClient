@@ -33,9 +33,9 @@ public class CrossProtocolNotificationService
     /// </summary>
     /// <param name="groupId">Group ID</param>
     /// <param name="connectionIds">List of normalized connection IDs in the group</param>
-    /// <param name="notificationAction">Action to send the notification</param>
-    public async Task NotifyGroupAsync<T>(string groupId, IEnumerable<string> connectionIds,
-        string methodName, T data)
+    /// <param name="methodName">Action to send the notification</param>
+    /// <param name="data">Data to send with notification</param>
+    public async Task NotifyGroupAsync<T>(string groupId, IEnumerable<string> connectionIds, string methodName, T data)
     {
         var signalRConnections = new List<string>();
         var magicOnionConnections = new List<Models.ConnectionInfo>();

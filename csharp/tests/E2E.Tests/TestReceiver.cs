@@ -9,6 +9,13 @@ namespace E2E.Tests;
 /// </summary>
 public class TestReceiver : IMagicOnionBattleHubReceiver
 {
+    private readonly string _clientIdentifier;
+
+    public TestReceiver(string clientIdentifier = "Unknown")
+    {
+        _clientIdentifier = clientIdentifier;
+    }
+
     public Action<MemberJoinedData>? OnMemberJoinedHandler { get; set; }
     public Action<MemberLeftData>? OnMemberLeftHandler { get; set; }
     public Action<string, string>? OnGroupMessageHandler { get; set; }
@@ -23,7 +30,7 @@ public class TestReceiver : IMagicOnionBattleHubReceiver
 
     public void OnMemberJoined(MemberJoinedData data)
     {
-        Console.WriteLine($"[TestReceiver] OnMemberJoined called with GroupName: {data.GroupName}, MemberCount: {data.CurrentMemberCount}");
+        Console.WriteLine($"[TestReceiver-{_clientIdentifier}] OnMemberJoined called with GroupName: {data.GroupName}, MemberCount: {data.CurrentMemberCount}");
         OnMemberJoinedHandler?.Invoke(data);
     }
 
