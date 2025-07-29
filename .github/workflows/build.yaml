@@ -55,7 +55,7 @@ jobs:
             ${{ steps.lower.outputs.repository }}
             ghcr.io/${{ github.repository }}
           tags: |
-            type=sha,enable=true,priority=100,prefix=sha-,suffix=${{ matrix.tag }},format=short
+            type=sha,enable=true,priority=100,suffix=-${{ matrix.tag }},format=short
       - if: ${{ github.event_name == 'push' }}
         name: Login to Docker Hub
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
