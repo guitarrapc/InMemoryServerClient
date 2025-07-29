@@ -286,8 +286,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
     public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
     {
         EnsureConnected();
-        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
-            battleId, seedValue, groupName);
+        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}", battleId, seedValue, groupName);
 
         var result = await _hub.ReproduceBattleAsync(battleId, seedValue, groupName);
         return result;
@@ -343,10 +342,8 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
     void IMagicOnionBattleHubReceiver.OnMemberJoined(MemberJoinedData data)
     {
-        _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}",
-            data.ConnectionId, data.GroupName);
-        _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
-            data.CurrentMemberCount, data.MaxMembers);
+        _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}", data.ConnectionId, data.GroupName);
+        _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}", data.CurrentMemberCount, data.MaxMembers);
         if (data.CurrentMemberCount == data.MaxMembers)
         {
             _logger.LogInformation("[GROUP] ✅ Group is now full! Battle will start soon...");
@@ -356,10 +353,8 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
     void IMagicOnionBattleHubReceiver.OnMemberLeft(MemberLeftData data)
     {
-        _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}",
-            data.ConnectionId, data.GroupName);
-        _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
-            data.CurrentMemberCount, data.MaxMembers);
+        _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}", data.ConnectionId, data.GroupName);
+        _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}", data.CurrentMemberCount, data.MaxMembers);
         OnMemberLeft?.Invoke(data);
     }
 
@@ -405,8 +400,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         {
             try
             {
-                _logger.LogInformation("[BATTLE] Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns - BattleId: {BattleId}, Seed: {Seed}",
-                    replayData.ChunkIndex + 1, replayData.TotalChunks, replayData.TurnData.Count, replayData.BattleId, replayData.Seed);
+                _logger.LogInformation("[BATTLE] Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns - BattleId: {BattleId}, Seed: {Seed}", replayData.ChunkIndex + 1, replayData.TotalChunks, replayData.TurnData.Count, replayData.BattleId, replayData.Seed);
 
                 // Store the chunk
                 _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
@@ -451,8 +445,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
     private async Task PlayBattleReplayAsync(Guid battleId, int? seed)
     {
-        _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback - BattleId: {BattleId}, Seed: {Seed}",
-            battleId, seed);
+        _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
 
         // Reconstruct complete replay data
         List<BattleStatus> battleStatuses = [];
@@ -464,8 +457,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             }
         }
 
-        _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS - BattleId: {BattleId}, Seed: {Seed}",
-            battleStatuses.Count, BattleReplayFps, battleId, seed);
+        _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS - BattleId: {BattleId}, Seed: {Seed}", battleStatuses.Count, BattleReplayFps, battleId, seed);
         _logger.LogInformation("[BATTLE REPLAY] ========== Starting Battle Replay ==========");
 
         // Play battle replay
@@ -521,8 +513,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             _logger.LogInformation("[BATTLE REPLAY] ⚔️ Battle ended due to complete elimination!");
         }
 
-        _logger.LogInformation("[BATTLE REPLAY] Battle completed - BattleId: {BattleId}, Seed: {Seed} (replay completed)",
-            battleId, seed);
+        _logger.LogInformation("[BATTLE REPLAY] Battle completed - BattleId: {BattleId}, Seed: {Seed} (replay completed)", battleId, seed);
         _logger.LogInformation("[BATTLE REPLAY] ===============================================");
 
         // Clean up
@@ -556,8 +547,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             {
                 var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
                 var jobInfo = player.PlayerJob.HasValue ? $" ({player.PlayerJob})" : "";
-                _logger.LogInformation("[BATTLE] {PlayerName}{JobInfo}: HP {CurrentHp}/{MaxHp} {HealthBar} ATK:{Attack} DEF:{Defense} SPD:{Speed} Pos:{Position}",
-                    player.Name, jobInfo, player.CurrentHp, player.MaxHp, healthBar, player.Attack, player.Defense, player.Speed, player.Position);
+                _logger.LogInformation("[BATTLE] {PlayerName}{JobInfo}: HP {CurrentHp}/{MaxHp} {HealthBar} ATK:{Attack} DEF:{Defense} SPD:{Speed} Pos:{Position}", player.Name, jobInfo, player.CurrentHp, player.MaxHp, healthBar, player.Attack, player.Defense, player.Speed, player.Position);
             }
 
             // Display enemies info
@@ -567,8 +557,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             {
                 var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 10);
                 var jobInfo = enemy.EnemyJob.HasValue ? $" ({enemy.EnemyJob})" : "";
-                _logger.LogInformation("[BATTLE] {EnemyName}{JobInfo}: HP {CurrentHp}/{MaxHp} {HealthBar} ATK:{Attack} DEF:{Defense} SPD:{Speed} Pos:{Position}",
-                    enemy.Name, jobInfo, enemy.CurrentHp, enemy.MaxHp, healthBar, enemy.Attack, enemy.Defense, enemy.Speed, enemy.Position);
+                _logger.LogInformation("[BATTLE] {EnemyName}{JobInfo}: HP {CurrentHp}/{MaxHp} {HealthBar} ATK:{Attack} DEF:{Defense} SPD:{Speed} Pos:{Position}", enemy.Name, jobInfo, enemy.CurrentHp, enemy.MaxHp, healthBar, enemy.Attack, enemy.Defense, enemy.Speed, enemy.Position);
             }
 
             // Display recent logs
