@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace Shared.Battle;
+﻿namespace Shared.Battle;
 
 /// <summary>
 /// Battle status for client-server communication

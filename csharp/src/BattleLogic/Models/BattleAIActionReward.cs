@@ -3,7 +3,7 @@
 /// <summary>
 /// Internal structure to store action rewards for AI decision making
 /// </summary>
-internal readonly struct ActionReward(string action, float reward, EntityInfo? targetEntity = null, Vector2? targetPosition = null)
+internal readonly struct BattleAIActionReward(string action, float reward, EntityInfo? targetEntity = null, Vector2? targetPosition = null)
 {
     /// <summary>
     /// The action to be taken

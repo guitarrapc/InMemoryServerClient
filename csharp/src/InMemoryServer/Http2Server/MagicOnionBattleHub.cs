@@ -4,12 +4,12 @@ using Shared.Models;
 using Shared.Battle;
 using Shared.Constants;
 using BattleLogic.Battle;
-using BattleLogic.Models;
 using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Models;
 using MessagePack;
+using BattleLogic.Models;
 
 namespace InMemoryServer.Http2Server;
 

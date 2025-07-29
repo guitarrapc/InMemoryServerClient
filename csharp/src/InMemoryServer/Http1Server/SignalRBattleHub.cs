@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using BattleLogic.Battle;
-using BattleLogic.Models;
 using Shared.Battle;
 using Shared.Models;
 using Shared.Constants;
@@ -8,6 +7,7 @@ using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Models;
+using BattleLogic.Models;
 
 namespace InMemoryServer.Http1Server;
 

@@ -1,5 +1,4 @@
 ﻿using Shared.Common;
-using System.Text.Json.Serialization;
 
 namespace Shared.Battle;
 

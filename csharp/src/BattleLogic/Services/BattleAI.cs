@@ -58,9 +58,9 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     /// <summary>
     /// Evaluate all possible actions and calculate their rewards
     /// </summary>
-    private List<ActionReward> EvaluateAllActions(EntityInfo entity, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
+    private List<BattleAIActionReward> EvaluateAllActions(EntityInfo entity, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField)
     {
-        var actions = new List<ActionReward>();
+        var actions = new List<BattleAIActionReward>();
         var previousAction = GetPreviousAction(entity.EntityId);
 
         EvaluateAttackAction(entity, actions, adjacentTarget, players, enemies);
@@ -73,7 +73,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     /// <summary>
     /// Evaluate attack action
     /// </summary>
-    private void EvaluateAttackAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies)
+    private void EvaluateAttackAction(EntityInfo entity, List<BattleAIActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies)
     {
         var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
@@ -81,7 +81,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         if (!targets.Any())
         {
-            actions.Add(new ActionReward("attack", -100f));
+            actions.Add(new BattleAIActionReward("attack", -100f));
             return;
         }
 
@@ -155,18 +155,18 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
                 reward *= BattleAIDefines.NonPlayerAttackMultiplier;
             }
 
-            actions.Add(new ActionReward("attack", reward, adjacentTarget));
+            actions.Add(new BattleAIActionReward("attack", reward, adjacentTarget));
         }
         else
         {
-            actions.Add(new ActionReward("attack", -100f));
+            actions.Add(new BattleAIActionReward("attack", -100f));
         }
     }
 
     /// <summary>
     /// Evaluate defend action
     /// </summary>
-    private void EvaluateDefendAction(EntityInfo entity, List<ActionReward> actions, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField, string? previousAction)
+    private void EvaluateDefendAction(EntityInfo entity, List<BattleAIActionReward> actions, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
@@ -174,14 +174,14 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         if (!targets.Any())
         {
-            actions.Add(new ActionReward("defend", -100f));
+            actions.Add(new BattleAIActionReward("defend", -100f));
             return;
         }
 
         // When only one enemy remains, prioritize attack over defense
         if (targets.Count() == 1)
         {
-            actions.Add(new ActionReward("defend", -50f));
+            actions.Add(new BattleAIActionReward("defend", -50f));
             return;
         }
 
@@ -192,7 +192,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         if (allies.Count() == 1)
         {
-            actions.Add(new ActionReward("defend", -50f));
+            actions.Add(new BattleAIActionReward("defend", -50f));
             return;
         }
 
@@ -202,7 +202,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
         if (previousAction == "defend")
         {
             reward *= BattleAIDefines.ConsecutiveDefendPenalty; // Massive 95% reduction
-            actions.Add(new ActionReward("defend", reward));
+            actions.Add(new BattleAIActionReward("defend", reward));
             return;
         }
 
@@ -245,13 +245,13 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             reward *= BattleAIDefines.NonPlayerDefendMultiplier;
         }
 
-        actions.Add(new ActionReward("defend", reward));
+        actions.Add(new BattleAIActionReward("defend", reward));
     }
 
     /// <summary>
     /// Evaluate move action
     /// </summary>
-    private void EvaluateMoveAction(EntityInfo entity, List<ActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, string? previousAction)
+    private void EvaluateMoveAction(EntityInfo entity, List<BattleAIActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
@@ -259,7 +259,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         if (!targets.Any())
         {
-            actions.Add(new ActionReward("move", 0.1f));
+            actions.Add(new BattleAIActionReward("move", 0.1f));
             return;
         }
 
@@ -278,18 +278,18 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             if (isLastEnemy || isLastAlly)
             {
                 // If only one enemy/ally remains, strongly discourage movement from adjacent position
-                actions.Add(new ActionReward("move", 0.01f)); // Very low reward
+                actions.Add(new BattleAIActionReward("move", 0.01f)); // Very low reward
             }
             else if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
             {
                 // Only allow movement if entity HP is low and enemy HP is high (retreat scenario)
-                actions.Add(new ActionReward("move", 3.0f));
+                actions.Add(new BattleAIActionReward("move", 3.0f));
             }
             else
             {
                 // Apply major penalty for moving away from adjacent targets
                 float moveReward = 0.5f * BattleAIDefines.AdjacentMovePenalty; // 90% reduction
-                actions.Add(new ActionReward("move", moveReward));
+                actions.Add(new BattleAIActionReward("move", moveReward));
             }
             return;
         }
@@ -333,7 +333,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
                 reward *= BattleAIDefines.NonPlayerMoveMultiplier;
             }
 
-            actions.Add(new ActionReward("move", reward, nearestTarget));
+            actions.Add(new BattleAIActionReward("move", reward, nearestTarget));
         }
 
         if (lowestHpTarget != null && (nearestTarget == null || lowestHpTarget.Value.EntityId != nearestTarget.Value.EntityId))
@@ -361,12 +361,12 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
                 reward *= BattleAIDefines.NonPlayerMoveMultiplier;
             }
 
-            actions.Add(new ActionReward("move", reward, lowestHpTarget));
+            actions.Add(new BattleAIActionReward("move", reward, lowestHpTarget));
         }
 
         if (nearestTarget == null && lowestHpTarget == null)
         {
-            actions.Add(new ActionReward("move", 3.0f));
+            actions.Add(new BattleAIActionReward("move", 3.0f));
         }
     }
 }
