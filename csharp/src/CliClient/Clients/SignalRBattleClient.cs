@@ -4,6 +4,8 @@ using Shared.Battle;
 using Shared.Constants;
 using Shared.Contracts;
 using Shared.Models;
+using CliClient.Extensions;
+using CliClient.Services;
 
 namespace CliClient.Clients;
 
@@ -274,32 +276,24 @@ internal class SignalRBattleClient : IBattleClient
         _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
         _connection.On<MemberJoinedData>("MemberJoined", (data) =>
         {
-            _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}",
-                data.ConnectionId, data.GroupName);
-            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
-                data.CurrentMemberCount, data.MaxMembers);
+            _logger.LogBattleInfo(svc => svc.FormatMemberJoined(data.ConnectionId, data.GroupName));
+            _logger.LogBattleInfo(svc => svc.FormatGroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
             if (data.CurrentMemberCount == data.MaxMembers)
             {
-                _logger.LogInformation("[GROUP] ✅ Group is now full! Battle will start soon...");
+                _logger.LogBattleInfo(svc => svc.FormatGroupFull());
             }
             OnMemberJoined?.Invoke(data);
         });
         _connection.On<MemberLeftData>("MemberLeft", (data) =>
         {
-            _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}",
-                data.ConnectionId, data.GroupName);
-            _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}",
-                data.CurrentMemberCount, data.MaxMembers);
+            _logger.LogBattleInfo(svc => svc.FormatMemberLeft(data.ConnectionId, data.GroupName));
+            _logger.LogBattleInfo(svc => svc.FormatGroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
             OnMemberLeft?.Invoke(data);
         });
         _connection.On<ConnectionsReadyData>("ConnectionsReady", data =>
         {
-            _logger.LogInformation("[BATTLE] ========== Connections Ready! ==========");
-            _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", data.BattleId);
-            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", data.Seed);
-            _logger.LogInformation("[BATTLE] Group is full! All clients connected.");
-            _logger.LogInformation("[BATTLE] Sending confirmation to server...");
-            _logger.LogInformation("[BATTLE] ========================================");
+            _logger.LogBattleInfo(svc => svc.FormatConnectionsReady(data.BattleId, data.Seed));
+            _logger.LogBattleInfo(svc => svc.FormatConnectionsReadyDetails(data.BattleId, data.Seed));
 
             OnConnectionsReady?.Invoke(data);
 
@@ -308,13 +302,14 @@ internal class SignalRBattleClient : IBattleClient
             {
                 try
                 {
-                    _logger.LogInformation("[BATTLE] Confirming connection ready status...");
+                    _logger.LogBattleInfo(svc => svc.FormatConfirmingConnection());
                     var result = await ConfirmConnectionReadyAsync();
-                    _logger.LogInformation("[BATTLE] ✅ Connection ready confirmation sent successfully. Result: {Result}", result);
+                    _logger.LogBattleInfo(svc => svc.FormatConnectionConfirmed(result));
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[BATTLE] ❌ Failed to confirm connection ready status");
+                    _logger.LogBattleError(svc => svc.FormatConnectionConfirmationFailed());
+                    _logger.LogError(ex, "Exception details");
                 }
             });
         });
