@@ -277,7 +277,9 @@ public class SignalRBattleHub(
             logger.LogWarning($"Battle replay file not found: {replayPath}");
             return null;
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Start a battle for a full group
     /// </summary>
     private async Task StartBattleAsync(GroupInfo group)

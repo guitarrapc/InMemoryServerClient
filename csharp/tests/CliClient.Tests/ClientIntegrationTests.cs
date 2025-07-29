@@ -187,7 +187,9 @@ public class ClientIntegrationTests : IDisposable
         var magicOnionResult = await manager.ConnectMultipleAsync(
             1, "http://localhost:9999", "test-magiconion", ConnectionType.MagicOnion); // 使用されていないポート
         Assert.False(magicOnionResult); // Expected to fail without server
-    }    [EmbeddedServerTest]
+    }
+
+    [EmbeddedServerTest]
     public async Task MultiBattleClientManager_WithEmbeddedServer_ConnectsSuccessfully()
     {
         // Arrange

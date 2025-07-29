@@ -127,7 +127,9 @@ public class CriticalHitTests
             // クリティカルヒットが発生しなくても、システムが動作していることを確認
             Assert.True(allLogs.Any(log => log.Contains("attacks")), "攻撃ログが生成されていません");
         }
-    }    [Fact]
+    }
+
+    [Fact]
     public void BattleState_ShouldShowCriticalRateInEntityStatus()
     {
         // Arrange

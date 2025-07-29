@@ -95,7 +95,9 @@ public class MagicOnionE2EIntegrationTests : IDisposable
             await channel.ShutdownAsync();
             channel.Dispose();
         }
-    }    [Fact(Timeout = 10000)] // 10秒タイムアウト
+    }
+
+    [Fact(Timeout = 10000)] // 10秒タイムアウト
     public async Task ProductionLikeMagicOnionTest_CompareWithRealImplementation()
     {
         // Arrange
