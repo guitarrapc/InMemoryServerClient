@@ -24,6 +24,7 @@ jobs:
         run: gh release create "$TAG" --title "v$TAG" --generate-notes --fail-on-no-commits --draft
 
   docker:
+    needs: [release]
     strategy:
       matrix:
         include:

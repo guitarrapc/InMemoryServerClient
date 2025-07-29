@@ -1,6 +1,9 @@
 [![Build](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/build.yaml/badge.svg)](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/build.yaml)
 [![Release](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/release.yaml/badge.svg)](https://github.com/guitarrapc/InMemoryServerClient/actions/workflows/release.yaml)
 
+[![Docker Pulls](https://img.shields.io/docker/pulls/guitarrapc/inmemoryserverclient.svg?maxAge=3600)](https://hub.docker.com/r/guitarrapc/inmemoryserverclient/)
+![Static Badge](https://img.shields.io/badge/ghcr.io-inmemoryserverclient?style=flat&logo=github&logoColor=white&color=2088FF&link=https%3A%2F%2Fgithub.com%2Fguitarrapc%2FInMemoryServerClient%2Fpkgs%2Fcontainer%2Finmemoryserverclient)
+
 # InMemoryServerClient
 
 *[日本語版はこちら / Japanese version](README_jp.md)*
