@@ -224,8 +224,8 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         }
     }
 
-    //[Fact(Timeout = 30000)] // タイムアウトを30秒に延長（デバッグ用）
-    [Fact(Skip = "Temporarily disabled - investigating timeout issues")]
+    [Fact(Timeout = 15000)] // タイムアウトを15秒に延長（デバッグ用）
+    //[Fact(Skip = "Temporarily disabled - investigating timeout issues")]
     public async Task MultipleClients_CanJoinSameGroup_ReceiveMemberJoinedEvent()
     {
         // Arrange
@@ -243,7 +243,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
 
         var client1Events = new List<MemberJoinedData>();
         var client2Events = new List<MemberJoinedData>();
-        var allEventsLock = new object();
+        var allEventsLock = new Lock();
 
         // Track all MemberJoined events with thread safety
         receiver1.OnMemberJoinedHandler = (data) =>
