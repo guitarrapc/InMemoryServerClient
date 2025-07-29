@@ -83,7 +83,7 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         using var serverManager = new TestServerManager();
-        serverManager.StartServer();
+        await serverManager.StartServerAsync();
 
         Console.WriteLine($"🔗 Server URL from manager: {serverManager.ServerUrl}");
 
@@ -145,7 +145,7 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         using var serverManager = new TestServerManager();
-        serverManager.StartServer();
+        await serverManager.StartServerAsync();
 
         var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
 
@@ -192,7 +192,7 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         using var serverManager = new TestServerManager();
-        serverManager.StartServer();
+        await serverManager.StartServerAsync();
 
         Console.WriteLine($"🔗 Server URL from manager: {serverManager.ServerUrl}");
 
@@ -368,7 +368,7 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         using var serverManager = new TestServerManager();
-        serverManager.StartServer();
+        await serverManager.StartServerAsync();
 
         const string groupName = "embedded-server-test-group";
         var manager = new MultiBattleClientManager(_loggerFactory);

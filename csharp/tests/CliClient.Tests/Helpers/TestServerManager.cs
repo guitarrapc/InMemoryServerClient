@@ -21,7 +21,7 @@ public class TestServerManager : IDisposable
     /// <summary>
     /// テスト用サーバーを起動し、URLを取得
     /// </summary>
-    public void StartServer()
+    public async Task StartServerAsync()
     {
         // 利用可能なポートを見つける
         var port = GetAvailablePort();
@@ -81,7 +81,7 @@ public class TestServerManager : IDisposable
         _host = builder.Build();
 
         // サーバーをバックグラウンドで起動
-        _ = Task.Run(async () =>
+        var startTask = Task.Run(async () =>
         {
             try
             {
@@ -93,13 +93,45 @@ public class TestServerManager : IDisposable
             }
         });
 
-        // サーバーが起動するまで少し待つ
-        Thread.Sleep(1000);
-
         // HTTPクライアントを作成
         _httpClient = new HttpClient();
 
+        // サーバーが完全に起動するまで待機（最大30秒）
+        await WaitForServerStartupAsync();
+
         Console.WriteLine($"Test server started at: {ServerUrl}");
+    }
+
+    /// <summary>
+    /// サーバーが完全に起動するまで待機
+    /// </summary>
+    private async Task WaitForServerStartupAsync()
+    {
+        const int maxRetries = 30; // 30秒間
+        const int retryDelayMs = 1000; // 1秒間隔
+
+        for (int i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                if (await IsServerAvailableAsync())
+                {
+                    Console.WriteLine($"Server became available after {i + 1} attempts");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Health check attempt {i + 1} failed: {ex.Message}");
+            }
+
+            if (i < maxRetries - 1) // 最後の試行ではない場合
+            {
+                await Task.Delay(retryDelayMs);
+            }
+        }
+
+        throw new TimeoutException($"Server failed to become available within {maxRetries} seconds at {ServerUrl}");
     }
 
     /// <summary>
@@ -135,11 +167,30 @@ public class TestServerManager : IDisposable
 
         try
         {
-            var response = await _httpClient.GetAsync($"{ServerUrl}/health");
-            return response.IsSuccessStatusCode;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await _httpClient.GetAsync($"{ServerUrl}/health", cts.Token);
+            var isHealthy = response.IsSuccessStatusCode;
+
+            if (isHealthy)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Health check successful: {response.StatusCode}, content: {content}");
+            }
+            else
+            {
+                Console.WriteLine($"Health check failed: {response.StatusCode}");
+            }
+
+            return isHealthy;
         }
-        catch
+        catch (TaskCanceledException)
         {
+            Console.WriteLine("Health check timed out after 5 seconds");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Health check exception: {ex.GetType().Name}: {ex.Message}");
             return false;
         }
     }
@@ -149,8 +200,17 @@ public class TestServerManager : IDisposable
         try
         {
             _httpClient?.Dispose();
-            _host?.StopAsync(TimeSpan.FromSeconds(5)).Wait();
-            _host?.Dispose();
+
+            if (_host != null)
+            {
+                // より適切なシャットダウン処理
+                var stopTask = _host.StopAsync(TimeSpan.FromSeconds(10));
+                if (!stopTask.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    Console.WriteLine("Warning: Server shutdown timed out");
+                }
+                _host.Dispose();
+            }
         }
         catch (Exception ex)
         {
