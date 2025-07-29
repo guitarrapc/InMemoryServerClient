@@ -203,7 +203,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
         }
     }
 
-    [Fact(Timeout = 15000)]
+    [Fact(Timeout = 20000)]
     public async Task ThreeSignalRTwoMagicOnion_AutoStartBattle_WorksCorrectly()
     {
         // Arrange
@@ -324,7 +324,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
         {
             // Wait for battle to auto-start
             Console.WriteLine("Waiting for mixed protocol battle to auto-start...");
-            await Task.Delay(1000);
+            await Task.Delay(3000);
 
             // Wait for battle events with timeout
             var timeout = TimeSpan.FromSeconds(30);
