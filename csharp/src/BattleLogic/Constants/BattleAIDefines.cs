@@ -1,4 +1,4 @@
-namespace BattleLogic.Constants;
+﻿namespace BattleLogic.Constants;
 
 /// <summary>
 /// バトルAIのパラメーター調整用定数
@@ -107,12 +107,12 @@ internal static class BattleAIDefines
     /// <summary>
     /// 一撃で倒せる敵への攻撃ボーナス乗数
     /// </summary>
-    public const float OneHitKillMultiplier = 3.0f;
+    public const float OneHitKillMultiplier = 5.0f;
 
     /// <summary>
     /// 次のターンで攻撃可能な位置への移動ボーナス乗数
     /// </summary>
-    public const float NextTurnAttackPositionMultiplier = 2.0f;
+    public const float NextTurnAttackPositionMultiplier = 6.0f;
 
     /// <summary>
     /// 2ターン後に攻撃可能な位置への移動ボーナス乗数

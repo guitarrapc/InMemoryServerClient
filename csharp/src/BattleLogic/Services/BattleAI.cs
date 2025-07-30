@@ -314,7 +314,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             if (distanceToNearest == 2)
             {
                 // Can move adjacent and attack in one turn - massive bonus
-                reward *= BattleAIDefines.NextTurnAttackPositionMultiplier * 3.0f; // Triple the original bonus
+                reward *= BattleAIDefines.NextTurnAttackPositionMultiplier;
 
                 // Additional bonus if target has low HP (potential one-hit kill)
                 float targetHpRatio = (float)nearestTarget.Value.CurrentHp / nearestTarget.Value.MaxHp;
