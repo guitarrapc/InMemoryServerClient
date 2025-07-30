@@ -5,7 +5,7 @@ using Shared.Constants;
 using Shared.Contracts;
 using Shared.Models;
 using CliClient.Extensions;
-using CliClient.Services;
+using CliClient.Models;
 
 namespace CliClient.Clients;
 
@@ -276,24 +276,24 @@ internal class SignalRBattleClient : IBattleClient
         _connection.On<string, string>("GroupMessage", (connectionId, message) => OnGroupMessage?.Invoke(connectionId, message));
         _connection.On<MemberJoinedData>("MemberJoined", (data) =>
         {
-            _logger.LogBattleInfo(svc => svc.FormatMemberJoined(data.ConnectionId, data.GroupName));
-            _logger.LogBattleInfo(svc => svc.FormatGroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
+            _logger.LogBattleInfo(new BattleLogMessages.MemberJoined(data.ConnectionId, data.GroupName));
+            _logger.LogBattleInfo(new BattleLogMessages.GroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
             if (data.CurrentMemberCount == data.MaxMembers)
             {
-                _logger.LogBattleInfo(svc => svc.FormatGroupFull());
+                _logger.LogBattleInfo(new BattleLogMessages.GroupFull());
             }
             OnMemberJoined?.Invoke(data);
         });
         _connection.On<MemberLeftData>("MemberLeft", (data) =>
         {
-            _logger.LogBattleInfo(svc => svc.FormatMemberLeft(data.ConnectionId, data.GroupName));
-            _logger.LogBattleInfo(svc => svc.FormatGroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
+            _logger.LogBattleInfo(new BattleLogMessages.MemberLeft(data.ConnectionId, data.GroupName));
+            _logger.LogBattleInfo(new BattleLogMessages.GroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
             OnMemberLeft?.Invoke(data);
         });
         _connection.On<ConnectionsReadyData>("ConnectionsReady", data =>
         {
-            _logger.LogBattleInfo(svc => svc.FormatConnectionsReady(data.BattleId, data.Seed));
-            _logger.LogBattleInfo(svc => svc.FormatConnectionsReadyDetails(data.BattleId, data.Seed));
+            _logger.LogBattleInfo(new BattleLogMessages.ConnectionsReady());
+            _logger.LogBattleInfo(new BattleLogMessages.ConnectionsReadyDetails(data.BattleId.ToString(), data.Seed));
 
             OnConnectionsReady?.Invoke(data);
 
@@ -302,13 +302,13 @@ internal class SignalRBattleClient : IBattleClient
             {
                 try
                 {
-                    _logger.LogBattleInfo(svc => svc.FormatConfirmingConnection());
+                    _logger.LogBattleInfo(new BattleLogMessages.ConfirmingConnection());
                     var result = await ConfirmConnectionReadyAsync();
-                    _logger.LogBattleInfo(svc => svc.FormatConnectionConfirmed(result));
+                    _logger.LogBattleInfo(new BattleLogMessages.ConnectionConfirmed(result));
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogBattleError(svc => svc.FormatConnectionConfirmationFailed());
+                    _logger.LogBattleError(new BattleLogMessages.ConnectionConfirmationFailed());
                     _logger.LogError(ex, "Exception details");
                 }
             });

@@ -7,6 +7,8 @@ using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Grpc.Net.Client;
 using System.Diagnostics.CodeAnalysis;
+using CliClient.Extensions;
+using CliClient.Models;
 
 namespace CliClient.Clients;
 
@@ -342,30 +344,27 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
     void IMagicOnionBattleHubReceiver.OnMemberJoined(MemberJoinedData data)
     {
-        _logger.LogInformation("[GROUP] 👤 New member joined! Connection ID: {ConnectionId} in group {GroupName}", data.ConnectionId, data.GroupName);
-        _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}", data.CurrentMemberCount, data.MaxMembers);
+        _logger.LogBattleInfo(new BattleLogMessages.MemberJoined(data.ConnectionId, data.GroupName));
+        _logger.LogBattleInfo(new BattleLogMessages.GroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
         if (data.CurrentMemberCount == data.MaxMembers)
         {
-            _logger.LogInformation("[GROUP] ✅ Group is now full! Battle will start soon...");
+            _logger.LogBattleInfo(new BattleLogMessages.GroupFull());
         }
         OnMemberJoined?.Invoke(data);
     }
 
     void IMagicOnionBattleHubReceiver.OnMemberLeft(MemberLeftData data)
     {
-        _logger.LogInformation("[GROUP] 👋 Member left! Connection ID: {ConnectionId} from group {GroupName}", data.ConnectionId, data.GroupName);
-        _logger.LogInformation("[GROUP] 🔢 Total group members: {MemberCount}/{MaxMembers}", data.CurrentMemberCount, data.MaxMembers);
+        _logger.LogBattleInfo(new BattleLogMessages.MemberLeft(data.ConnectionId, data.GroupName));
+        _logger.LogBattleInfo(new BattleLogMessages.GroupMemberCount(data.CurrentMemberCount, data.MaxMembers));
         OnMemberLeft?.Invoke(data);
     }
 
     void IMagicOnionBattleHubReceiver.OnConnectionsReady(ConnectionsReadyData data)
     {
-        _logger.LogInformation("[BATTLE] ========== Connections Ready! ==========");
-        _logger.LogInformation("[BATTLE] 🔄 Battle ID: {BattleId}", data.BattleId);
-        _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", data.Seed);
-        _logger.LogInformation("[BATTLE] Group is full! All clients connected.");
-        _logger.LogInformation("[BATTLE] Sending confirmation to server...");
-        _logger.LogInformation("[BATTLE] ========================================");
+        _logger.LogBattleInfo(new BattleLogMessages.ConnectionReadyHeader());
+        _logger.LogBattleInfo(new BattleLogMessages.ConnectionsReady());
+        _logger.LogBattleInfo(new BattleLogMessages.ConnectionsReadyDetails(data.BattleId.ToString(), data.Seed));
 
         OnConnectionsReady?.Invoke(data);
 
@@ -374,23 +373,22 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         {
             try
             {
-                _logger.LogInformation("[BATTLE] Confirming connection ready status...");
+                _logger.LogBattleInfo(new BattleLogMessages.ConfirmingConnection());
                 var result = await ConfirmConnectionReadyAsync();
-                _logger.LogInformation("[BATTLE] ✅ Connection ready confirmation sent successfully. Result: {Result}", result);
+                _logger.LogBattleInfo(new BattleLogMessages.ConnectionConfirmed(result));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[BATTLE] ❌ Failed to confirm connection ready status");
+                _logger.LogBattleError(new BattleLogMessages.ConnectionConfirmationFailed());
+                _logger.LogError(ex, "Exception details");
             }
         });
     }
 
     void IMagicOnionBattleHubReceiver.OnBattleStarted(BattleStartedData data)
     {
-        _logger.LogInformation("[BATTLE] ========== Battle Started! ==========");
-        _logger.LogInformation("[BATTLE] 🏆 Battle ID: {BattleId}", data.BattleId);
-        _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", data.Seed);
-        _logger.LogInformation("[BATTLE] ====================================");
+        _logger.LogBattleInfo(new BattleLogMessages.BattleStarted());
+        _logger.LogBattleInfo(new BattleLogMessages.BattleStartedDetails(data.BattleId.ToString(), data.Seed));
         OnBattleStarted?.Invoke(data);
     }
 
@@ -400,7 +398,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         {
             try
             {
-                _logger.LogInformation("[BATTLE] Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns - BattleId: {BattleId}, Seed: {Seed}", replayData.ChunkIndex + 1, replayData.TotalChunks, replayData.TurnData.Count, replayData.BattleId, replayData.Seed);
+                _logger.LogBattleInfo(new BattleLogMessages.ReplayChunkReceived(replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count, (long)replayData.Seed));
 
                 // Store the chunk
                 _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
@@ -429,23 +427,20 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
     void IMagicOnionBattleHubReceiver.OnGroupDissolved(GroupDissolvedData data)
     {
-        _logger.LogWarning("[GROUP] ❌ Group dissolved! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
-        _logger.LogWarning("[GROUP] 📄 Reason: {Reason}", data.Reason);
-        _logger.LogInformation("[GROUP] Connection will be closed automatically.");
+        _logger.LogBattleWarning(new BattleLogMessages.GroupDissolved(data.GroupName, data.GroupId, data.Reason));
         OnGroupDissolved?.Invoke(data);
     }
 
     void IMagicOnionBattleHubReceiver.OnGroupExtended(GroupExtendedData data)
     {
-        _logger.LogInformation("[GROUP] ⏰ Group extended! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
-        _logger.LogInformation("[GROUP] 🔄 Extension count: {ExtensionCount}/{MaxExtensions}", data.ExtensionCount, data.MaxExtensions);
-        _logger.LogInformation("[GROUP] 📅 New expiry time: {NewExpiryTime:yyyy-MM-dd HH:mm:ss}", data.NewExpiryTime);
+        _logger.LogBattleInfo(new BattleLogMessages.GroupExtended(data.GroupName, data.GroupId, data.ExtensionCount, data.MaxExtensions, data.NewExpiryTime));
         OnGroupExtended?.Invoke(data);
     }
 
     private async Task PlayBattleReplayAsync(Guid battleId, int? seed)
     {
-        _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback - BattleId: {BattleId}, Seed: {Seed}", battleId, seed);
+        var seedValue = seed ?? 0;
+        _logger.LogBattleInfo(new BattleLogMessages.AllChunksReceived(battleId.ToString(), seedValue));
 
         // Reconstruct complete replay data
         List<BattleStatus> battleStatuses = [];
@@ -457,7 +452,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             }
         }
 
-        _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS - BattleId: {BattleId}, Seed: {Seed}", battleStatuses.Count, BattleReplayFps, battleId, seed);
+        _logger.LogBattleInfo(new BattleLogMessages.ReplayStarting(battleStatuses.Count, BattleReplayFps, battleId.ToString(), seedValue));
         _logger.LogInformation("[BATTLE REPLAY] ========== Starting Battle Replay ==========");
 
         // Play battle replay
@@ -523,7 +518,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         _battleCompletionSource.TrySetResult(true);
 
         // Auto-disconnect after replay completion
-        _logger.LogInformation("[BATTLE] Auto-disconnecting after battle replay completion");
+        _logger.LogBattleInfo(new BattleLogMessages.AutoDisconnecting());
         await DisconnectAsync();
     }
 

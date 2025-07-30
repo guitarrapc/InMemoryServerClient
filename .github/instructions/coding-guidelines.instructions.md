@@ -24,6 +24,67 @@ C#の基礎的なルールは次の通り
 - TreatWarningsAsErrorsを有効にして、警告をエラーとして扱います。すべての警告を解決することを目指します。
 - Top Level Statementsを使用して、エントリポイントを簡潔に保ちます。
 
+## 現代的なC#要件（常に適用）
+
+型安全性とパフォーマンスを最大化するため、以下の要件を常に適用する：
+
+### 1. 型安全性の徹底
+- **`dynamic`の使用を禁止**：実行時エラーのリスクがあるため、`dynamic`は使用しない
+- **`object`の不適切な使用を避ける**：型安全でない汎用的な`object`の使用を最小限に抑制
+  - lockにはC#13で追加された`Lock`型を用いる
+- **ジェネリクスを積極活用**：型パラメーターとして`<T>`を使用し、コンパイル時の型チェックを活用
+
+### 2. アロケーション効率の最適化
+- **値型（構造体）の活用**：小さなデータは`readonly struct`や`readonly record struct`を使用
+- **`in`パラメーター**：大きな構造体を引数で渡す際は`in`修飾子を使用
+- **スタック領域の活用**：`stackalloc`、`Span<T>`、`Memory<T>`を適切に使用
+- **不必要なボクシングを避ける**：値型から参照型への暗黙的な変換を避ける
+
+### 3. パフォーマンス重視の実装パターン
+- **構造体ベースのメッセージ**：ログやデータ転送では`IFormattable`を実装した構造体を使用
+- **ジェネリック制約の活用**：`where T : struct, IFormattable`などの制約で型安全性を確保
+- **メモリ効率的なコレクション**：初期容量を指定し、適切なコレクション型を選択
+
+### 4. 実装例
+```csharp
+// ✅ 推奨：型安全な構造体ベースのログメッセージ
+public readonly struct PlayerInfo : IFormattable
+{
+    public string PlayerId { get; }
+    public int Health { get; }
+
+    public PlayerInfo(string playerId, int health)
+    {
+        PlayerId = playerId;
+        Health = health;
+    }
+
+    public string ToString(string? format, IFormatProvider? formatProvider) =>
+        $"Player {PlayerId}: HP {Health}";
+}
+
+// ✅ 推奨：ジェネリクスを使用した型安全な拡張メソッド
+public static void LogInfo<T>(this ILogger logger, in T data)
+    where T : struct, IFormattable
+{
+    logger.LogInformation("{Message}", data.ToString(null, null));
+}
+
+// ❌ 禁止：dynamicの使用
+public void ProcessData(dynamic data) // 禁止
+{
+    // 実行時エラーのリスク
+}
+
+// ❌ 禁止：object[]を多用したパラメーター
+public void LogMessage(string template, params object[] args) // 避ける
+{
+    // 型安全性とパフォーマンスの問題
+}
+```
+
+この要件により、型安全でパフォーマンスに優れたC#コードを実現する。
+
 パフォーマンスの最大化に注意します。
 
 - 短寿命なオブジェクトにはstructをはじめとしてスタック領域を用いることができるか検討します。例えば`readonly ref struct`や`readonly struct`はパフォーマンス向上に寄与します。Mutable Structは意識的に避けます。stackallocを使用して、短寿命な配列をスタック上に割り当てることも検討します。
