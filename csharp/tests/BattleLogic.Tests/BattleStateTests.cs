@@ -334,8 +334,7 @@ public class BattleStateTests
         }
 
         // At least one should be different (either players or enemies or both)
-        Assert.True(hasDifferentPlayer || hasDifferentEnemy,
-            "Different battle IDs should produce at least some different entities");
+        Assert.True(hasDifferentPlayer || hasDifferentEnemy, "Different battle IDs should produce at least some different entities");
     }
 
     [Fact]
@@ -580,8 +579,7 @@ public class BattleStateTests
         Assert.Equal(expectedTurnLimit, finalStatus.IsEndedByTurnLimit.Value);
 
         // Log the result for debugging
-        _logger.LogInformation("Battle ended - CurrentTurn: {CurrentTurn}, TotalTurns: {TotalTurns}, IsEndedByTurnLimit: {IsEndedByTurnLimit}",
-            finalStatus.CurrentTurn, finalStatus.TotalTurns, finalStatus.IsEndedByTurnLimit);
+        _logger.LogInformation("Battle ended - CurrentTurn: {CurrentTurn}, TotalTurns: {TotalTurns}, IsEndedByTurnLimit: {IsEndedByTurnLimit}", finalStatus.CurrentTurn, finalStatus.TotalTurns, finalStatus.IsEndedByTurnLimit);
 
         // Clean up
         battleState.ClearBattleData();

@@ -31,7 +31,7 @@ public class MagicOnionGroupService : IDisposable
             {
                 group = groupProvider.GetOrAddSynchronousGroup<Guid, IMagicOnionBattleHubReceiver>(groupId);
                 _groups[groupId] = group;
-                logger.LogInformation("Created new MagicOnion group: {GroupId}", groupId);
+                logger.LogDebug("Created new MagicOnion group: {GroupId}", groupId);
             }
             return group;
         }
@@ -44,7 +44,7 @@ public class MagicOnionGroupService : IDisposable
     {
         var group = GetOrCreateGroup(groupId);
         group.Add(connectionId, client);
-        logger.LogInformation("Added client {ConnectionId} to MagicOnion group {GroupId}", connectionId, groupId);
+        logger.LogDebug("Added client {ConnectionId} to MagicOnion group {GroupId}", connectionId, groupId);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public class MagicOnionGroupService : IDisposable
             if (_groups.TryGetValue(groupId, out var group))
             {
                 group.Remove(connectionId);
-                logger.LogInformation("Removed client {ConnectionId} from MagicOnion group {GroupId}", connectionId, groupId);
+                logger.LogDebug("Removed client {ConnectionId} from MagicOnion group {GroupId}", connectionId, groupId);
             }
         }
     }
@@ -67,18 +67,18 @@ public class MagicOnionGroupService : IDisposable
     /// </summary>
     public void SendToAll(string groupId, Action<IMagicOnionBattleHubReceiver> action)
     {
-        logger.LogInformation("MagicOnionGroupService.SendToAll called for group {GroupId}", groupId);
+        logger.LogDebug("MagicOnionGroupService.SendToAll called for group {GroupId}", groupId);
         lock (_lock)
         {
             if (_groups.TryGetValue(groupId, out var group))
             {
-                logger.LogInformation("MagicOnionGroupService.SendToAll group found for group {GroupId}, calling action", groupId);
+                logger.LogDebug("MagicOnionGroupService.SendToAll group found for group {GroupId}, calling action", groupId);
 
                 try
                 {
                     // Call action directly - MagicOnion StreamingHub requires synchronous calls
                     action(group.All);
-                    logger.LogInformation("MagicOnionGroupService.SendToAll action completed for group {GroupId}", groupId);
+                    logger.LogDebug("MagicOnionGroupService.SendToAll action completed for group {GroupId}", groupId);
                 }
                 catch (Exception ex)
                 {
@@ -90,7 +90,7 @@ public class MagicOnionGroupService : IDisposable
                 logger.LogWarning("MagicOnionGroupService.SendToAll group not found for group {GroupId}", groupId);
             }
         }
-        logger.LogInformation("MagicOnionGroupService.SendToAll exiting for group {GroupId}", groupId);
+        logger.LogDebug("MagicOnionGroupService.SendToAll exiting for group {GroupId}", groupId);
     }
 
     /// <summary>
@@ -104,7 +104,7 @@ public class MagicOnionGroupService : IDisposable
             {
                 group.Dispose();
                 _groups.Remove(groupId);
-                logger.LogInformation("Removed MagicOnion group: {GroupId}", groupId);
+                logger.LogDebug("Removed MagicOnion group: {GroupId}", groupId);
             }
         }
     }

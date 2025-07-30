@@ -36,8 +36,7 @@ public class ConnectionManager
 
         _connections[connectionId] = connectionInfo;
 
-        _logger.LogInformation("Registered {Protocol} connection: {ConnectionId}",
-            protocol, connectionId);
+        _logger.LogDebug("Registered {Protocol} connection: {ConnectionId}", protocol, connectionId);
 
         return connectionId;
     }
@@ -51,8 +50,7 @@ public class ConnectionManager
     {
         if (_connections.TryRemove(connectionId, out var connectionInfo))
         {
-            _logger.LogInformation("Unregistered {Protocol} connection: {ConnectionId}",
-                connectionInfo.Protocol, connectionId);
+            _logger.LogDebug("Unregistered {Protocol} connection: {ConnectionId}", connectionInfo.Protocol, connectionId);
             return true;
         }
 

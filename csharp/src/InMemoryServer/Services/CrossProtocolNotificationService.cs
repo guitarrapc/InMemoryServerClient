@@ -40,7 +40,7 @@ public class CrossProtocolNotificationService
         var signalRConnections = new List<string>();
         var magicOnionConnections = new List<Models.ConnectionInfo>();
 
-        _logger.LogInformation("CrossProtocolNotificationService.NotifyGroupAsync: {MethodName} for group {GroupId} with {ConnectionCount} connections",
+        _logger.LogDebug("CrossProtocolNotificationService.NotifyGroupAsync: {MethodName} for group {GroupId} with {ConnectionCount} connections",
             methodName, groupId, connectionIds.Count());
 
         // Categorize connections by protocol
@@ -54,7 +54,7 @@ public class CrossProtocolNotificationService
                 continue;
             }
 
-            _logger.LogInformation("CrossProtocolNotificationService: Found {Protocol} connection {ConnectionId} in group {GroupId}",
+            _logger.LogDebug("CrossProtocolNotificationService: Found {Protocol} connection {ConnectionId} in group {GroupId}",
                 connectionInfo.Protocol, normalizedConnectionId, groupId);
 
             switch (connectionInfo.Protocol)
@@ -73,11 +73,11 @@ public class CrossProtocolNotificationService
         {
             try
             {
-                _logger.LogInformation("CrossProtocolNotificationService sending {MethodName} to {Count} SignalR clients in group {GroupId}",
+                _logger.LogDebug("CrossProtocolNotificationService sending {MethodName} to {Count} SignalR clients in group {GroupId}",
                     methodName, signalRConnections.Count, groupId);
                 await _signalRHubContext.Clients.Clients(signalRConnections)
                     .SendAsync(methodName, data);
-                _logger.LogInformation("CrossProtocolNotificationService successfully sent {MethodName} to {Count} SignalR clients in group {GroupId}",
+                _logger.LogDebug("CrossProtocolNotificationService successfully sent {MethodName} to {Count} SignalR clients in group {GroupId}",
                     methodName, signalRConnections.Count, groupId);
             }
             catch (Exception ex)
@@ -88,31 +88,27 @@ public class CrossProtocolNotificationService
         }
         else
         {
-            _logger.LogInformation("CrossProtocolNotificationService: No SignalR clients found for {MethodName} in group {GroupId}",
+            _logger.LogDebug("CrossProtocolNotificationService: No SignalR clients found for {MethodName} in group {GroupId}",
                 methodName, groupId);
         }
 
         // Send to MagicOnion clients
         if (magicOnionConnections.Count > 0)
         {
-            _logger.LogInformation("CrossProtocolNotificationService sending {MethodName} to {Count} MagicOnion clients in group {GroupId}",
+            _logger.LogDebug("CrossProtocolNotificationService sending {MethodName} to {Count} MagicOnion clients in group {GroupId}",
                 methodName, magicOnionConnections.Count, groupId);
             try
             {
                 // Use MagicOnion group service to send to all clients in the group
-                _logger.LogInformation("CrossProtocolNotificationService calling SendToAll for {MethodName} in group {GroupId}", methodName, groupId);
+                _logger.LogDebug("CrossProtocolNotificationService calling SendToAll for {MethodName} in group {GroupId}", methodName, groupId);
                 _magicOnionGroupService.SendToAll(groupId, receiver =>
                 {
-                    _logger.LogInformation("CrossProtocolNotificationService executing SendToAll action for {MethodName} in group {GroupId}", methodName, groupId);
+                    _logger.LogDebug("CrossProtocolNotificationService executing SendToAll action for {MethodName} in group {GroupId}", methodName, groupId);
                     switch (methodName)
                     {
                         case "MemberJoined":
                             if (data is MemberJoinedData memberJoinedData)
-                            {
-                                _logger.LogInformation("CrossProtocolNotificationService calling OnMemberJoined for group {GroupId}", groupId);
                                 receiver.OnMemberJoined(memberJoinedData);
-                                _logger.LogInformation("CrossProtocolNotificationService OnMemberJoined completed for group {GroupId}", groupId);
-                            }
                             break;
                         case "MemberLeft":
                             if (data is MemberLeftData memberLeftData)
@@ -147,11 +143,10 @@ public class CrossProtocolNotificationService
                                 receiver.OnGroupMessage(groupMessageData.SenderId, groupMessageData.Message);
                             break;
                     }
-                    _logger.LogInformation("CrossProtocolNotificationService SendToAll action completed for {MethodName} in group {GroupId}", methodName, groupId);
+                    _logger.LogDebug("CrossProtocolNotificationService SendToAll action completed for {MethodName} in group {GroupId}", methodName, groupId);
                 });
-                _logger.LogInformation("CrossProtocolNotificationService SendToAll completed for {MethodName} in group {GroupId}", methodName, groupId);
-                _logger.LogDebug("Sent {MethodName} to {Count} MagicOnion clients in group {GroupId}",
-                    methodName, magicOnionConnections.Count, groupId);
+                _logger.LogDebug("CrossProtocolNotificationService SendToAll completed for {MethodName} in group {GroupId}", methodName, groupId);
+                _logger.LogDebug("Sent {MethodName} to {Count} MagicOnion clients in group {GroupId}", methodName, magicOnionConnections.Count, groupId);
             }
             catch (Exception ex)
             {

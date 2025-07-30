@@ -1,6 +1,6 @@
 ﻿using InMemoryServer.Services;
 
-namespace InMemoryServer.Tests.Integration;
+namespace InMemoryServer.Tests;
 
 /// <summary>
 /// Integration tests for Actor-based Group Manager
