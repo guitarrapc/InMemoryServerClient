@@ -3,6 +3,7 @@ using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Http1Server;
+using InMemoryServer.Extensions;
 
 namespace InMemoryServer;
 
@@ -35,7 +36,11 @@ public class Program
         builder.Services.AddMagicOnion();
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();
-        builder.Services.AddSingleton<GroupManager>();
+
+        // Choose Group Manager implementation
+        // Use Actor Model Pattern (Recommended)
+        builder.Services.AddActorGroupManager();
+
         builder.Services.AddSingleton<SignalRBattleHub>();
         builder.Services.AddSingleton<MagicOnionGroupService>();
         builder.Services.AddSingleton<CrossProtocolNotificationService>();

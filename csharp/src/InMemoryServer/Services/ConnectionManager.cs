@@ -97,4 +97,16 @@ public class ConnectionManager
     {
         return _connections.Count;
     }
+
+    /// <summary>
+    /// Check if a connection is still active
+    /// </summary>
+    /// <param name="connectionId">Connection ID to check</param>
+    /// <returns>True if the connection is active, false otherwise</returns>
+    public virtual async Task<bool> IsConnectionActiveAsync(string connectionId)
+    {
+        // For now, just check if the connection exists in our tracking
+        // In a real implementation, you might want to ping the actual connection
+        return await Task.FromResult(_connections.ContainsKey(connectionId));
+    }
 }

@@ -51,7 +51,15 @@ public class TestServerManager : IDisposable
                     services.AddMagicOnion();
                     services.AddSingleton<InMemoryServer.InMemoryState>();
                     services.AddSingleton<InMemoryServer.Services.ConnectionManager>();
-                    services.AddSingleton<InMemoryServer.Services.GroupManager>();
+
+                    // Use Actor Group Manager for tests
+                    services.AddSingleton<InMemoryServer.Services.GroupManagerActor>();
+                    services.AddSingleton<InMemoryServer.Services.IGroupManager>(serviceProvider =>
+                    {
+                        var actor = serviceProvider.GetRequiredService<InMemoryServer.Services.GroupManagerActor>();
+                        return new InMemoryServer.Services.GroupManagerAdapter(actor);
+                    });
+
                     services.AddSingleton<InMemoryServer.Services.MagicOnionGroupService>();
                     services.AddSingleton<InMemoryServer.Services.CrossProtocolNotificationService>();
                     services.AddSingleton<SignalRBattleHub>();

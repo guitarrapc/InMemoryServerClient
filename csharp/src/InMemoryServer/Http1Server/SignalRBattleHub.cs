@@ -18,7 +18,7 @@ public class SignalRBattleHub(
     ILogger<SignalRBattleHub> logger,
     InMemoryState state,
     ConnectionManager connectionManager,
-    GroupManager groupManager,
+    InMemoryServer.Services.IGroupManager groupManager,
     CrossProtocolNotificationService notificationService,
     ILoggerFactory loggerFactory,
     BattleReplayWriterFactory replayWriterFactory) : Hub
@@ -151,7 +151,7 @@ public class SignalRBattleHub(
     {
         var connectionId = Context.ConnectionId;
 
-        var groupId = groupManager.GetGroupIdForConnection(connectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning("SignalR client {ConnectionId} tried to broadcast but is not in any group",
@@ -159,7 +159,7 @@ public class SignalRBattleHub(
             return false;
         }
 
-        var group = groupManager.GetGroupInfo(groupId);
+        var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group == null)
         {
             logger.LogWarning("Group {GroupId} not found for broadcast", groupId);
@@ -184,7 +184,7 @@ public class SignalRBattleHub(
     public async Task<IEnumerable<GroupInfo>> GetGroupsAsync()
     {
         logger.LogInformation($"Client {Context.ConnectionId} requesting group list");
-        return groupManager.GetAllGroups();
+        return await groupManager.GetAllGroupsAsync();
     }
 
     /// <summary>
@@ -192,14 +192,14 @@ public class SignalRBattleHub(
     /// </summary>
     public async Task<GroupInfo?> GetCurrentGroupAsync()
     {
-        var groupId = groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning($"Client {Context.ConnectionId} requested current group but is not in any group");
             return null;
         }
 
-        return groupManager.GetGroupInfo(groupId);
+        return await groupManager.GetGroupInfoAsync(groupId);
     }
 
     /// <summary>
@@ -207,14 +207,14 @@ public class SignalRBattleHub(
     /// </summary>
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
-        var groupId = groupManager.GetGroupIdForConnection(Context.ConnectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning($"Client {Context.ConnectionId} requested battle status but is not in any group");
             return null;
         }
 
-        var group = groupManager.GetGroupInfo(groupId);
+        var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             logger.LogWarning($"Group {groupId} does not have an active battle");
@@ -478,12 +478,12 @@ public class SignalRBattleHub(
         {
             Uptime = DateTime.UtcNow - state.StartTime,
             TotalConnections = state.ConnectionCount,
-            GroupCount = groupManager.GetAllGroups().Count(),
+            GroupCount = (await groupManager.GetAllGroupsAsync()).Count(),
             ActiveBattleCount = state.BattleStates.Count
         };
 
         // Get group summaries
-        foreach (var group in groupManager.GetAllGroups())
+        foreach (var group in await groupManager.GetAllGroupsAsync())
         {
             status.Groups.Add(new GroupSummary
             {
@@ -522,14 +522,14 @@ public class SignalRBattleHub(
         var clientId = Context.ConnectionId;
         logger.LogInformation($"Client {clientId} is attempting to confirm connection ready");
 
-        var groupId = groupManager.GetGroupIdForConnection(clientId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(clientId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning($"Client {clientId} attempted to confirm connection ready but is not in any group");
             return false;
         }
 
-        var group = groupManager.GetGroupInfo(groupId);
+        var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             logger.LogWarning($"Group {groupId} does not have an active battle for connection ready confirmation");
@@ -747,8 +747,8 @@ public class SignalRBattleHub(
     public async Task<bool> ExtendGroupAsync(string? groupName = null)
     {
         var groupId = groupName != null ?
-            groupManager.GetAllGroups().FirstOrDefault(g => g.Name == groupName)?.GroupId :
-            groupManager.GetGroupIdForConnection(Context.ConnectionId);
+            (await groupManager.GetAllGroupsAsync()).FirstOrDefault(g => g.Name == groupName)?.GroupId :
+            await groupManager.GetGroupIdForConnectionAsync(Context.ConnectionId);
 
         if (string.IsNullOrEmpty(groupId))
         {
@@ -756,10 +756,10 @@ public class SignalRBattleHub(
             return false;
         }
 
-        var success = groupManager.ExtendGroupWaitingTime(groupId);
+        var success = await groupManager.ExtendGroupWaitingTimeAsync(groupId);
         if (success)
         {
-            var group = groupManager.GetGroupInfo(groupId);
+            var group = await groupManager.GetGroupInfoAsync(groupId);
             if (group != null)
             {
                 // Notify all group members about the extension

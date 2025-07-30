@@ -1,6 +1,4 @@
-using System.Globalization;
-
-namespace CliClient.Models;
+﻿namespace CliClient.Models;
 
 /// <summary>
 /// Type-safe battle log message structures.

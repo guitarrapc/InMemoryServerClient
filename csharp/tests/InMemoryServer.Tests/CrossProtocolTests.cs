@@ -6,21 +6,23 @@ namespace InMemoryServer.Tests;
 /// <summary>
 /// Tests for cross-protocol functionality
 /// </summary>
-public class CrossProtocolTests
+public class CrossProtocolTests : IDisposable
 {
-    private readonly ILogger<GroupManager> _groupLogger;
+    private readonly ILogger<GroupManagerActor> _groupLogger;
     private readonly ILogger<ConnectionManager> _connectionLogger;
     private readonly ILogger<CrossProtocolNotificationService> _notificationLogger;
     private readonly ConnectionManager _connectionManager;
-    private readonly GroupManager _groupManager;
+    private readonly GroupManagerActor _groupManagerActor;
+    private readonly IGroupManager _groupManager;
 
     public CrossProtocolTests()
     {
-        _groupLogger = Substitute.For<ILogger<GroupManager>>();
+        _groupLogger = Substitute.For<ILogger<GroupManagerActor>>();
         _connectionLogger = Substitute.For<ILogger<ConnectionManager>>();
         _notificationLogger = Substitute.For<ILogger<CrossProtocolNotificationService>>();
         _connectionManager = new ConnectionManager(_connectionLogger);
-        _groupManager = new GroupManager(_groupLogger, _connectionManager);
+        _groupManagerActor = new GroupManagerActor(_groupLogger, _connectionManager);
+        _groupManager = new GroupManagerAdapter(_groupManagerActor);
     }
 
     [Fact]
@@ -131,7 +133,7 @@ public class CrossProtocolTests
         Assert.Equal(group1.GroupId, leftGroup.GroupId);
 
         // Check final group state
-        var finalGroup = _groupManager.GetGroupInfo(group1.GroupId);
+        var finalGroup = await _groupManager.GetGroupInfoAsync(group1.GroupId);
         Assert.NotNull(finalGroup);
         Assert.Equal(1, finalGroup.ConnectionCount);
         Assert.Contains(magicOnionConnection, finalGroup.ClientIds);
@@ -155,5 +157,12 @@ public class CrossProtocolTests
         // Assert
         Assert.True(removedSuccessfully);
         Assert.Null(_connectionManager.GetConnectionInfo(connectionId));
+    }
+
+    public void Dispose()
+    {
+        if (_groupManager is IDisposable disposable)
+            disposable.Dispose();
+        _groupManagerActor?.Dispose();
     }
 }

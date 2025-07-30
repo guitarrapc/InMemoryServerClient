@@ -21,7 +21,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     private readonly ILogger<MagicOnionBattleHub> logger;
     private readonly InMemoryState state;
     private readonly ConnectionManager connectionManager;
-    private readonly GroupManager groupManager;
+    private readonly InMemoryServer.Services.IGroupManager groupManager;
     private readonly CrossProtocolNotificationService notificationService;
     private readonly ILoggerFactory loggerFactory;
     private readonly BattleReplayWriterFactory replayWriterFactory;
@@ -33,7 +33,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         ILogger<MagicOnionBattleHub> logger,
         InMemoryState state,
         ConnectionManager connectionManager,
-        GroupManager groupManager,
+        InMemoryServer.Services.IGroupManager groupManager,
         CrossProtocolNotificationService notificationService,
         ILoggerFactory loggerFactory,
         BattleReplayWriterFactory replayWriterFactory,
@@ -75,17 +75,18 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         {
             state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);
 
-            var groupId = groupManager.GetGroupIdForConnection(connectionId);
-            if (!string.IsNullOrEmpty(groupId))
+            // Handle group leaving in background task to avoid blocking OnDisconnected
+            _ = Task.Run(async () =>
             {
-                // Remove from MagicOnion group
-                magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);
-
-                // Remove from GroupManager and notify other members
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
+                    var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
+                    if (!string.IsNullOrEmpty(groupId))
                     {
+                        // Remove from MagicOnion group
+                        magicOnionGroupService.RemoveClientFromGroup(groupId, Context.ContextId);
+
+                        // Remove from GroupManager and notify other members
                         var (leftGroup, newCount) = await groupManager.LeaveGroupAsync(connectionId);
                         if (leftGroup != null)
                         {
@@ -107,19 +108,15 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
                                 remainingClients.Count(), leftGroup.Name);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Error removing client {ConnectionId} from group", connectionId);
-                    }
-                });
-                logger.LogInformation("MagicOnion client {ConnectionId} disconnected and left group {GroupId}. Total connections: {Count}",
-                    connectionId, groupId, state.ConnectionCount);
-            }
-            else
-            {
-                logger.LogInformation("MagicOnion client {ConnectionId} disconnected. Total connections: {Count}",
-                    connectionId, state.ConnectionCount);
-            }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error handling group leaving for disconnected client {ConnectionId}", connectionId);
+                }
+            });
+
+            logger.LogInformation("MagicOnion client {ConnectionId} disconnected. Total connections: {Count}",
+                connectionId, state.ConnectionCount);
         }
 
         return default;
@@ -132,7 +129,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     {
         var connectionId = Context.ContextId.ToString();
 
-        var groupId = groupManager.GetGroupIdForConnection(connectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning("MagicOnion client {ConnectionId} tried to broadcast but is not in any group",
@@ -140,7 +137,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             return false;
         }
 
-        var group = groupManager.GetGroupInfo(groupId);
+        var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group == null)
         {
             logger.LogWarning("Group {GroupId} not found for broadcast", groupId);
@@ -223,7 +220,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     {
         var connectionId = Context.ContextId.ToString();
         logger.LogInformation("Client {ConnectionId} requesting group list", connectionId);
-        return groupManager.GetAllGroups();
+        return await groupManager.GetAllGroupsAsync();
     }
 
     /// <summary>
@@ -233,7 +230,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     {
         var connectionId = Context.ContextId.ToString();
 
-        var groupId = groupManager.GetGroupIdForConnection(connectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning("MagicOnion client {ConnectionId} requested current group but is not in any group",
@@ -241,7 +238,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             return null;
         }
 
-        return groupManager.GetGroupInfo(groupId);
+        return await groupManager.GetGroupInfoAsync(groupId);
     }
 
     /// <summary>
@@ -250,14 +247,14 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
         var connectionId = Context.ContextId.ToString();
-        var groupId = groupManager.GetGroupIdForConnection(connectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning("Client {ConnectionId} requested battle status but is not in any group", connectionId);
             return null;
         }
 
-        var group = groupManager.GetGroupInfo(groupId);
+        var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             logger.LogWarning("Group {GroupId} does not have an active battle", groupId);
@@ -314,14 +311,14 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         var connectionId = Context.ContextId.ToString();
         logger.LogInformation("Client {ConnectionId} is attempting to confirm connection ready", connectionId);
 
-        var groupId = groupManager.GetGroupIdForConnection(connectionId);
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
         if (string.IsNullOrEmpty(groupId))
         {
             logger.LogWarning("Client {ConnectionId} attempted to confirm connection ready but is not in any group", connectionId);
             return false;
         }
 
-        var group = groupManager.GetGroupInfo(groupId);
+        var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
             logger.LogWarning("Group {GroupId} does not have an active battle for connection ready confirmation", groupId);
@@ -778,17 +775,17 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     public async Task<ServerStatus> GetServerStatusAsync()
     {
         logger.LogInformation($"Client {Context.ContextId} requested server status");
-
+        var groups = await groupManager.GetAllGroupsAsync();
         var status = new ServerStatus
         {
             Uptime = DateTime.UtcNow - state.StartTime,
             TotalConnections = state.ConnectionCount,
-            GroupCount = groupManager.GetAllGroups().Count(),
+            GroupCount = groups.Count(),
             ActiveBattleCount = state.BattleStates.Count
         };
 
         // Get group summaries
-        foreach (var group in groupManager.GetAllGroups())
+        foreach (var group in groups)
         {
             status.Groups.Add(new GroupSummary
             {

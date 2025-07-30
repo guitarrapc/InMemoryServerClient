@@ -4,21 +4,23 @@ using InMemoryServer.Models;
 namespace InMemoryServer.Tests;
 
 /// <summary>
-/// Tests for GroupManager
+/// Tests for GroupManagerActor with adapter
 /// </summary>
-public class GroupManagerTests
+public class GroupManagerTests : IDisposable
 {
-    private readonly ILogger<GroupManager> _logger;
+    private readonly ILogger<GroupManagerActor> _logger;
     private readonly ILogger<ConnectionManager> _connectionManagerLogger;
     private readonly ConnectionManager _connectionManager;
-    private readonly GroupManager _groupManager;
+    private readonly GroupManagerActor _groupManagerActor;
+    private readonly IGroupManager _groupManager;
 
     public GroupManagerTests()
     {
-        _logger = Substitute.For<ILogger<GroupManager>>();
+        _logger = Substitute.For<ILogger<GroupManagerActor>>();
         _connectionManagerLogger = Substitute.For<ILogger<ConnectionManager>>();
         _connectionManager = new ConnectionManager(_connectionManagerLogger);
-        _groupManager = new GroupManager(_logger, _connectionManager);
+        _groupManagerActor = new GroupManagerActor(_logger, _connectionManager);
+        _groupManager = new GroupManagerAdapter(_groupManagerActor);
     }
 
     [Fact]
@@ -71,21 +73,28 @@ public class GroupManagerTests
         await _groupManager.LeaveGroupAsync(connectionId);
 
         // Assert
-        var groupInfo = _groupManager.GetGroupInfo(group.GroupId);
+        var groupInfo = await _groupManager.GetGroupInfoAsync(group.GroupId);
         Assert.Null(groupInfo); // Group should be removed when empty
     }
 
     [Fact]
-    public void GetGroupIdForConnection_ShouldReturnNull_WhenConnectionNotInGroup()
+    public async Task GetGroupIdForConnection_ShouldReturnNull_WhenConnectionNotInGroup()
     {
         // Arrange
         const string connectionId = "test_connection";
         _connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
         // Act
-        var result = _groupManager.GetGroupIdForConnection(connectionId);
+        var result = await _groupManager.GetGroupIdForConnectionAsync(connectionId);
 
         // Assert
         Assert.Null(result);
+    }
+
+    public void Dispose()
+    {
+        if (_groupManager is IDisposable disposable)
+            disposable.Dispose();
+        _groupManagerActor?.Dispose();
     }
 }

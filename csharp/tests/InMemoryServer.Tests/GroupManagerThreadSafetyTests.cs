@@ -4,21 +4,23 @@ using InMemoryServer.Models;
 namespace InMemoryServer.Tests;
 
 /// <summary>
-/// Thread safety tests for GroupManager
+/// Thread safety tests for GroupManagerActor
 /// </summary>
-public class GroupManagerThreadSafetyTests
+public class GroupManagerThreadSafetyTests : IDisposable
 {
-    private readonly ILogger<GroupManager> _logger;
+    private readonly ILogger<GroupManagerActor> _logger;
     private readonly ILogger<ConnectionManager> _connectionManagerLogger;
     private readonly ConnectionManager _connectionManager;
-    private readonly GroupManager _groupManager;
+    private readonly GroupManagerActor _groupManagerActor;
+    private readonly IGroupManager _groupManager;
 
     public GroupManagerThreadSafetyTests()
     {
-        _logger = Substitute.For<ILogger<GroupManager>>();
+        _logger = Substitute.For<ILogger<GroupManagerActor>>();
         _connectionManagerLogger = Substitute.For<ILogger<ConnectionManager>>();
         _connectionManager = new ConnectionManager(_connectionManagerLogger);
-        _groupManager = new GroupManager(_logger, _connectionManager);
+        _groupManagerActor = new GroupManagerActor(_logger, _connectionManager);
+        _groupManager = new GroupManagerAdapter(_groupManagerActor);
     }
 
     [Fact]
@@ -48,7 +50,7 @@ public class GroupManagerThreadSafetyTests
         Assert.All(results, result => Assert.NotNull(result));
 
         // All clients should be in groups
-        var allGroups = _groupManager.GetAllGroups().ToList();
+        var allGroups = (await _groupManager.GetAllGroupsAsync()).ToList();
         var totalConnectionsInGroups = allGroups.Sum(g => g.ConnectionCount);
         Assert.Equal(numberOfConcurrentClients, totalConnectionsInGroups);
 
@@ -91,7 +93,7 @@ public class GroupManagerThreadSafetyTests
         Assert.All(results, result => Assert.NotNull(result));
 
         // Debug: Print all group information
-        var allGroups = _groupManager.GetAllGroups().ToList();
+        var allGroups = (await _groupManager.GetAllGroupsAsync()).ToList();
         Console.WriteLine($"Total groups created: {allGroups.Count}");
         foreach (var group in allGroups)
         {
@@ -129,7 +131,7 @@ public class GroupManagerThreadSafetyTests
         }
 
         // Verify initial state
-        var group = _groupManager.GetAllGroups().First(g => g.Name == groupName);
+        var group = (await _groupManager.GetAllGroupsAsync()).First(g => g.Name == groupName);
         Assert.Equal(numberOfClients, group.ConnectionCount);
 
         // Act - Concurrent leave operations
@@ -143,7 +145,7 @@ public class GroupManagerThreadSafetyTests
         Assert.All(results, result => Assert.True(result.newCount >= 0));
 
         // Group should be dissolved or empty
-        var remainingGroups = _groupManager.GetAllGroups().Where(g => g.Name == groupName).ToList();
+        var remainingGroups = (await _groupManager.GetAllGroupsAsync()).Where(g => g.Name == groupName).ToList();
         if (remainingGroups.Any())
         {
             var remainingGroup = remainingGroups.First();
@@ -166,7 +168,7 @@ public class GroupManagerThreadSafetyTests
         // Act - Multiple concurrent extension attempts
         const int numberOfExtensionAttempts = SystemDefines.MaxGroupExtensions + 5; // More than allowed
         var tasks = Enumerable.Range(0, numberOfExtensionAttempts)
-            .Select(_ => Task.Run(() => _groupManager.ExtendGroupWaitingTime(groupId)));
+            .Select(_ => Task.Run(() => _groupManager.ExtendGroupWaitingTimeAsync(groupId)));
 
         var results = await Task.WhenAll(tasks);
 
@@ -175,7 +177,7 @@ public class GroupManagerThreadSafetyTests
         Assert.True(successfulExtensions <= SystemDefines.MaxGroupExtensions);
 
         // Verify final group state
-        var finalGroup = _groupManager.GetGroupInfo(groupId);
+        var finalGroup = await _groupManager.GetGroupInfoAsync(groupId);
         Assert.NotNull(finalGroup);
         Assert.True(finalGroup.ExtensionCount <= SystemDefines.MaxGroupExtensions);
     }
@@ -226,7 +228,7 @@ public class GroupManagerThreadSafetyTests
         await Task.WhenAll(tasks);
 
         // Assert - Verify data consistency
-        var allGroups = _groupManager.GetAllGroups().ToList();
+        var allGroups = (await _groupManager.GetAllGroupsAsync()).ToList();
 
         foreach (var group in allGroups)
         {
@@ -242,5 +244,12 @@ public class GroupManagerThreadSafetyTests
             // All client IDs should be non-empty
             Assert.All(group.ClientIds, clientId => Assert.False(string.IsNullOrEmpty(clientId)));
         }
+    }
+
+    public void Dispose()
+    {
+        if (_groupManager is IDisposable disposable)
+            disposable.Dispose();
+        _groupManagerActor?.Dispose();
     }
 }
