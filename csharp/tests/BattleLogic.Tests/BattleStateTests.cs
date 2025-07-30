@@ -51,8 +51,8 @@ public class BattleStateTests
         Assert.NotNull(status);
         Assert.Equal(battleId, status.BattleId);
         Assert.Equal(_mockGroup.ConnectedCount, status.Players.Count);
-        Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+        Assert.True(status.Enemies.Count >= BattleSystemDefines.EnemyCount.Min);
+        Assert.True(status.Enemies.Count <= BattleSystemDefines.EnemyCount.Max);
         Assert.Equal(BattleSystemDefines.BattleFieldWidth, status.FieldWidth);
         Assert.Equal(BattleSystemDefines.BattleFieldHeight, status.FieldHeight);
         // Battle should not have a result when just initialized
@@ -184,8 +184,8 @@ public class BattleStateTests
         var status = battleState.GetStatus();
 
         // Assert
-        Assert.True(status.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
-        Assert.True(status.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+        Assert.True(status.Enemies.Count >= BattleSystemDefines.EnemyCount.Min);
+        Assert.True(status.Enemies.Count <= BattleSystemDefines.EnemyCount.Max);
 
         foreach (var enemy in status.Enemies)
         {
@@ -501,10 +501,10 @@ public class BattleStateTests
         // Results should be different due to different deterministic seeds
         Assert.Equal(status1.Players.Count, status2.Players.Count); // Same number of players (5)
         // Enemy count may be different due to different random seeds - this is expected
-        Assert.True(status1.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
-        Assert.True(status1.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
-        Assert.True(status2.Enemies.Count >= BattleSystemDefines.MinEnemyCount);
-        Assert.True(status2.Enemies.Count <= BattleSystemDefines.MaxEnemyCount);
+        Assert.True(status1.Enemies.Count >= BattleSystemDefines.EnemyCount.Min);
+        Assert.True(status1.Enemies.Count <= BattleSystemDefines.EnemyCount.Max);
+        Assert.True(status2.Enemies.Count >= BattleSystemDefines.EnemyCount.Min);
+        Assert.True(status2.Enemies.Count <= BattleSystemDefines.EnemyCount.Max);
 
         // At least some entity IDs should be different
         bool anyPlayerDifferent = false;

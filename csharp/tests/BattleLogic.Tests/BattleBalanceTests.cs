@@ -83,7 +83,7 @@ public class BattleBalanceTests
 
         // 分析用のデータ構造 (敵の数別勝率を記録)
         var enemyCountWinRates = new Dictionary<int, List<bool>>();
-        for (int i = BattleSystemDefines.MinEnemyCount; i <= BattleSystemDefines.MaxEnemyCount; i++)
+        for (int i = BattleSystemDefines.EnemyCount.Min; i <= BattleSystemDefines.EnemyCount.Max; i++)
         {
             enemyCountWinRates[i] = new List<bool>();
         }

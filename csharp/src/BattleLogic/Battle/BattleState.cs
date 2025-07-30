@@ -125,7 +125,7 @@ public class BattleState
         _enemies.AddRange(enemies);
 
         // Set total turns for battle
-        _totalTurns = _battleSeed.Random.Next(BattleSystemDefines.MinBattleTurns, BattleSystemDefines.MaxBattleTurns + 1);
+        _totalTurns = _battleSeed.Random.Next(BattleSystemDefines.BattleTurns.Min, BattleSystemDefines.BattleTurns.Max + 1);
 
         // Place entities on battle field
         _battleField.PlaceEntities(_players, _enemies);

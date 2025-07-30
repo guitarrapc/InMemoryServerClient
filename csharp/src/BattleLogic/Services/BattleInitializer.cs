@@ -31,7 +31,7 @@ internal class BattleInitializer(BattleSeed battleSeed)
     /// </summary>
     public List<EntityInfo> InitializeEnemies(List<string> battleLogs)
     {
-        int enemyCount = battleSeed.Random.Next(BattleSystemDefines.MinEnemyCount, BattleSystemDefines.MaxEnemyCount);
+        int enemyCount = battleSeed.Random.Next(BattleSystemDefines.EnemyCount.Min, BattleSystemDefines.EnemyCount.Max);
         var enemies = new List<EntityInfo>(enemyCount);
 
         var enemySizes = new[] { EnemySize.Small, EnemySize.Medium, EnemySize.Large };

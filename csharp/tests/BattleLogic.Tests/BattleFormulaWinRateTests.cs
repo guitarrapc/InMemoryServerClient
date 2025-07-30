@@ -118,7 +118,7 @@ public class BattleFormulaWinRateTests(ITestOutputHelper output)
         // Assert
         Assert.True(status.CurrentTurn > 0, $"Formula {formula} should complete at least one turn");
         Assert.NotNull(status.IsPlayerVictory);
-        Assert.True(status.CurrentTurn <= BattleSystemDefines.MaxBattleTurns,
+        Assert.True(status.CurrentTurn <= BattleSystemDefines.BattleTurns.Max,
             $"Formula {formula} should not exceed maximum turns");
 
         _output.WriteLine($"Formula {formula}: {status.CurrentTurn} turns, " +

@@ -136,24 +136,14 @@ public static class BattleSystemDefines
     public const int DefenseDamageReductionPercent = 50;
 
     /// <summary>
-    /// Minimum number of enemies in a battle
+    /// number of enemies in a battle
     /// </summary>
-    public const int MinEnemyCount = 14;
+    public static readonly StatusRange EnemyCount = new (14, 19);
 
     /// <summary>
-    /// Maximum number of enemies in a battle
+    /// number of battle turns
     /// </summary>
-    public const int MaxEnemyCount = 19;
-
-    /// <summary>
-    /// Minimum battle turns
-    /// </summary>
-    public const int MinBattleTurns = 300;
-
-    /// <summary>
-    /// Maximum battle turns
-    /// </summary>
-    public const int MaxBattleTurns = 500;
+    public static readonly StatusRange BattleTurns = new StatusRange(300, 500);
 
     /// <summary>
     /// Battle replay frames per second
