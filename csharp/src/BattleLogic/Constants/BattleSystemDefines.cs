@@ -1,4 +1,4 @@
-﻿using BattleLogic.Models;
+using BattleLogic.Models;
 
 namespace BattleLogic.Constants;
 
@@ -25,12 +25,12 @@ public static class BattleSystemDefines
     /// <summary>
     /// Player HP range
     /// </summary>
-    public static readonly StatusRange PlayerHp = new(300, 430);
+    public static readonly StatusRange PlayerHp = new(320, 450);
 
     /// <summary>
     /// Attack power range for player
     /// </summary>
-    public static readonly StatusRange PlayerAttackPower = new(26, 36);
+    public static readonly StatusRange PlayerAttackPower = new(28, 38);
 
     /// <summary>
     /// Defense power range for player
@@ -263,7 +263,7 @@ public static class BattleSystemDefines
                 SpeedMultiplier = 1.4f,
                 AccuracyMultiplier = 1.3f,  // アーチャーは最高の命中率（弓術の精度）
                 EvasionMultiplier = 1.5f,   // アーチャーは最高の回避率（機動性重視）
-                CriticalRateMultiplier = 10.0f, // シーフ系のクリティカル攻撃率は高く10%
+                CriticalRateMultiplier = 15.0f, // シーフ系のクリティカル攻撃率は高く15%
                 HpBonus = -10,
                 AttackBonus = 3,
                 DefenseBonus = -2,
