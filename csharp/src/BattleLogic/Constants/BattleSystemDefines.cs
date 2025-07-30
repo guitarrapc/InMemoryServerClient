@@ -140,11 +140,6 @@ public static class BattleSystemDefines
     /// </summary>
     public static readonly StatusRange BattleTurns = new StatusRange(300, 500);
 
-    /// <summary>
-    /// Battle replay frames per second
-    /// </summary>
-    public const int BattleReplayFps = 30;
-
     // Random Flavor Ranges
     // Small random variations to add flavor to combat calculations
 
