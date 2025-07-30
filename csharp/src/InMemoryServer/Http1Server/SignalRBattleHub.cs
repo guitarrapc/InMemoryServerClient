@@ -21,7 +21,8 @@ public class SignalRBattleHub(
     InMemoryServer.Services.IGroupManager groupManager,
     CrossProtocolNotificationService notificationService,
     ILoggerFactory loggerFactory,
-    BattleReplayWriterFactory replayWriterFactory) : Hub
+    BattleReplayWriterFactory replayWriterFactory,
+    BattleCompletionService battleCompletionService) : Hub
 {
     private static readonly Lock _eventSetupLock = new();
 
@@ -396,12 +397,8 @@ public class SignalRBattleHub(
                 }
             }
 
-            // 6. Battle completed notification
-            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleCompleted", battle.GetStatus());
-            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed", battleId, seed);
-
-            // Clear entire allTurnData after all chunks sent
-            battle.ClearBattleData();
+            // 6. Handle battle completion with unified service (uses configuration default)
+            await battleCompletionService.HandleBattleCompletionAsync(group, battle, battleId, seed);
         });
     }
 
@@ -680,12 +677,8 @@ public class SignalRBattleHub(
                 }
             }
 
-            // 6. Battle completed notification
-            await Clients.Group(group.GroupId).SendAsync("BattleCompleted", battle.GetStatus());
-            logger.LogDebug("Battle reproduction {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed", battleId, seed);
-
-            // Clear entire allTurnData after all chunks sent
-            battle.ClearBattleData();
+            // 6. Handle battle completion with unified service (uses configuration default)
+            await battleCompletionService.HandleBattleCompletionAsync(group, battle, battleId, seed);
         });
     }
 

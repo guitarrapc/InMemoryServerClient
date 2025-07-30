@@ -26,6 +26,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     private readonly ILoggerFactory loggerFactory;
     private readonly BattleReplayWriterFactory replayWriterFactory;
     private readonly MagicOnionGroupService magicOnionGroupService;
+    private readonly BattleCompletionService battleCompletionService;
     private static readonly object _eventSetupLock = new();
     private static bool _eventHandlersSetup = false;
 
@@ -37,7 +38,8 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         CrossProtocolNotificationService notificationService,
         ILoggerFactory loggerFactory,
         BattleReplayWriterFactory replayWriterFactory,
-        MagicOnionGroupService magicOnionGroupService)
+        MagicOnionGroupService magicOnionGroupService,
+        BattleCompletionService battleCompletionService)
     {
         this.logger = logger;
         this.state = state;
@@ -47,6 +49,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         this.loggerFactory = loggerFactory;
         this.replayWriterFactory = replayWriterFactory;
         this.magicOnionGroupService = magicOnionGroupService;
+        this.battleCompletionService = battleCompletionService;
     }
 
     /// <summary>
@@ -435,12 +438,8 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Sending battle replay data to clients", battleId, seed);
             await SendBattleReplayData(group, battle, battleId, seed);
 
-            // 6. Battle completed notification
-            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleCompleted", battle.GetStatus());
-            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed", battleId, seed);
-
-            // Clear entire allTurnData after all chunks sent
-            battle.ClearBattleData();
+            // 6. Handle battle completion with unified service (uses configuration default)
+            await battleCompletionService.HandleBattleCompletionAsync(group, battle, battleId, seed);
         });
     }
 
@@ -513,12 +512,8 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             logger.LogDebug("Battle reproduction {BattleId} (Seed: {Seed}): Sending battle replay data to clients", battleId, seed);
             await SendBattleReplayData(group, battle, battleId, seed);
 
-            // 6. Battle completed notification
-            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleCompleted", battle.GetStatus());
-            logger.LogDebug("Battle reproduction {BattleId} (Seed: {Seed}): All replay data sent, battle marked as completed", battleId, seed);
-
-            // Clear entire allTurnData after all chunks sent
-            battle.ClearBattleData();
+            // 6. Handle battle completion with unified service (uses configuration default)
+            await battleCompletionService.HandleBattleCompletionAsync(group, battle, battleId, seed);
         });
     }
 

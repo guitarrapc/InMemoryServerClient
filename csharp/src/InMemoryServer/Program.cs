@@ -44,6 +44,7 @@ public class Program
         builder.Services.AddSingleton<SignalRBattleHub>();
         builder.Services.AddSingleton<MagicOnionGroupService>();
         builder.Services.AddSingleton<CrossProtocolNotificationService>();
+        builder.Services.AddSingleton<BattleCompletionService>();
 
         // Register BattleReplayWriterFactory and options
         builder.Services.AddSingleton<BattleReplayWriterFactory>();

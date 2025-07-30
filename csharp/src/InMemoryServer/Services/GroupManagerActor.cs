@@ -665,8 +665,21 @@ public abstract class GroupOperation
 
     public Task Task => _tcs.Task;
 
-    public void SetException(Exception ex) => _tcs.SetException(ex);
-    public void SetResult(object? result) => _tcs.SetResult(result);
+    public void SetException(Exception ex)
+    {
+        if (!_tcs.Task.IsCompleted)
+        {
+            _tcs.SetException(ex);
+        }
+    }
+
+    public void SetResult(object? result)
+    {
+        if (!_tcs.Task.IsCompleted)
+        {
+            _tcs.SetResult(result);
+        }
+    }
 }
 
 public class JoinGroupOperation : GroupOperation
