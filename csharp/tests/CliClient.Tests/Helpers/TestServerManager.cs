@@ -51,6 +51,7 @@ public class TestServerManager : IDisposable
                     services.AddMagicOnion();
                     services.AddSingleton<InMemoryServer.InMemoryState>();
                     services.AddSingleton<InMemoryServer.Services.ConnectionManager>();
+                    services.AddSingleton<InMemoryServer.Services.BattleCompletionService>();
 
                     // Use Actor Group Manager for tests
                     services.AddSingleton<InMemoryServer.Services.GroupManagerActor>();
