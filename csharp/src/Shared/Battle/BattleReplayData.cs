@@ -14,7 +14,7 @@ public readonly struct BattleReplayData
     /// <summary>
     /// Battle seed for reproducibility
     /// </summary>
-    public int? Seed { get; init; }
+    public int Seed { get; init; }
 
     /// <summary>
     /// Turn data for this chunk

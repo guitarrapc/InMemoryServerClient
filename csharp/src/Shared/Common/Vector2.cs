@@ -7,7 +7,7 @@
 /// Creates a new Vector2
 /// </remarks>
 [MessagePackObject(true)]
-[System.Text.Json.Serialization.JsonConverter(typeof(Vector2JsonConverter))]
+[JsonConverter(typeof(Vector2JsonConverter))]
 public readonly record struct Vector2
 {
     /// <summary>
@@ -48,7 +48,7 @@ public readonly record struct Vector2
 /// <summary>
 /// Custom JSON converter for Vector2 to avoid property name conflicts
 /// </summary>
-public class Vector2JsonConverter : System.Text.Json.Serialization.JsonConverter<Vector2>
+public class Vector2JsonConverter : JsonConverter<Vector2>
 {
     public override Vector2 Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     {

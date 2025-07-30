@@ -1,4 +1,4 @@
-﻿using Shared.Constants;
+using Shared.Constants;
 using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
@@ -27,7 +27,11 @@ public class Program
         });
 
         // Add services to the container
-        builder.Services.AddSignalR();
+        builder.Services.AddSignalR(options =>
+        {
+            options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB
+            options.StreamBufferCapacity = 50;
+        });
         builder.Services.AddMagicOnion();
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();

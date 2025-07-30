@@ -364,6 +364,12 @@ internal class SignalRBattleClient : IBattleClient
             OnGroupExtended?.Invoke(data);
         });
 
+        _connection.On<BattleStatus>("BattleCompleted", (battleStatus) =>
+        {
+            _logger.LogInformation("[BATTLE] Battle completed! Final status received.");
+            // Battle completion is handled in the replay playback
+        });
+
         _connection.Closed += error =>
         {
             OnDisconnected?.Invoke(error?.Message ?? "Connection closed");
