@@ -33,6 +33,40 @@ internal class BattleMovement(Random random, BattleField battleField, BattleUtil
     }
 
     /// <summary>
+    /// Move entity and return adjacent target for potential attack after movement
+    /// </summary>
+    public (bool moved, EntityInfo? adjacentTargetAfterMove) MoveEntityWithAttackCheck(EntityInfo entity, EntityInfo? targetEntity, List<EntityInfo> players, List<EntityInfo> enemies, List<string> battleLogs, BattleField battleField, BattleUtilities utilities)
+    {
+        bool moved = MoveEntity(entity, targetEntity, players, enemies, battleLogs);
+
+        if (!moved)
+        {
+            return (false, null);
+        }
+
+        // Find the updated entity after movement
+        EntityInfo? updatedEntity = null;
+        if (entity.Type.IsPlayer)
+        {
+            updatedEntity = players.FirstOrDefault(p => p.EntityId == entity.EntityId);
+        }
+        else
+        {
+            updatedEntity = enemies.FirstOrDefault(e => e.EntityId == entity.EntityId);
+        }
+
+        if (updatedEntity == null)
+        {
+            return (moved, null);
+        }
+
+        // Check for adjacent targets after movement
+        var adjacentTarget = utilities.FindAdjacentTarget(updatedEntity.Value, players, enemies, battleField);
+
+        return (moved, adjacentTarget);
+    }
+
+    /// <summary>
     /// Get movement directions based on target
     /// </summary>
     private List<(int dx, int dy, int priority)> GetMovementDirections(EntityInfo entity, EntityInfo? targetEntity)

@@ -65,7 +65,7 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         EvaluateAttackAction(entity, actions, adjacentTarget, players, enemies);
         EvaluateDefendAction(entity, actions, players, enemies, battleField, previousAction);
-        EvaluateMoveAction(entity, actions, adjacentTarget, players, enemies, previousAction);
+        EvaluateMoveAction(entity, actions, adjacentTarget, players, enemies, battleField, previousAction);
 
         return actions;
     }
@@ -249,9 +249,9 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     }
 
     /// <summary>
-    /// Evaluate move action
+    /// Evaluate move action (with potential for attack after movement)
     /// </summary>
-    private void EvaluateMoveAction(EntityInfo entity, List<BattleAIActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, string? previousAction)
+    private void EvaluateMoveAction(EntityInfo entity, List<BattleAIActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
             enemies.Where(e => e.CurrentHp > 0) :
@@ -271,24 +271,25 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         if (adjacentTarget != null)
         {
-            // MAJOR PENALTY for moving away from adjacent targets - avoid meaningless movement
+            // PENALTY for moving away from adjacent targets, but less severe due to move+attack possibility
             float hpRatio = (float)entity.CurrentHp / entity.MaxHp;
             float enemyHpRatio = (float)adjacentTarget.Value.CurrentHp / adjacentTarget.Value.MaxHp;
 
             if (isLastEnemy || isLastAlly)
             {
-                // If only one enemy/ally remains, strongly discourage movement from adjacent position
-                actions.Add(new BattleAIActionReward("move", 0.01f)); // Very low reward
+                // If only one enemy/ally remains, discourage movement from adjacent position but allow tactical repositioning
+                actions.Add(new BattleAIActionReward("move", 0.1f)); // Slightly higher than before
             }
             else if (hpRatio < BattleAIDefines.LowHpRatio && enemyHpRatio > BattleAIDefines.HighHpRatio)
             {
-                // Only allow movement if entity HP is low and enemy HP is high (retreat scenario)
-                actions.Add(new BattleAIActionReward("move", 3.0f));
+                // Allow movement if entity HP is low and enemy HP is high (retreat scenario)
+                // Now more valuable due to potential repositioning for better attack angles
+                actions.Add(new BattleAIActionReward("move", 5.0f)); // Increased from 3.0f
             }
             else
             {
-                // Apply major penalty for moving away from adjacent targets
-                float moveReward = 0.5f * BattleAIDefines.AdjacentMovePenalty; // 90% reduction
+                // Reduced penalty for moving away from adjacent targets since move+attack is now possible
+                float moveReward = 1.0f * BattleAIDefines.AdjacentMovePenalty; // Reduced penalty from 0.5f
                 actions.Add(new BattleAIActionReward("move", moveReward));
             }
             return;
@@ -308,9 +309,19 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             float reward = BattleAIDefines.MoveToNearestReward * moveMultiplier;
 
             int distanceToNearest = utilities.CalculateManhattanDistance(entity.Position, nearestTarget.Value.Position);
+
+            // MAJOR BONUS: If moving can result in adjacent attack next turn
             if (distanceToNearest == 2)
             {
-                reward *= BattleAIDefines.NextTurnAttackPositionMultiplier;
+                // Can move adjacent and attack in one turn - massive bonus
+                reward *= BattleAIDefines.NextTurnAttackPositionMultiplier * 3.0f; // Triple the original bonus
+
+                // Additional bonus if target has low HP (potential one-hit kill)
+                float targetHpRatio = (float)nearestTarget.Value.CurrentHp / nearestTarget.Value.MaxHp;
+                if (targetHpRatio < BattleAIDefines.LowHpRatio)
+                {
+                    reward *= 2.0f; // Double reward for potential finishing move
+                }
             }
             else if (distanceToNearest == 3)
             {
@@ -351,7 +362,14 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
             }
 
             int distanceToLowest = utilities.CalculateManhattanDistance(entity.Position, lowestHpTarget.Value.Position);
-            if (distanceToLowest <= 3)
+
+            // MAJOR BONUS: If moving can result in adjacent attack for low HP target
+            if (distanceToLowest == 2)
+            {
+                // Can move adjacent and potentially finish off low HP enemy in one turn
+                reward *= 4.0f; // Quadruple reward for potential finishing move
+            }
+            else if (distanceToLowest <= 3)
             {
                 reward *= 5.0f / (distanceToLowest + 1);
             }

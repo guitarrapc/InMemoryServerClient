@@ -161,7 +161,27 @@ public class BattleState
             switch (action)
             {
                 case "move":
-                    _battleMovement.MoveEntity(entity, targetEntity, _players, _enemies, _battleLogs);
+                    var (moved, adjacentTargetAfterMove) = _battleMovement.MoveEntityWithAttackCheck(entity, targetEntity, _players, _enemies, _battleLogs, _battleField, _battleUtilities);
+
+                    if (moved && adjacentTargetAfterMove != null)
+                    {
+                        // Find the updated entity after movement
+                        EntityInfo? updatedEntity = null;
+                        if (entity.Type.IsPlayer)
+                        {
+                            updatedEntity = _players.FirstOrDefault(p => p.EntityId == entity.EntityId);
+                        }
+                        else
+                        {
+                            updatedEntity = _enemies.FirstOrDefault(e => e.EntityId == entity.EntityId);
+                        }
+
+                        if (updatedEntity != null)
+                        {
+                            _battleLogs.Add($"{updatedEntity.Value.Name} attacks after movement!");
+                            _battleCombat.ExecuteAttack(updatedEntity.Value, adjacentTargetAfterMove.Value, _players, _enemies, _battleLogs);
+                        }
+                    }
                     break;
                 case "attack":
                     var adjacentTarget = _battleUtilities.FindAdjacentTarget(entity, _players, _enemies, _battleField);
