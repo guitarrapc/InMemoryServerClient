@@ -1,4 +1,4 @@
-using BattleLogic.Models;
+﻿using BattleLogic.Models;
 
 namespace BattleLogic.Constants;
 
@@ -284,7 +284,7 @@ public static class BattleSystemDefines
             EnemyJob.Bruiser,
             new JobStatModifier
             {
-                HpMultiplier = 1.2f,
+                HpMultiplier = 1.0f,
                 AttackMultiplier = 1.2f,
                 DefenseMultiplier = 1.0f,
                 SpeedMultiplier = 1.0f,
