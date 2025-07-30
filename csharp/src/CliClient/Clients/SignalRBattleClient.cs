@@ -523,17 +523,17 @@ internal class SignalRBattleClient : IBattleClient
 
         // Calculate correct border width (each cell is 2 chars wide + separators)
         // For a 20x20 field with 2 chars per cell and a space between: 20*2 + 19 = 59 chars total width
-        int borderWidth = status.FieldWidth * 2 + (status.FieldWidth - 1);
+        int borderWidth = status.FieldSize.X * 2 + (status.FieldSize.X - 1);
 
         // Draw top border
         _logger.LogInformation("[BATTLE FIELD] ┌{Border}┐", new string('─', borderWidth));
 
         // Draw field rows
-        for (int y = 0; y < status.FieldHeight; y++)
+        for (int y = 0; y < status.FieldSize.Y; y++)
         {
             var line = new System.Text.StringBuilder("│");
 
-            for (int x = 0; x < status.FieldWidth; x++)
+            for (int x = 0; x < status.FieldSize.X; x++)
             {
                 var cellContent = field[y, x];
 
@@ -562,7 +562,7 @@ internal class SignalRBattleClient : IBattleClient
                 }
 
                 // Add separator except for the last column
-                if (x < status.FieldWidth - 1)
+                if (x < status.FieldSize.X - 1)
                 {
                     line.Append(' ');
                 }
@@ -618,14 +618,14 @@ internal class SignalRBattleClient : IBattleClient
     /// </summary>
     private Guid?[,] BuildBattleField(BattleStatus status)
     {
-        var field = new Guid?[status.FieldHeight, status.FieldWidth];
+        var field = new Guid?[status.FieldSize.Y, status.FieldSize.X];
 
         // Place players on field
         foreach (var player in status.Players)
         {
             if (player.CurrentHp > 0 &&
-                player.Position.X >= 0 && player.Position.X < status.FieldWidth &&
-                player.Position.Y >= 0 && player.Position.Y < status.FieldHeight)
+                player.Position.X >= 0 && player.Position.X < status.FieldSize.X &&
+                player.Position.Y >= 0 && player.Position.Y < status.FieldSize.Y)
             {
                 field[player.Position.Y, player.Position.X] = player.EntityId;
             }
@@ -635,8 +635,8 @@ internal class SignalRBattleClient : IBattleClient
         foreach (var enemy in status.Enemies)
         {
             if (enemy.CurrentHp > 0 &&
-                enemy.Position.X >= 0 && enemy.Position.X < status.FieldWidth &&
-                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldHeight)
+                enemy.Position.X >= 0 && enemy.Position.X < status.FieldSize.X &&
+                enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldSize.Y)
             {
                 field[enemy.Position.Y, enemy.Position.X] = enemy.EntityId;
             }

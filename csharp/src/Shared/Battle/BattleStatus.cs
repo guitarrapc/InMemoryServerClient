@@ -1,4 +1,6 @@
-﻿namespace Shared.Battle;
+﻿using Shared.Common;
+
+namespace Shared.Battle;
 
 /// <summary>
 /// Battle status for client-server communication
@@ -39,12 +41,7 @@ public class BattleStatus
     /// <summary>
     /// Field dimensions (for client-side rendering)
     /// </summary>
-    public int FieldWidth { get; set; } = 20; // Default battle field width
-
-    /// <summary>
-    /// Field dimensions (for client-side rendering)
-    /// </summary>
-    public int FieldHeight { get; set; } = 20; // Default battle field height
+    public Vector2 FieldSize { get; set; }
 
     /// <summary>
     /// Recent battle logs

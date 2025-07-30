@@ -10,14 +10,9 @@ public static class BattleSystemDefines
     public const string BattleReplayDirectory = "./battle_replay/";
 
     /// <summary>
-    /// Battle field width
+    /// Battle field size
     /// </summary>
-    public const int BattleFieldWidth = 20;
-
-    /// <summary>
-    /// Battle field height
-    /// </summary>
-    public const int BattleFieldHeight = 20;
+    public static readonly Vector2 BattleFieldSize = new Vector2(20, 20);
 
     // Player Status
     // Players get slightly better stats than enemies for balance

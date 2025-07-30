@@ -12,7 +12,7 @@ internal class BattleField
 
     public BattleField(Random random)
     {
-        _field = new Guid?[BattleSystemDefines.BattleFieldHeight, BattleSystemDefines.BattleFieldWidth];
+        _field = new Guid?[BattleSystemDefines.BattleFieldSize.Y, BattleSystemDefines.BattleFieldSize.X];
         _random = random;
         ClearField();
     }
@@ -22,9 +22,9 @@ internal class BattleField
     /// </summary>
     public void ClearField()
     {
-        for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
+        for (int y = 0; y < BattleSystemDefines.BattleFieldSize.Y; y++)
         {
-            for (int x = 0; x < BattleSystemDefines.BattleFieldWidth; x++)
+            for (int x = 0; x < BattleSystemDefines.BattleFieldSize.X; x++)
             {
                 _field[y, x] = null;
             }
@@ -50,8 +50,8 @@ internal class BattleField
             int attempts = 0;
             while (attempts < 100) // Prevent infinite loop
             {
-                int x = _random.Next(BattleSystemDefines.BattleFieldWidth);
-                int y = BattleSystemDefines.BattleFieldHeight - _random.Next(1, 4); // Bottom 3 rows
+                int x = _random.Next(BattleSystemDefines.BattleFieldSize.X);
+                int y = BattleSystemDefines.BattleFieldSize.Y - _random.Next(1, 4); // Bottom 3 rows
 
                 if (IsValidPosition(x, y) && _field[y, x] == null)
                 {
@@ -74,7 +74,7 @@ internal class BattleField
             int attempts = 0;
             while (attempts < 100) // Prevent infinite loop
             {
-                int x = _random.Next(BattleSystemDefines.BattleFieldWidth);
+                int x = _random.Next(BattleSystemDefines.BattleFieldSize.X);
                 int y = _random.Next(0, 7); // Top 7 rows
 
                 if (IsValidPosition(x, y) && _field[y, x] == null)
@@ -93,8 +93,8 @@ internal class BattleField
     /// </summary>
     public bool IsValidPosition(int x, int y)
     {
-        return x >= 0 && x < BattleSystemDefines.BattleFieldWidth &&
-               y >= 0 && y < BattleSystemDefines.BattleFieldHeight;
+        return x >= 0 && x < BattleSystemDefines.BattleFieldSize.X &&
+               y >= 0 && y < BattleSystemDefines.BattleFieldSize.Y;
     }
 
     /// <summary>
@@ -149,18 +149,18 @@ internal class BattleField
     /// </summary>
     public ReadOnlyMemory<ReadOnlyMemory<Guid?>> GetFieldSnapshot()
     {
-        var cells = new Guid?[BattleSystemDefines.BattleFieldHeight][];
-        for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
+        var cells = new Guid?[BattleSystemDefines.BattleFieldSize.Y][];
+        for (int y = 0; y < BattleSystemDefines.BattleFieldSize.Y; y++)
         {
-            cells[y] = new Guid?[BattleSystemDefines.BattleFieldWidth];
-            for (int x = 0; x < BattleSystemDefines.BattleFieldWidth; x++)
+            cells[y] = new Guid?[BattleSystemDefines.BattleFieldSize.Y];
+            for (int x = 0; x < BattleSystemDefines.BattleFieldSize.X; x++)
             {
                 cells[y][x] = _field[y, x];
             }
         }
 
-        var rowMemories = new ReadOnlyMemory<Guid?>[BattleSystemDefines.BattleFieldHeight];
-        for (int y = 0; y < BattleSystemDefines.BattleFieldHeight; y++)
+        var rowMemories = new ReadOnlyMemory<Guid?>[BattleSystemDefines.BattleFieldSize.Y];
+        for (int y = 0; y < BattleSystemDefines.BattleFieldSize.Y; y++)
         {
             rowMemories[y] = cells[y].AsMemory();
         }

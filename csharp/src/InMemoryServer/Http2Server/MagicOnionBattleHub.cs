@@ -1,4 +1,4 @@
-using MagicOnion.Server.Hubs;
+﻿using MagicOnion.Server.Hubs;
 using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Shared.Battle;
@@ -264,8 +264,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             return new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = BattleSystemDefines.BattleFieldWidth,
-                FieldHeight = BattleSystemDefines.BattleFieldHeight
+                FieldSize = BattleSystemDefines.BattleFieldSize,
             };
         }
 
@@ -274,8 +273,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
             : new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = BattleSystemDefines.BattleFieldWidth,
-                FieldHeight = BattleSystemDefines.BattleFieldHeight
+                FieldSize = BattleSystemDefines.BattleFieldSize,
             };
     }
 

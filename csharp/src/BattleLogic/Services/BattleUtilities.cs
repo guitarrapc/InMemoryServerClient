@@ -229,8 +229,8 @@ internal class BattleUtilities
                 int checkY = target.Position.Y + dy;
 
                 // Check if position is valid
-                if (checkX >= 0 && checkX < BattleSystemDefines.BattleFieldWidth &&
-                    checkY >= 0 && checkY < BattleSystemDefines.BattleFieldHeight)
+                if (checkX >= 0 && checkX < BattleSystemDefines.BattleFieldSize.X &&
+                    checkY >= 0 && checkY < BattleSystemDefines.BattleFieldSize.Y)
                 {
                     // Check if an ally is at that position
                     foreach (var ally in allies)

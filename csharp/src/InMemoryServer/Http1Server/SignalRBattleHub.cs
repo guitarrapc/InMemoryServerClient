@@ -222,8 +222,7 @@ public class SignalRBattleHub(
             return new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = BattleSystemDefines.BattleFieldWidth,
-                FieldHeight = BattleSystemDefines.BattleFieldHeight
+                FieldSize = BattleSystemDefines.BattleFieldSize,
             };
         }
 
@@ -232,8 +231,7 @@ public class SignalRBattleHub(
             : new BattleStatus
             {
                 IsInProgress = false,
-                FieldWidth = BattleSystemDefines.BattleFieldWidth,
-                FieldHeight = BattleSystemDefines.BattleFieldHeight
+                FieldSize = BattleSystemDefines.BattleFieldSize,
             };
     }
 

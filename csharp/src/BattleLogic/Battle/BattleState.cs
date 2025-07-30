@@ -367,8 +367,7 @@ public class BattleState
             TotalTurns = _totalTurns,
             Players = [.. _players],
             Enemies = [.. _enemies],
-            FieldWidth = BattleSystemDefines.BattleFieldWidth,
-            FieldHeight = BattleSystemDefines.BattleFieldHeight,
+            FieldSize = BattleSystemDefines.BattleFieldSize,
             RecentLogs = [.. _battleLogs.TakeLast(10)],
             IsPlayerVictory = _isCompleted ? _playerVictory : null
         };
@@ -387,8 +386,7 @@ public class BattleState
             TotalTurns = _totalTurns,
             Players = [.. _players], // structs automatically create copies
             Enemies = [.. _enemies], // structs automatically create copies
-            FieldWidth = BattleSystemDefines.BattleFieldWidth,
-            FieldHeight = BattleSystemDefines.BattleFieldHeight,
+            FieldSize = BattleSystemDefines.BattleFieldSize,
             RecentLogs = [.. _battleLogs.TakeLast(10)],
             IsPlayerVictory = _isCompleted ? _playerVictory : null
         };

@@ -78,8 +78,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
             TotalTurns = frame.TotalTurns,
             Players = frame.Players.ToList(),
             Enemies = frame.Enemies.ToList(),
-            FieldWidth = frame.FieldWidth,
-            FieldHeight = frame.FieldHeight,
+            FieldSize = frame.FieldSize,
             RecentLogs = frame.RecentLogs.ToList(),
             IsPlayerVictory = frame.IsPlayerVictory
         };
@@ -105,8 +104,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
                 TotalTurns = frame.TotalTurns,
                 Players = frame.Players.ToList(),
                 Enemies = frame.Enemies.ToList(),
-                FieldWidth = frame.FieldWidth,
-                FieldHeight = frame.FieldHeight,
+                FieldSize = frame.FieldSize,
                 RecentLogs = frame.RecentLogs.ToList(),
                 IsPlayerVictory = frame.IsPlayerVictory
             };

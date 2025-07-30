@@ -53,8 +53,7 @@ public class BattleStateTests
         Assert.Equal(_mockGroup.ConnectedCount, status.Players.Count);
         Assert.True(status.Enemies.Count >= BattleSystemDefines.EnemyCount.Min);
         Assert.True(status.Enemies.Count <= BattleSystemDefines.EnemyCount.Max);
-        Assert.Equal(BattleSystemDefines.BattleFieldWidth, status.FieldWidth);
-        Assert.Equal(BattleSystemDefines.BattleFieldHeight, status.FieldHeight);
+        Assert.Equal(BattleSystemDefines.BattleFieldSize, status.FieldSize);
         // Battle should not have a result when just initialized
         Assert.Null(status.IsPlayerVictory);
         Assert.True(status.IsInProgress);
