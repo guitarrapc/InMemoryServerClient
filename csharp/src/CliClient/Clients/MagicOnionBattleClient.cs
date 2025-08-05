@@ -9,6 +9,7 @@ using Grpc.Net.Client;
 using System.Diagnostics.CodeAnalysis;
 using CliClient.Extensions;
 using CliClient.Models;
+using CliClient.Constants;
 
 namespace CliClient.Clients;
 
@@ -22,10 +23,6 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
     private GrpcChannel? _channel;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-
-    // Battle replay settings
-    private const int BattleReplayFps = 5; // 5fps for battle replay
-    private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
     // Battle replay data storage
     private readonly Dictionary<int, List<BattleStatus>> _replayChunks = [];
@@ -459,7 +456,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             }
         }
 
-        _logger.LogBattleInfo(new BattleLogMessages.ReplayStarting(battleStatuses.Count, BattleReplayFps, battleId.ToString(), seedValue));
+        _logger.LogBattleInfo(new BattleLogMessages.ReplayStarting(battleStatuses.Count, BattleReplayDefines.ReplayFps, battleId.ToString(), seedValue));
         _logger.LogInformation("[BATTLE REPLAY] ========== Starting Battle Replay ==========");
 
         // Play battle replay
@@ -467,7 +464,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         {
             var status = battleStatuses[i];
             DisplayBattleStatus(status, i + 1, battleStatuses.Count);
-            await Task.Delay(BattleReplayFrameTimeMs);
+            await Task.Delay(BattleReplayDefines.ReplayFrameTimeMs);
         }
 
         // Display final results
@@ -555,7 +552,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         // Avoid duplicate display when the last turn is also a multiple of 5
         bool isFirstTurn = currentTurn == 1;
         bool isLastTurn = currentTurn == totalTurns;
-        bool isIntervalTurn = status.CurrentTurn % BattleReplayFps == 0;
+        bool isIntervalTurn = status.CurrentTurn % BattleReplayDefines.ReplayFps == 0;
         bool shouldDisplay = isFirstTurn || (isLastTurn && !isIntervalTurn) || isIntervalTurn;
 
         if (shouldDisplay)

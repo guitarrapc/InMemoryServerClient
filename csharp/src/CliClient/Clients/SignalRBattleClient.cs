@@ -6,6 +6,7 @@ using Shared.Contracts;
 using Shared.Models;
 using CliClient.Extensions;
 using CliClient.Models;
+using CliClient.Constants;
 
 namespace CliClient.Clients;
 
@@ -18,10 +19,6 @@ internal class SignalRBattleClient : IBattleClient
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
     private string _currentGroupId = string.Empty;
-
-    // Battle replay settings
-    private const int BattleReplayFps = 5; // 5fps for battle replay
-    private const int BattleReplayFrameTimeMs = 1000 / BattleReplayFps; // Time in ms between frames
 
     // Battle replay data storage
     private readonly Dictionary<int, List<BattleStatus>> _replayChunks = [];
@@ -393,7 +390,7 @@ internal class SignalRBattleClient : IBattleClient
         }
 
         _logger.LogInformation("[BATTLE] Playing {TurnCount} turns at {Fps} FPS - BattleId: {BattleId}, Seed: {Seed}",
-            battleStatuses.Count, BattleReplayFps, battleId, seed);
+            battleStatuses.Count, BattleReplayDefines.ReplayFps, battleId, seed);
         _logger.LogInformation("[BATTLE REPLAY] ========== Starting Battle Replay ==========");
 
         // Play battle replay
@@ -401,7 +398,7 @@ internal class SignalRBattleClient : IBattleClient
         {
             var status = battleStatuses[i];
             DisplayBattleStatus(status, i + 1, battleStatuses.Count);
-            await Task.Delay(BattleReplayFrameTimeMs);
+            await Task.Delay(BattleReplayDefines.ReplayFrameTimeMs);
         }
 
         // Display final results
@@ -471,7 +468,7 @@ internal class SignalRBattleClient : IBattleClient
         // Avoid duplicate display when the last turn is also a multiple of 5
         bool isFirstTurn = currentTurn == 1;
         bool isLastTurn = currentTurn == totalTurns;
-        bool isIntervalTurn = status.CurrentTurn % BattleReplayFps == 0;
+        bool isIntervalTurn = status.CurrentTurn % BattleReplayDefines.ReplayFps == 0;
         bool shouldDisplay = isFirstTurn || (isLastTurn && !isIntervalTurn) || isIntervalTurn;
 
         if (shouldDisplay)
