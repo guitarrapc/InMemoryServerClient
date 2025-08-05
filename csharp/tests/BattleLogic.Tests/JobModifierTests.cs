@@ -232,11 +232,11 @@ public class JobModifierTests
 
                 Assert.Equal(PlayerJob.Archer, player.PlayerJob);
                 // Archer should have high speed due to 1.4x multiplier + 1 bonus
-                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 ??N 3-6 range
+                // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 → 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
-                // Good attack due to 1.3x multiplier + 3 bonus
-                // Base attack 25-34, so (25*1.3)+3=35.5 to (34*1.3)+3=47.2 ??N 35-47 range
-                Assert.True(player.Attack >= 35, $"Archer should have good attack power, got {player.Attack}");
+                // Good attack due to 1.1x multiplier + 3 bonus
+                // Base attack 25-34, so (25*1.1)+3=30.5 to (34*1.1)+3=40.4 → 30-40 range
+                Assert.True(player.Attack >= 30, $"Archer should have good attack power, got {player.Attack}");
             }
         }
 
