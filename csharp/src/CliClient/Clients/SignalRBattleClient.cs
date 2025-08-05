@@ -468,7 +468,11 @@ internal class SignalRBattleClient : IBattleClient
     private void DisplayBattleStatus(BattleStatus status, int currentTurn, int totalTurns)
     {
         // Display only every 5th turn, plus the first and last turns
-        bool shouldDisplay = currentTurn == 1 || currentTurn == totalTurns || status.CurrentTurn % 5 == 0;
+        // Avoid duplicate display when the last turn is also a multiple of 5
+        bool isFirstTurn = currentTurn == 1;
+        bool isLastTurn = currentTurn == totalTurns;
+        bool isIntervalTurn = status.CurrentTurn % BattleReplayFps == 0;
+        bool shouldDisplay = isFirstTurn || (isLastTurn && !isIntervalTurn) || isIntervalTurn;
 
         if (shouldDisplay)
         {
