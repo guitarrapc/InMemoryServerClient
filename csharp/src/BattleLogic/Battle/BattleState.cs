@@ -46,6 +46,8 @@ public class BattleState
     private bool _playerVictory = false; // Player victory flag
     private int _connectedClientsCount = 0;
     private int _readyClientsCount = 0;
+    private DateTime _battleStartTime;
+    private DateTime _battleEndTime;
 
     /// <summary>
     /// Gets the group ID associated with this battle
@@ -229,8 +231,8 @@ public class BattleState
     /// </summary>
     public async Task RunBattleAsync()
     {
+        _battleStartTime = DateTime.UtcNow;
         _logger.LogInformation("Battle started - BattleId: {BattleId}, Seed: {Seed} - Pre-computation with {PlayerCount} players and {EnemyCount} enemies", _battleId, _seed, _players.Count, _enemies.Count);
-        var startTime = DateTime.UtcNow;
 
         // Store all turn data for later transmission to clients (pre-allocate estimated size)
         var allTurnData = new List<BattleStatus>(_totalTurns + 1);
@@ -300,8 +302,8 @@ public class BattleState
         await replayWriter.WriteAllFramesAsync(allTurnData);
         await replayWriter.FinalizeAsync();
 
-        var endTime = DateTime.UtcNow;
-        var duration = endTime - startTime;
+        _battleEndTime = DateTime.UtcNow;
+        var duration = _battleEndTime - _battleStartTime;
         _logger.LogInformation("Battle completed - BattleId: {BattleId}, UserSeed: {UserSeed}, DeterministicSeed: {DeterministicSeed} - Pre-computation completed in {Duration:F2} seconds", _battleId, _seed, _battleSeed.DeterministicSeed, duration.TotalSeconds);
         _logger.LogInformation("Battle finished - BattleId: {BattleId}, Seed: {Seed} - Processed {TurnCount} turns with final result: {Result}", _battleId, _seed, _currentTurn, _playerVictory ? "Victory" : "Defeat");
 
@@ -321,6 +323,32 @@ public class BattleState
     public List<BattleStatus> GetAllTurnData()
     {
         return _allTurnData;
+    }
+
+    /// <summary>
+    /// Get battle summary for replay metadata
+    /// </summary>
+    public BattleReplaySummary GetBattleReplaySummary()
+    {
+        if (!_isCompleted)
+        {
+            throw new InvalidOperationException("Battle is not completed yet");
+        }
+
+        var finalStatus = _allTurnData.LastOrDefault();
+
+        return new BattleReplaySummary
+        {
+            FinalTurn = _currentTurn,
+            TotalTurns = _totalTurns,
+            IsPlayerVictory = _playerVictory,
+            IsEndedByTurnLimit = _currentTurn >= _totalTurns,
+            SurvivingPlayers = finalStatus?.Players.Count(p => p.IsAlive) ?? 0,
+            TotalPlayers = _players.Count,
+            SurvivingEnemies = finalStatus?.Enemies.Count(e => e.IsAlive) ?? 0,
+            TotalEnemies = _enemies.Count,
+            BattleDuration = _battleEndTime - _battleStartTime
+        };
     }
 
     /// <summary>
@@ -384,6 +412,7 @@ public class BattleState
             IsInProgress = !_isCompleted,
             CurrentTurn = _currentTurn,
             TotalTurns = _totalTurns,
+            FinalTurn = _isCompleted ? _currentTurn : null,
             Players = [.. _players], // structs automatically create copies
             Enemies = [.. _enemies], // structs automatically create copies
             FieldSize = BattleSystemDefines.BattleFieldSize,

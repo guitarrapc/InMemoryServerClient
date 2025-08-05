@@ -371,6 +371,7 @@ public class SignalRBattleHub(
                     ChunkIndex = i,
                     TotalChunks = chunks.Count,
                     IsLastChunk = isLastChunk,
+                    Summary = isLastChunk ? battle.GetBattleReplaySummary() : null
                 };
 
                 await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleReplayData", replayData);
@@ -651,6 +652,7 @@ public class SignalRBattleHub(
                     ChunkIndex = i,
                     TotalChunks = chunks.Count,
                     IsLastChunk = isLastChunk,
+                    Summary = isLastChunk ? battle.GetBattleReplaySummary() : null
                 };
 
                 await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleReplayData", replayData);

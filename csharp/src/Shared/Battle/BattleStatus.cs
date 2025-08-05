@@ -29,6 +29,12 @@ public class BattleStatus
     public int TotalTurns { get; set; }
 
     /// <summary>
+    /// Final turn when battle ended (null if battle is still in progress)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? FinalTurn { get; set; }
+
+    /// <summary>
     /// Players in battle
     /// </summary>
     public List<EntityInfo> Players { get; set; } = [];

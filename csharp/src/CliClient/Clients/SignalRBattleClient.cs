@@ -437,7 +437,8 @@ internal class SignalRBattleClient : IBattleClient
         }
 
         // Display battle completion details
-        _logger.LogInformation("[BATTLE REPLAY] Total turns: {CurrentTurn}/{TotalTurns}", finalStatus.CurrentTurn, finalStatus.TotalTurns);
+        var displayTotalTurns = finalStatus.FinalTurn ?? finalStatus.TotalTurns;
+        _logger.LogInformation("[BATTLE REPLAY] Total turns: {CurrentTurn}/{TotalTurns}", finalStatus.CurrentTurn, displayTotalTurns);
 
         // Display how the battle ended using the new property
         if (finalStatus.IsEndedByTurnLimit == true)
@@ -471,8 +472,9 @@ internal class SignalRBattleClient : IBattleClient
 
         if (shouldDisplay)
         {
-            // Display turn information
-            _logger.LogInformation("[BATTLE] ===== Turn {CurrentTurn}/{TotalTurns} =====", status.CurrentTurn, status.TotalTurns);
+            // Display turn information - use FinalTurn if available for more intuitive display
+            var displayTotalTurns = status.FinalTurn ?? status.TotalTurns;
+            _logger.LogInformation("[BATTLE] ===== Turn {CurrentTurn}/{TotalTurns} =====", status.CurrentTurn, displayTotalTurns);
 
             // Display visual battle field first for better overview
             RenderBattleField(status);

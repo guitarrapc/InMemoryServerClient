@@ -1,4 +1,4 @@
-namespace CliClient.Services;
+﻿namespace CliClient.Services;
 
 /// <summary>
 /// Represents a log message with strongly typed arguments

@@ -1,5 +1,4 @@
-using BattleLogic.Services;
-using BattleLogic.Constants;
+﻿using BattleLogic.Services;
 using Shared.Battle;
 
 namespace BattleLogic.Tests;
@@ -205,9 +204,9 @@ public class DamageDistributionAnalysisTests(ITestOutputHelper output)
 
             var recommendation = (avgDamage, consistency) switch
             {
-                (> 50, < 0.3) => "🟢 Balanced & Stable",
-                (> 80, _) => "🔴 Too High Damage",
-                (< 20, _) => "🔴 Too Low Damage",
+                ( > 50, < 0.3) => "🟢 Balanced & Stable",
+                ( > 80, _) => "🔴 Too High Damage",
+                ( < 20, _) => "🔴 Too Low Damage",
                 (_, > 0.5) => "🟡 Inconsistent",
                 _ => "🟡 Needs Tuning"
             };

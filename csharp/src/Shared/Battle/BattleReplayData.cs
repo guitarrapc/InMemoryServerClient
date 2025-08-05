@@ -35,4 +35,10 @@ public readonly struct BattleReplayData
     /// Whether this is the last chunk
     /// </summary>
     public bool IsLastChunk { get; init; }
+
+    /// <summary>
+    /// Battle summary metadata (only available in the last chunk)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public BattleReplaySummary? Summary { get; init; }
 }

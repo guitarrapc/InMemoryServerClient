@@ -1,4 +1,4 @@
-using Shared.Constants;
+﻿using Shared.Constants;
 using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;

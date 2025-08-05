@@ -1,7 +1,5 @@
-using Shared.Models;
+﻿using Shared.Models;
 using BattleLogic.Battle;
-using Microsoft.Extensions.Options;
-using InMemoryServer.Models;
 
 namespace InMemoryServer.Services;
 

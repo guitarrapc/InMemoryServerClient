@@ -545,6 +545,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
                 ChunkIndex = i,
                 TotalChunks = chunks.Count,
                 IsLastChunk = isLastChunk,
+                Summary = isLastChunk ? battle.GetBattleReplaySummary() : null
             };
 
             await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleReplayData", replayData);

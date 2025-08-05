@@ -584,4 +584,43 @@ public class BattleStateTests
         // Clean up
         battleState.ClearBattleData();
     }
+
+    [Fact]
+    public async Task BattleStatus_FinalTurn_ShouldBeSetWhenBattleCompletes()
+    {
+        // Arrange
+        var battleId = BattleSeed.NewTimestampId();
+        var seed = 12345; // Use fixed seed for testing
+        var mockGroup = Substitute.For<IBattleGroupContext>();
+        mockGroup.ConnectedCount.Returns(5);
+        mockGroup.ClientIds.Returns(new List<string> { "client1", "client2", "client3", "client4", "client5" });
+
+        // Act
+        var battleState = TestHelpers.CreateBattleState(battleId, seed, mockGroup, _logger, _loggerFactory);
+        await battleState.RunBattleAsync();
+        var allTurnData = battleState.GetAllTurnData();
+
+        // Assert
+        Assert.NotEmpty(allTurnData);
+
+        // Initial status should not have FinalTurn
+        var initialStatus = allTurnData.First();
+        Assert.Null(initialStatus.FinalTurn);
+        Assert.True(initialStatus.IsInProgress);
+
+        // Final status should have FinalTurn set
+        var finalStatus = allTurnData.Last();
+        Assert.NotNull(finalStatus.FinalTurn);
+        Assert.False(finalStatus.IsInProgress);
+        Assert.Equal(finalStatus.CurrentTurn, finalStatus.FinalTurn);
+
+        // FinalTurn should be less than or equal to TotalTurns (since battle ended early)
+        Assert.True(finalStatus.FinalTurn <= finalStatus.TotalTurns);
+
+        _logger.LogInformation("Battle completed - FinalTurn: {FinalTurn}, TotalTurns: {TotalTurns}",
+            finalStatus.FinalTurn, finalStatus.TotalTurns);
+
+        // Clean up
+        battleState.ClearBattleData();
+    }
 }

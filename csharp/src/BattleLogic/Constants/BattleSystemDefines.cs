@@ -133,7 +133,7 @@ public static class BattleSystemDefines
     /// <summary>
     /// number of enemies in a battle
     /// </summary>
-    public static readonly StatusRange EnemyCount = new (14, 19);
+    public static readonly StatusRange EnemyCount = new(14, 19);
 
     /// <summary>
     /// number of battle turns

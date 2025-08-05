@@ -30,6 +30,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
     // Battle replay data storage
     private readonly Dictionary<int, List<BattleStatus>> _replayChunks = [];
     private int _expectedTotalChunks = 0;
+    private BattleReplaySummary? _battleSummary = null;
 
     // This is used to track if the battle has completed and to notify the client when it is done
     private readonly TaskCompletionSource<bool> _battleCompletionSource = new();
@@ -404,6 +405,12 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
                 _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
                 _expectedTotalChunks = replayData.TotalChunks;
 
+                // Store battle summary if this is the last chunk
+                if (replayData.IsLastChunk && replayData.Summary.HasValue)
+                {
+                    _battleSummary = replayData.Summary.Value;
+                }
+
                 OnBattleReplayData?.Invoke(replayData);
 
                 // Check if we have all chunks
@@ -495,17 +502,37 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             }
         }
 
-        // Display battle completion details
-        _logger.LogInformation("[BATTLE REPLAY] Total turns: {CurrentTurn}/{TotalTurns}", finalStatus.CurrentTurn, finalStatus.TotalTurns);
+        // Display battle completion details using summary if available
+        if (_battleSummary.HasValue)
+        {
+            var summary = _battleSummary.Value;
+            _logger.LogInformation("[BATTLE REPLAY] Total turns: {FinalTurn} (Battle lasted {FinalTurn} out of max {TotalTurns} turns)", summary.FinalTurn, summary.FinalTurn, summary.TotalTurns);
 
-        // Display how the battle ended using the new property
-        if (finalStatus.IsEndedByTurnLimit == true)
-        {
-            _logger.LogInformation("[BATTLE REPLAY] ⏰ Battle ended due to turn limit reached!");
+            // Display how the battle ended
+            if (summary.IsEndedByTurnLimit)
+            {
+                _logger.LogInformation("[BATTLE REPLAY] ⏰ Battle ended due to turn limit reached!");
+            }
+            else
+            {
+                _logger.LogInformation("[BATTLE REPLAY] ⚔️ Battle ended due to complete elimination!");
+            }
         }
-        else if (finalStatus.IsEndedByTurnLimit == false)
+        else
         {
-            _logger.LogInformation("[BATTLE REPLAY] ⚔️ Battle ended due to complete elimination!");
+            // Fallback to old method if summary is not available
+            var displayTotalTurns = finalStatus.FinalTurn ?? finalStatus.TotalTurns;
+            _logger.LogInformation("[BATTLE REPLAY] Total turns: {CurrentTurn}/{TotalTurns}", finalStatus.CurrentTurn, displayTotalTurns);
+
+            // Display how the battle ended using the new property
+            if (finalStatus.IsEndedByTurnLimit == true)
+            {
+                _logger.LogInformation("[BATTLE REPLAY] ⏰ Battle ended due to turn limit reached!");
+            }
+            else if (finalStatus.IsEndedByTurnLimit == false)
+            {
+                _logger.LogInformation("[BATTLE REPLAY] ⚔️ Battle ended due to complete elimination!");
+            }
         }
 
         _logger.LogInformation("[BATTLE REPLAY] Battle completed - BattleId: {BattleId}, Seed: {Seed} (replay completed)", battleId, seed);
@@ -529,8 +556,8 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
         if (shouldDisplay)
         {
-            // Display turn information
-            _logger.LogInformation("[BATTLE] ===== Turn {CurrentTurn}/{TotalTurns} =====", status.CurrentTurn, status.TotalTurns);
+            // Display turn information - during replay, only show current turn to avoid spoilers
+            _logger.LogInformation("[BATTLE] ===== Turn {CurrentTurn} =====", status.CurrentTurn);
 
             // Display visual battle field first for better overview
             RenderBattleField(status);
