@@ -9,11 +9,13 @@ namespace BattleLogic.Tests;
 /// </summary>
 public class BattleBalanceTests
 {
+    private readonly ITestOutputHelper _output;
     private readonly ILogger<BattleState> _logger;
     private readonly ILoggerFactory _loggerFactory;
 
-    public BattleBalanceTests()
+    public BattleBalanceTests(ITestOutputHelper output)
     {
+        _output = output;
         _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = Substitute.For<ILogger<BattleState>>();
     }
@@ -63,7 +65,7 @@ public class BattleBalanceTests
         // 新旧の判定が一致することを確認
         if (playerVictory != backupPlayerVictory)
         {
-            _logger.LogError("Battle result mismatch: IsPlayerVictory={PlayerVictory}, backup calculation={BackupPlayerVictory}",
+            _output.WriteLine("Battle result mismatch: IsPlayerVictory={PlayerVictory}, backup calculation={BackupPlayerVictory}",
                 playerVictory, backupPlayerVictory);
         }
 
@@ -92,7 +94,7 @@ public class BattleBalanceTests
         var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
         var battleResults = new ConcurrentBag<(int EnemyCount, bool IsVictory)>();
 
-        Console.WriteLine($"Starting comprehensive battle balance analysis with {battlesForAnalysis} battles...");
+        _output.WriteLine($"Starting comprehensive battle balance analysis with {battlesForAnalysis} battles...");
 
         // 並列処理でバトルを実行
         await Parallel.ForEachAsync(Enumerable.Range(0, battlesForAnalysis), parallelOptions, async (_, ct) =>
@@ -202,10 +204,10 @@ public class BattleBalanceTests
         var resultsPath = Path.Combine(Directory.GetCurrentDirectory(), "battle_balance_comprehensive_results.txt");
         File.WriteAllText(resultsPath, detailedResults.ToString());
 
-        Console.WriteLine("=====================================");
-        Console.WriteLine(detailedResults.ToString());
-        Console.WriteLine("=====================================");
-        Console.WriteLine($"Comprehensive results saved to: {resultsPath}");
+        _output.WriteLine("=====================================");
+        _output.WriteLine(detailedResults.ToString());
+        _output.WriteLine("=====================================");
+        _output.WriteLine($"Comprehensive results saved to: {resultsPath}");
 
         // アサーション - 勝率が許容範囲内であることを検証
         Assert.True(hasValidData, "Should have valid battle data for analysis");
@@ -220,7 +222,7 @@ public class BattleBalanceTests
         var enemyCountsWithData = enemyCountWinRates.Where(kvp => kvp.Value.Count > 0).ToList();
         Assert.True(enemyCountsWithData.Count > 0, "Should have battle data for at least one enemy count");
 
-        Console.WriteLine($"✓ Battle balance analysis completed successfully. Win rate: {overallWinRate:P2}");
+        _output.WriteLine($"✓ Battle balance analysis completed successfully. Win rate: {overallWinRate:P2}");
     }
 
     [Fact]

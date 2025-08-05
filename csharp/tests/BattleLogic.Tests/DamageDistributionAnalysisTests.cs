@@ -61,7 +61,7 @@ public class DamageDistributionAnalysisTests(ITestOutputHelper output)
 
             // Cross-job damage analysis (Player vs Enemy jobs)
             _output.WriteLine("  ▼ Cross-Job Damage Matrix (Player → Enemy):");
-            _output.WriteLine("    Player\\Enemy    Bruiser  Guardian Assassin  Caster");
+            _output.WriteLine("    Player\\Enemy Guardian Bruiser  Caster  Assassin");
             foreach (var playerJob in playerJobs)
             {
                 var playerStats = GeneratePlayerStatsForJob(playerJob, fixedSeed + 6000);
@@ -80,7 +80,7 @@ public class DamageDistributionAnalysisTests(ITestOutputHelper output)
 
             // Cross-job damage analysis (Enemy vs Player jobs)
             _output.WriteLine("  ▼ Cross-Job Damage Matrix (Enemy → Player):");
-            _output.WriteLine("    Enemy\\Player     Tank  Warrior     Mage   Archer");
+            _output.WriteLine("    Enemy\\Player    Tank  Warrior   Mage  Archer");
             foreach (var enemyJob in enemyJobs)
             {
                 var enemyStats = GenerateEnemyStatsForJob(enemyJob, fixedSeed + 9000);

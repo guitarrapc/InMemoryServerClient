@@ -30,7 +30,7 @@ public static class BattleSystemDefines
     /// <summary>
     /// Defense power range for player
     /// </summary>
-    public static readonly StatusRange PlayerDefencePower = new(10, 22);
+    public static readonly StatusRange PlayerDefencePower = new(10, 15);
 
     /// <summary>
     /// Movement speed range for player
@@ -177,36 +177,36 @@ public static class BattleSystemDefines
             PlayerJob.Tank,
             new JobStatModifier
             {
-                HpMultiplier = 1.5f,
-                AttackMultiplier = 0.8f,
-                DefenseMultiplier = 1.5f,
+                HpMultiplier = 2.0f,
+                AttackMultiplier = 1.0f,
+                DefenseMultiplier = 1.6f,
                 SpeedMultiplier = 0.7f,
                 AccuracyMultiplier = 0.9f,  // タンクは命中率がやや低い
-                EvasionMultiplier = 0.6f,   // タンクは低回避率（重装備）
-                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
+                EvasionMultiplier = 0.7f,   // タンクは低回避率（重装備）
+                CriticalRateMultiplier = 1.2f, // 戦士系のクリティカル攻撃率は中程度（3%）
                 HpBonus = 80,
                 AttackBonus = 0,
-                DefenseBonus = 10,
+                DefenseBonus = 8,
                 SpeedBonus = -1,
                 AccuracyBonus = -5,
                 EvasionBonus = -10,
-                CriticalRateBonus = 2
+                CriticalRateBonus = 1
             }
         },
         {
             PlayerJob.Warrior,
             new JobStatModifier
             {
-                HpMultiplier = 1.2f,
-                AttackMultiplier = 1.2f,
-                DefenseMultiplier = 1.1f,
+                HpMultiplier = 1.3f,
+                AttackMultiplier = 1.05f,    // 攻撃力をさらに下げる（1.2f → 1.05f）
+                DefenseMultiplier = 1.3f,    // 防御力をさらに上げる（1.2f → 1.3f）
                 SpeedMultiplier = 1.2f,
-                AccuracyMultiplier = 1.0f,  // ウォリアーは標準的な命中率
-                EvasionMultiplier = 1.0f,   // ウォリアーは標準的な回避率
-                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
+                AccuracyMultiplier = 1.0f,   // ウォリアーは標準的な命中率
+                EvasionMultiplier = 1.0f,    // ウォリアーは標準的な回避率
+                CriticalRateMultiplier = 2.5f, // 戦士系のクリティカル攻撃率は中程度（3%）
                 HpBonus = 50,
-                AttackBonus = 10,
-                DefenseBonus = 0,
+                AttackBonus = 5,             // 攻撃ボーナスをさらに下げる（8 → 5）
+                DefenseBonus = 4,            // 防御ボーナスをさらに上げる（2 → 4）
                 SpeedBonus = 1,
                 AccuracyBonus = 5,
                 EvasionBonus = 0,
@@ -217,16 +217,16 @@ public static class BattleSystemDefines
             PlayerJob.Mage,
             new JobStatModifier
             {
-                HpMultiplier = 0.8f,
+                HpMultiplier = 0.65f,        // HPをさらに下げる（0.8f → 0.65f）
                 AttackMultiplier = 1.4f,
-                DefenseMultiplier = 0.7f,
-                SpeedMultiplier = 0.9f,
-                AccuracyMultiplier = 1.2f,  // メイジは高い命中率（魔法の精密性）
-                EvasionMultiplier = 0.8f,   // メイジは低い回避率（運動性が低い）
-                CriticalRateMultiplier = 1.0f, // 魔法のクリティカル攻撃率は低く1%
-                HpBonus = -30,
+                DefenseMultiplier = 0.3f,    // 防御力をさらに下げる（0.4f → 0.3f）
+                SpeedMultiplier = 0.8f,
+                AccuracyMultiplier = 2.0f,   // メイジは高い命中率（魔法の精密性）
+                EvasionMultiplier = 0.7f,    // メイジは低い回避率（運動性が低い）
+                CriticalRateMultiplier = 0.5f, // 魔法のクリティカル攻撃率は低く0.5%
+                HpBonus = -50,               // HPボーナスを下げる
                 AttackBonus = 8,
-                DefenseBonus = -5,
+                DefenseBonus = -12,          // 防御ボーナスをさらに下げる（-8 → -12）
                 SpeedBonus = 0,
                 AccuracyBonus = 10,
                 EvasionBonus = -15,
@@ -237,20 +237,20 @@ public static class BattleSystemDefines
             PlayerJob.Archer,
             new JobStatModifier
             {
-                HpMultiplier = 0.9f,
-                AttackMultiplier = 1.3f,
+                HpMultiplier = 1.0f,
+                AttackMultiplier = 1.1f,
                 DefenseMultiplier = 0.8f,
                 SpeedMultiplier = 1.4f,
-                AccuracyMultiplier = 1.3f,  // アーチャーは最高の命中率（弓術の精度）
+                AccuracyMultiplier = 1.5f,  // アーチャーは最高の命中率（弓術の精度）
                 EvasionMultiplier = 1.5f,   // アーチャーは最高の回避率（機動性重視）
-                CriticalRateMultiplier = 15.0f, // シーフ系のクリティカル攻撃率は高く15%
-                HpBonus = -10,
+                CriticalRateMultiplier = 20.0f, // シーフ系のクリティカル攻撃率は高く20%
+                HpBonus = 0,
                 AttackBonus = 3,
-                DefenseBonus = -2,
-                SpeedBonus = 1,
+                DefenseBonus = -3,
+                SpeedBonus = 2,
                 AccuracyBonus = 15,
-                EvasionBonus = 10,
-                CriticalRateBonus = 9
+                EvasionBonus = 15,
+                CriticalRateBonus = 10
             }
         }
     };
@@ -260,6 +260,26 @@ public static class BattleSystemDefines
     /// </summary>
     public static readonly Dictionary<EnemyJob, JobStatModifier> EnemyJobModifiers = new Dictionary<EnemyJob, JobStatModifier>
     {
+        {
+            EnemyJob.Guardian,
+            new JobStatModifier
+            {
+                HpMultiplier = 1.4f,
+                AttackMultiplier = 0.8f,
+                DefenseMultiplier = 1.6f,
+                SpeedMultiplier = 0.6f,
+                AccuracyMultiplier = 0.85f,  // ガーディアンは低い命中率（重装備のため）
+                EvasionMultiplier = 0.6f,    // ガーディアンは最低回避率（重装備）
+                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
+                HpBonus = 100,
+                AttackBonus = 0,
+                DefenseBonus = 20,
+                SpeedBonus = -1,
+                AccuracyBonus = -8,
+                EvasionBonus = -10,
+                CriticalRateBonus = 2
+            }
+        },
         {
             EnemyJob.Bruiser,
             new JobStatModifier
@@ -281,23 +301,23 @@ public static class BattleSystemDefines
             }
         },
         {
-            EnemyJob.Guardian,
+            EnemyJob.Caster,
             new JobStatModifier
             {
-                HpMultiplier = 1.4f,
-                AttackMultiplier = 0.7f,
-                DefenseMultiplier = 1.6f,
-                SpeedMultiplier = 0.6f,
-                AccuracyMultiplier = 0.85f,  // ガーディアンは低い命中率（重装備のため）
-                EvasionMultiplier = 0.6f,    // ガーディアンは最低回避率（重装備）
-                CriticalRateMultiplier = 3.0f, // 戦士系のクリティカル攻撃率は中程度（3%）
-                HpBonus = 100,
-                AttackBonus = -2,
-                DefenseBonus = 20,
-                SpeedBonus = -1,
-                AccuracyBonus = -8,
-                EvasionBonus = -10,
-                CriticalRateBonus = 2
+                HpMultiplier = 0.8f,
+                AttackMultiplier = 1.6f,
+                DefenseMultiplier = 0.7f,
+                SpeedMultiplier = 0.9f,
+                AccuracyMultiplier = 1.1f,   // キャスターは高い命中率（魔法の精度）
+                EvasionMultiplier = 0.9f,    // キャスターは少し低い回避率（運動性低め）
+                CriticalRateMultiplier = 0.5f, // 魔法のクリティカル攻撃率は低く1%
+                HpBonus = -20,
+                AttackBonus = 9,
+                DefenseBonus = -3,
+                SpeedBonus = 0,
+                AccuracyBonus = 5,
+                EvasionBonus = -2,
+                CriticalRateBonus = -1
             }
         },
         {
@@ -305,7 +325,7 @@ public static class BattleSystemDefines
             new JobStatModifier
             {
                 HpMultiplier = 0.7f,
-                AttackMultiplier = 1.2f,
+                AttackMultiplier = 1.1f,
                 DefenseMultiplier = 0.6f,
                 SpeedMultiplier = 1.2f,
                 AccuracyMultiplier = 1.15f,  // アサシンは高い命中率（精密攻撃）
@@ -320,26 +340,6 @@ public static class BattleSystemDefines
                 CriticalRateBonus = 9
             }
         },
-        {
-            EnemyJob.Caster,
-            new JobStatModifier
-            {
-                HpMultiplier = 0.8f,
-                AttackMultiplier = 1.4f,
-                DefenseMultiplier = 0.7f,
-                SpeedMultiplier = 0.9f,
-                AccuracyMultiplier = 1.1f,   // キャスターは高い命中率（魔法の精度）
-                EvasionMultiplier = 0.9f,    // キャスターは少し低い回避率（運動性低め）
-                CriticalRateMultiplier = 1.0f, // 魔法のクリティカル攻撃率は低く1%
-                HpBonus = -20,
-                AttackBonus = 9,
-                DefenseBonus = -3,
-                SpeedBonus = 0,
-                AccuracyBonus = 5,
-                EvasionBonus = -2,
-                CriticalRateBonus = 0
-            }
-        }
     };
 
     /// <summary>

@@ -27,7 +27,7 @@ public enum PlayerJob
     Tank,
     Warrior,
     Mage,
-    Archer
+    Archer,
 }
 
 /// <summary>
@@ -35,10 +35,10 @@ public enum PlayerJob
 /// </summary>
 public enum EnemyJob
 {
-    Bruiser,    // 近接攻撃型、HP・攻撃重視
     Guardian,   // 防御重視型、HP・防御重視
+    Bruiser,    // 近接攻撃型、HP・攻撃重視
+    Caster,     // 遠距離攻撃型、攻撃・速度重視
     Assassin,   // 速度・攻撃特化型
-    Caster      // 遠距離攻撃型、攻撃・速度重視
 }
 
 /// <summary>
