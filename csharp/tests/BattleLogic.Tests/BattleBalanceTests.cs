@@ -60,7 +60,7 @@ public class BattleBalanceTests
         // バックアップ検証: 古い方法でも結果を確認
         var allTurnData = battleState.GetAllTurnData();
         var finalState = allTurnData[^1]; // 最後のターンの状態
-        bool backupPlayerVictory = finalState.Players.Any(p => p.CurrentHp > 0);
+        bool backupPlayerVictory = finalState.Players.Any(p => p.IsAlive);
 
         // 新旧の判定が一致することを確認
         if (playerVictory != backupPlayerVictory)
@@ -252,8 +252,8 @@ public class BattleBalanceTests
         if (finalStatus.IsEndedByTurnLimit == true)
         {
             // Battle ended by turn limit - use survivor count comparison
-            int alivePlayers = finalTurnData.Players.Count(p => p.CurrentHp > 0);
-            int aliveEnemies = finalTurnData.Enemies.Count(e => e.CurrentHp > 0);
+            int alivePlayers = finalTurnData.Players.Count(p => p.IsAlive);
+            int aliveEnemies = finalTurnData.Enemies.Count(e => e.IsAlive);
 
             if (finalTurnData.Players.All(p => p.CurrentHp <= 0))
             {
@@ -271,7 +271,7 @@ public class BattleBalanceTests
         else
         {
             // Battle ended by elimination - check if any players survived
-            calculatedVictory = finalTurnData.Players.Any(p => p.CurrentHp > 0);
+            calculatedVictory = finalTurnData.Players.Any(p => p.IsAlive);
         }
 
         // Verify consistency between new property and correct calculation
@@ -283,16 +283,16 @@ public class BattleBalanceTests
             if (finalStatus.IsEndedByTurnLimit == true)
             {
                 // Turn limit victory: either all enemies dead OR more players alive
-                bool allEnemiesDead = finalTurnData.Enemies.All(e => e.CurrentHp <= 0);
-                bool morePlayersAlive = finalTurnData.Players.Count(p => p.CurrentHp > 0) > finalTurnData.Enemies.Count(e => e.CurrentHp > 0);
+                bool allEnemiesDead = finalTurnData.Enemies.All(e => e.IsAlive);
+                bool morePlayersAlive = finalTurnData.Players.Count(p => p.IsAlive) > finalTurnData.Enemies.Count(e => e.IsAlive);
                 Assert.True(allEnemiesDead || morePlayersAlive,
                     "Turn limit victory should have either all enemies defeated or more players alive than enemies");
             }
             else
             {
                 // Elimination victory: at least one player alive and all enemies dead
-                Assert.True(finalTurnData.Players.Any(p => p.CurrentHp > 0), "At least one player should be alive if players won by elimination");
-                Assert.True(finalTurnData.Enemies.All(e => e.CurrentHp <= 0), "All enemies should be defeated if players won by elimination");
+                Assert.True(finalTurnData.Players.Any(p => p.IsAlive), "At least one player should be alive if players won by elimination");
+                Assert.True(finalTurnData.Enemies.All(e => !e.IsAlive), "All enemies should be defeated if players won by elimination");
             }
         }
         else
@@ -300,8 +300,8 @@ public class BattleBalanceTests
             if (finalStatus.IsEndedByTurnLimit == true)
             {
                 // Turn limit defeat: either all players dead OR fewer/equal players alive
-                bool allPlayersDead = finalTurnData.Players.All(p => p.CurrentHp <= 0);
-                bool fewerOrEqualPlayersAlive = finalTurnData.Players.Count(p => p.CurrentHp > 0) <= finalTurnData.Enemies.Count(e => e.CurrentHp > 0);
+                bool allPlayersDead = finalTurnData.Players.All(p => !p.IsAlive);
+                bool fewerOrEqualPlayersAlive = finalTurnData.Players.Count(p => p.IsAlive) <= finalTurnData.Enemies.Count(e => e.IsAlive);
                 Assert.True(allPlayersDead || fewerOrEqualPlayersAlive,
                     "Turn limit defeat should have either all players defeated or fewer/equal players alive than enemies");
             }

@@ -120,11 +120,11 @@ internal class BattleUtilities
                     // Find entity with matching ID
                     if (entity.Type.IsPlayer)
                     {
-                        target = enemies.FirstOrDefault(e => e.EntityId == targetId && e.CurrentHp > 0);
+                        target = enemies.FirstOrDefault(e => e.EntityId == targetId && e.IsAlive);
                     }
                     else
                     {
-                        target = players.FirstOrDefault(p => p.EntityId == targetId && p.CurrentHp > 0);
+                        target = players.FirstOrDefault(p => p.EntityId == targetId && p.IsAlive);
                     }
 
                     if (target != null)
@@ -146,8 +146,8 @@ internal class BattleUtilities
         int minDistance = int.MaxValue;
 
         var targets = entity.Type.IsPlayer ?
-            enemies.Where(e => e.CurrentHp > 0) :
-            players.Where(p => p.CurrentHp > 0);
+            enemies.Where(e => e.IsAlive) :
+            players.Where(p => p.IsAlive);
 
         foreach (var target in targets)
         {
@@ -171,8 +171,8 @@ internal class BattleUtilities
         int lowestHp = int.MaxValue;
 
         var targets = entity.Type.IsPlayer ?
-            enemies.Where(e => e.CurrentHp > 0) :
-            players.Where(p => p.CurrentHp > 0);
+            enemies.Where(e => e.IsAlive) :
+            players.Where(p => p.IsAlive);
 
         foreach (var target in targets)
         {
@@ -192,8 +192,8 @@ internal class BattleUtilities
     public bool AreEnemiesNearby(EntityInfo entity, List<EntityInfo> players, List<EntityInfo> enemies, int distanceThreshold)
     {
         var targets = entity.Type.IsPlayer ?
-            enemies.Where(e => e.CurrentHp > 0) :
-            players.Where(p => p.CurrentHp > 0);
+            enemies.Where(e => e.IsAlive) :
+            players.Where(p => p.IsAlive);
 
         foreach (var target in targets)
         {
@@ -214,8 +214,8 @@ internal class BattleUtilities
     {
         // Get allied positions
         var allies = entity.Type.IsPlayer ?
-            players.Where(p => p.EntityId != entity.EntityId && p.CurrentHp > 0) :
-            enemies.Where(e => e.EntityId != entity.EntityId && e.CurrentHp > 0);
+            players.Where(p => p.EntityId != entity.EntityId && p.IsAlive) :
+            enemies.Where(e => e.EntityId != entity.EntityId && e.IsAlive);
 
         // Check positions around the enemy
         int surroundCount = 0;
@@ -300,8 +300,8 @@ internal class BattleUtilities
         }
 
         // If both sides have survivors, player wins if they have more survivors
-        int alivePlayers = players.Count(p => p.CurrentHp > 0);
-        int aliveEnemies = enemies.Count(e => e.CurrentHp > 0);
+        int alivePlayers = players.Count(p => p.IsAlive);
+        int aliveEnemies = enemies.Count(e => e.IsAlive);
 
         return alivePlayers > aliveEnemies; // Player wins if more survivors
     }

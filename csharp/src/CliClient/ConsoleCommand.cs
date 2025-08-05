@@ -590,21 +590,21 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                     logger.LogInformation($"[BATTLE] Turn: {battleStatus.CurrentTurn}/{battleStatus.TotalTurns}");
 
                     // Display players
-                    var alivePlayers = battleStatus.Players.Count(p => p.CurrentHp > 0);
+                    var alivePlayers = battleStatus.Players.Count(p => p.IsAlive);
                     logger.LogInformation($"[BATTLE] Players alive: {alivePlayers}/{battleStatus.Players.Count}");
                     foreach (var player in battleStatus.Players)
                     {
-                        var status = player.CurrentHp > 0 ? "Alive" : "Defeated";
+                        var status = player.IsAlive ? "Alive" : "Defeated";
                         var jobInfo = player.PlayerJob.HasValue ? $" (Job: {player.PlayerJob})" : "";
                         logger.LogInformation($"[BATTLE] - {player.Name}{jobInfo}: {status}, HP: {player.CurrentHp}/{player.MaxHp}, ATK: {player.Attack}, DEF: {player.Defense}, SPD: {player.Speed}, Position: ({player.Position})");
                     }
 
                     // Display enemies
-                    var aliveEnemies = battleStatus.Enemies.Count(e => e.CurrentHp > 0);
+                    var aliveEnemies = battleStatus.Enemies.Count(e => e.IsAlive);
                     logger.LogInformation($"[BATTLE] Enemies alive: {aliveEnemies}/{battleStatus.Enemies.Count}");
                     foreach (var enemy in battleStatus.Enemies.Take(3)) // Show first 3 enemies to avoid spam
                     {
-                        var status = enemy.CurrentHp > 0 ? "Alive" : "Defeated";
+                        var status = enemy.IsAlive ? "Alive" : "Defeated";
                         var jobInfo = enemy.EnemyJob.HasValue ? $" (Job: {enemy.EnemyJob})" : "";
                         logger.LogInformation($"[BATTLE] - {enemy.Name}{jobInfo}: {status}, HP: {enemy.CurrentHp}/{enemy.MaxHp}, ATK: {enemy.Attack}, DEF: {enemy.Defense}, SPD: {enemy.Speed}, Position: ({enemy.Position})");
                     }

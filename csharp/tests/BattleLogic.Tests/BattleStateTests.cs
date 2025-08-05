@@ -79,13 +79,13 @@ public class BattleStateTests
         Assert.NotNull(status.IsPlayerVictory); // Should have a victory result
         Assert.True(status.IsPlayerVictory == true || status.IsPlayerVictory == false); // Should be either true or false
 
-        Console.WriteLine($"Battle result, IsPlayerVictory: {status.IsPlayerVictory}, Players alive: {status.Players.Count(p => p.CurrentHp > 0)}, Enemies alive: {status.Enemies.Count(e => e.CurrentHp > 0)}, TotalTurns: {status.TotalTurns}");
+        Console.WriteLine($"Battle result, IsPlayerVictory: {status.IsPlayerVictory}, Players alive: {status.Players.Count(p => p.IsAlive)}, Enemies alive: {status.Enemies.Count(e => e.IsAlive)}, TotalTurns: {status.TotalTurns}");
 
         // Debug: Log detailed information about the battle result
-        int alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
-        int aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
-        bool allPlayersDead = status.Players.All(p => p.CurrentHp <= 0);
-        bool allEnemiesDead = status.Enemies.All(e => e.CurrentHp <= 0);
+        int alivePlayers = status.Players.Count(p => p.IsAlive);
+        int aliveEnemies = status.Enemies.Count(e => e.IsAlive);
+        bool allPlayersDead = status.Players.All(p => !p.IsAlive);
+        bool allEnemiesDead = status.Enemies.All(e => !e.IsAlive);
 
         Console.WriteLine($"Debug: AllPlayersDead={allPlayersDead}, AllEnemiesDead={allEnemiesDead}, AlivePlayers={alivePlayers}, AliveEnemies={aliveEnemies}");
         Console.WriteLine($"Debug: Expected result for turn limit = {(allPlayersDead ? false : (allEnemiesDead ? true : alivePlayers > aliveEnemies))}");
@@ -104,14 +104,14 @@ public class BattleStateTests
         if (status.IsPlayerVictory == true)
         {
             // For player victory, either all enemies are dead OR players have more survivors (turn limit case)
-            Assert.True(status.Players.Any(p => p.CurrentHp > 0), "If players won, at least one player should be alive");
+            Assert.True(status.Players.Any(p => p.IsAlive), "If players won, at least one player should be alive");
             Assert.True(allEnemiesDead || alivePlayers > aliveEnemies,
                 "If players won, either all enemies should be defeated OR players should have more survivors than enemies");
         }
         else
         {
             // For player defeat, either all players are dead OR enemies have more survivors (turn limit case)
-            Assert.True(status.Enemies.Any(p => p.CurrentHp > 0), "If enemies won, at least one enemy should be alive");
+            Assert.True(status.Enemies.Any(p => p.IsAlive), "If enemies won, at least one enemy should be alive");
             Assert.True(allPlayersDead || aliveEnemies >= alivePlayers,
                 "If players lost, either all players should be defeated OR enemies should have equal or more survivors than players");
         }
@@ -381,7 +381,7 @@ public class BattleStateTests
                 Assert.Equal(player1.CurrentHp, player2.CurrentHp);
                 Assert.Equal(player1.Position.X, player2.Position.X);
                 Assert.Equal(player1.Position.Y, player2.Position.Y);
-                Assert.Equal(player1.CurrentHp > 0, player2.CurrentHp > 0); // IsAlive equivalent
+                Assert.Equal(player1.IsAlive, player2.IsAlive); // IsAlive equivalent
             }
 
             // Verify enemy states are identical for each turn
@@ -395,7 +395,7 @@ public class BattleStateTests
                 Assert.Equal(enemy1.CurrentHp, enemy2.CurrentHp);
                 Assert.Equal(enemy1.Position.X, enemy2.Position.X);
                 Assert.Equal(enemy1.Position.Y, enemy2.Position.Y);
-                Assert.Equal(enemy1.CurrentHp > 0, enemy2.CurrentHp > 0); // IsAlive equivalent
+                Assert.Equal(enemy1.IsAlive, enemy2.IsAlive); // IsAlive equivalent
             }
         }
 

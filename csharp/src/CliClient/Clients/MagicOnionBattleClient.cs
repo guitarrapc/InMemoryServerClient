@@ -465,8 +465,8 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
         // Display final results
         var finalStatus = battleStatuses.Last();
-        var finalAlivePlayers = finalStatus.Players.Count(p => p.CurrentHp > 0);
-        var finalAliveEnemies = finalStatus.Enemies.Count(e => e.CurrentHp > 0);
+        var finalAlivePlayers = finalStatus.Players.Count(p => p.IsAlive);
+        var finalAliveEnemies = finalStatus.Enemies.Count(e => e.IsAlive);
 
         _logger.LogInformation("[BATTLE REPLAY] ========== Battle Replay Completed! ==========");
 
@@ -476,7 +476,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             _logger.LogInformation("[BATTLE REPLAY] Surviving players: {AlivePlayers}/{TotalPlayers}", finalAlivePlayers, finalStatus.Players.Count);
 
             // Show surviving players stats
-            foreach (var player in finalStatus.Players.Where(p => p.CurrentHp > 0))
+            foreach (var player in finalStatus.Players.Where(p => p.IsAlive))
             {
                 var healthBar = GenerateHealthBar(player.CurrentHp, player.MaxHp, 20);
                 _logger.LogInformation("[BATTLE REPLAY] {PlayerName}: HP {CurrentHp}/{MaxHp} {HealthBar}", player.Name, player.CurrentHp, player.MaxHp, healthBar);
@@ -488,7 +488,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             _logger.LogInformation("[BATTLE REPLAY] Remaining enemies: {AliveEnemies}/{TotalEnemies}", finalAliveEnemies, finalStatus.Enemies.Count);
 
             // Show surviving enemy stats
-            foreach (var enemy in finalStatus.Enemies.Where(p => p.CurrentHp > 0))
+            foreach (var enemy in finalStatus.Enemies.Where(p => p.IsAlive))
             {
                 var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 20);
                 _logger.LogInformation("[BATTLE REPLAY] {EnemyName}: HP {CurrentHp}/{MaxHp} {HealthBar}", enemy.Name, enemy.CurrentHp, enemy.MaxHp, healthBar);
@@ -536,7 +536,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             RenderBattleField(status);
 
             // Display players info
-            var alivePlayers = status.Players.Count(p => p.CurrentHp > 0);
+            var alivePlayers = status.Players.Count(p => p.IsAlive);
             _logger.LogInformation("[BATTLE] Players alive: {AlivePlayers}/{TotalPlayers}", alivePlayers, status.Players.Count);
             foreach (var player in status.Players)
             {
@@ -546,9 +546,9 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
             }
 
             // Display enemies info
-            var aliveEnemies = status.Enemies.Count(e => e.CurrentHp > 0);
+            var aliveEnemies = status.Enemies.Count(e => e.IsAlive);
             _logger.LogInformation("[BATTLE] Enemies alive: {AliveEnemies}/{TotalEnemies}", aliveEnemies, status.Enemies.Count);
-            foreach (var enemy in status.Enemies.Where(x => x.CurrentHp > 0).Take(2)) // Show first 2 enemies to avoid spam
+            foreach (var enemy in status.Enemies.Where(x => x.IsAlive).Take(2)) // Show first 2 enemies to avoid spam
             {
                 var healthBar = GenerateHealthBar(enemy.CurrentHp, enemy.MaxHp, 10);
                 var jobInfo = enemy.EnemyJob.HasValue ? $" ({enemy.EnemyJob})" : "";
@@ -636,7 +636,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         for (int i = 0; i < status.Players.Count; i++)
         {
             var player = status.Players[i];
-            if (player.CurrentHp > 0)
+            if (player.IsAlive)
             {
                 playerLegend.Append($"P{i + 1}={player.Name}({player.CurrentHp}/{player.MaxHp}) ");
             }
@@ -647,7 +647,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         for (int i = 0; i < status.Enemies.Count; i++)
         {
             var enemy = status.Enemies[i];
-            if (enemy.CurrentHp > 0)
+            if (enemy.IsAlive)
             {
                 enemyLegend.Append($"E{i + 1}={enemy.Name}({enemy.CurrentHp}/{enemy.MaxHp}) ");
             }
@@ -679,7 +679,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         // Place players on field
         foreach (var player in status.Players)
         {
-            if (player.CurrentHp > 0 &&
+            if (player.IsAlive &&
                 player.Position.X >= 0 && player.Position.X < status.FieldSize.X &&
                 player.Position.Y >= 0 && player.Position.Y < status.FieldSize.Y)
             {
@@ -690,7 +690,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
         // Place enemies on field
         foreach (var enemy in status.Enemies)
         {
-            if (enemy.CurrentHp > 0 &&
+            if (enemy.IsAlive &&
                 enemy.Position.X >= 0 && enemy.Position.X < status.FieldSize.X &&
                 enemy.Position.Y >= 0 && enemy.Position.Y < status.FieldSize.Y)
             {

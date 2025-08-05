@@ -41,6 +41,12 @@ public readonly record struct EntityInfo
     public required int CurrentHp { get; init; }
 
     /// <summary>
+    /// Is Entity Alive or not
+    /// </summary>
+    /// <returns></returns>
+    public bool IsAlive => CurrentHp > 0;
+
+    /// <summary>
     /// Maximum HP
     /// </summary>
     public required int MaxHp { get; init; }

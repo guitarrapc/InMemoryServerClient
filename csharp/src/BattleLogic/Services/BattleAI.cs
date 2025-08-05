@@ -76,8 +76,8 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     private void EvaluateAttackAction(EntityInfo entity, List<BattleAIActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies)
     {
         var targets = entity.Type.IsPlayer ?
-            enemies.Where(e => e.CurrentHp > 0) :
-            players.Where(p => p.CurrentHp > 0);
+            enemies.Where(e => e.IsAlive) :
+            players.Where(p => p.IsAlive);
 
         if (!targets.Any())
         {
@@ -97,8 +97,8 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
             // Increase attack reward if this entity is the only survivor
             var allies = entity.Type.IsPlayer ?
-                players.Where(p => p.CurrentHp > 0) :
-                enemies.Where(e => e.CurrentHp > 0);
+                players.Where(p => p.IsAlive) :
+                enemies.Where(e => e.IsAlive);
 
             if (allies.Count() == 1)
             {
@@ -169,8 +169,8 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     private void EvaluateDefendAction(EntityInfo entity, List<BattleAIActionReward> actions, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
-            enemies.Where(e => e.CurrentHp > 0) :
-            players.Where(p => p.CurrentHp > 0);
+            enemies.Where(e => e.IsAlive) :
+            players.Where(p => p.IsAlive);
 
         if (!targets.Any())
         {
@@ -187,8 +187,8 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         // When this entity is the only survivor, prioritize attack over defense
         var allies = entity.Type.IsPlayer ?
-            players.Where(p => p.CurrentHp > 0) :
-            enemies.Where(e => e.CurrentHp > 0);
+            players.Where(p => p.IsAlive) :
+            enemies.Where(e => e.IsAlive);
 
         if (allies.Count() == 1)
         {
@@ -254,8 +254,8 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
     private void EvaluateMoveAction(EntityInfo entity, List<BattleAIActionReward> actions, EntityInfo? adjacentTarget, List<EntityInfo> players, List<EntityInfo> enemies, BattleField battleField, string? previousAction)
     {
         var targets = entity.Type.IsPlayer ?
-            enemies.Where(e => e.CurrentHp > 0) :
-            players.Where(p => p.CurrentHp > 0);
+            enemies.Where(e => e.IsAlive) :
+            players.Where(p => p.IsAlive);
 
         if (!targets.Any())
         {
@@ -265,8 +265,8 @@ internal class BattleAI(BattleUtilities utilities, ILogger logger)
 
         bool isLastEnemy = targets.Count() == 1;
         var allies = entity.Type.IsPlayer ?
-            players.Where(p => p.CurrentHp > 0) :
-            enemies.Where(e => e.CurrentHp > 0);
+            players.Where(p => p.IsAlive) :
+            enemies.Where(e => e.IsAlive);
         bool isLastAlly = allies.Count() == 1;
 
         if (adjacentTarget != null)

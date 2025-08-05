@@ -144,8 +144,8 @@ public class BattleState
         _battleUtilities.ResetDefendingStatus(_players, _enemies);
 
         // Get all entities ordered by speed (descending) for turn order
-        var entities = _players.Where(p => p.CurrentHp > 0)
-            .Concat(_enemies.Where(e => e.CurrentHp > 0))
+        var entities = _players.Where(p => p.IsAlive)
+            .Concat(_enemies.Where(e => e.IsAlive))
             .OrderByDescending(e => e.Speed)
             .ToList();
 
@@ -276,8 +276,8 @@ public class BattleState
             _playerVictory = _battleUtilities.DetermineVictoryOnTurnLimit(_players, _enemies);
 
             _logger.LogInformation("Battle ended due to turn limit - Players alive: {PlayersAlive}, Enemies alive: {EnemiesAlive}, Result: {Result}",
-                _players.Count(p => p.CurrentHp > 0),
-                _enemies.Count(e => e.CurrentHp > 0),
+                _players.Count(p => p.IsAlive),
+                _enemies.Count(e => e.IsAlive),
                 _playerVictory ? "Victory" : "Defeat");
         }
 
