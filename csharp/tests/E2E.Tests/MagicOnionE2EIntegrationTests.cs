@@ -110,18 +110,18 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         {
             // Connect using the same method as production
             Console.WriteLine("Connecting using production client implementation...");
-            var connected = await client.ConnectAsync("http://localhost", factory.Server.CreateHandler());
+            var connected = await client.ConnectAsync("http://localhost", factory.Server.CreateHandler(), nameof(ProductionLikeMagicOnionTest_CompareWithRealImplementation));
             Console.WriteLine($"Connected: {connected}");
 
             Assert.True(connected);
 
             // Test basic operations like in production
             Console.WriteLine("Testing Set operation...");
-            var setResult = await client.SetAsync("test-key", "test-value");
+            var setResult = await client.SetAsync(nameof(ProductionLikeMagicOnionTest_CompareWithRealImplementation), "test-value");
             Console.WriteLine($"Set result: {setResult}");
 
             Console.WriteLine("Testing Get operation...");
-            var getValue = await client.GetAsync("test-key");
+            var getValue = await client.GetAsync(nameof(ProductionLikeMagicOnionTest_CompareWithRealImplementation));
             Console.WriteLine($"Get result: {getValue}");
 
             Assert.True(setResult);

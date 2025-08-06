@@ -353,6 +353,52 @@ public class SignalRE2EIntegrationTests : IDisposable
         }
     }
 
+    [Fact(Timeout = 10000)] // 10秒タイムアウト
+    public async Task ProductionLikeSignalRTest_CompareWithRealImplementation()
+    {
+        // Arrange
+        var factory = CreateFactory();
+
+        // Use HubConnection directly with the test factory instead of SignalRBattleClient
+        var connection = new HubConnectionBuilder()
+            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            {
+                options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
+            })
+            .Build();
+
+        try
+        {
+            // Connect using the same pattern as SignalRBattleClient
+            Console.WriteLine("Connecting using production-like SignalR connection...");
+            await connection.StartAsync();
+            Console.WriteLine($"Connected: {connection.State == HubConnectionState.Connected}");
+
+            Assert.Equal(HubConnectionState.Connected, connection.State);
+
+            // Join group to match SignalRBattleClient behavior
+            var groupId = await connection.InvokeAsync<string>("JoinGroupAsync", nameof(ProductionLikeSignalRTest_CompareWithRealImplementation));
+            Console.WriteLine($"Joined group: {groupId}");
+            Assert.NotEmpty(groupId);
+
+            // Test basic operations like in production
+            Console.WriteLine("Testing Set operation...");
+            var setResult = await connection.InvokeAsync<bool>("SetAsync", nameof(ProductionLikeSignalRTest_CompareWithRealImplementation), "test-value");
+            Console.WriteLine($"Set result: {setResult}");
+
+            Console.WriteLine("Testing Get operation...");
+            var getValue = await connection.InvokeAsync<string>("GetAsync", nameof(ProductionLikeSignalRTest_CompareWithRealImplementation));
+            Console.WriteLine($"Get result: {getValue}");
+
+            Assert.True(setResult);
+            Assert.Equal("test-value", getValue);
+        }
+        finally
+        {
+            await connection.DisposeAsync();
+        }
+    }
+
     [Fact]
     public async Task TwoClients_JoinGroup_ReceivesEvents()
     {
