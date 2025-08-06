@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Shared.Battle;
 
 namespace BattleLogic.Tests;
@@ -186,15 +186,15 @@ public class JobModifierTests
                 var mageModifier = BattleSystemDefines.PlayerJobModifiers[PlayerJob.Mage];
 
                 Assert.Equal(PlayerJob.Mage, player.PlayerJob);
-                // Mage should have lower HP due to 0.8x multiplier and -50 bonus
-                // Base HP 200-500, so (200*0.8)-50=110 to (500*0.8)-50=350 ??N 110-350 range
-                Assert.True(player.MaxHp <= 350, $"Mage should have lower HP, got {player.MaxHp}");
+                // Mage should have lower HP due to 0.65x multiplier and -50 bonus
+                // Base HP 320-449, so (320*0.65)-50=158 to (449*0.65)-50=241 ≈ 158-241 range
+                Assert.True(player.MaxHp <= 241, $"Mage should have lower HP, got {player.MaxHp}");
                 // But very high attack due to 1.4x multiplier + 8 bonus
-                // Base attack 10-30, so (10*1.4)+8=22 to (30*1.4)+8=50 ??N 22-50 range
-                Assert.True(player.Attack >= 22, $"Mage should have very high attack power, got {player.Attack}");
-                // And lower defense due to 0.7x multiplier and -3 bonus
-                // Base defense 10-22, so (10*0.7)-3=4 to (22*0.7)-3=12.4 ??N 4-12 range
-                Assert.True(player.Defense <= 12, $"Mage should have lower defense, got {player.Defense}");
+                // Base attack 28-37, so (28*1.4)+8=47.2 to (37*1.4)+8=59.8 ≈ 47-59 range
+                Assert.True(player.Attack >= 47, $"Mage should have very high attack power, got {player.Attack}");
+                // And very low defense due to 0.3x multiplier and -12 bonus
+                // Base defense 10-14, so (10*0.3)-12=-9 to (14*0.3)-12=-7.8 ≈ 0-0 range (clamped to 0)
+                Assert.True(player.Defense <= 0, $"Mage should have very low defense, got {player.Defense}");
             }
         }
 
@@ -235,8 +235,8 @@ public class JobModifierTests
                 // Base speed 2-4, so (2*1.4)+1=3.8 to (4*1.4)+1=6.6 → 3-6 range
                 Assert.True(player.Speed >= 3, $"Archer should have high speed, got {player.Speed}");
                 // Good attack due to 1.1x multiplier + 3 bonus
-                // Base attack 25-34, so (25*1.1)+3=30.5 to (34*1.1)+3=40.4 → 30-40 range
-                Assert.True(player.Attack >= 30, $"Archer should have good attack power, got {player.Attack}");
+                // Base attack 28-37, so (28*1.1)+3=33.8 to (37*1.1)+3=43.7 ≈ 33-43 range
+                Assert.True(player.Attack >= 33, $"Archer should have good attack power, got {player.Attack}");
             }
         }
 
