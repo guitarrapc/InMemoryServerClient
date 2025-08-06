@@ -15,16 +15,12 @@ public static class BattleClientFactory
     /// <param name="connectionType">Connection type to use</param>
     /// <param name="loggerFactory">Logger factory</param>
     /// <returns>IInMemoryServerClient instance</returns>
-    public static IBattleClient Create(
-        ConnectionType connectionType,
-        ILoggerFactory loggerFactory)
+    public static IBattleClient Create(ConnectionType connectionType, ILoggerFactory loggerFactory)
     {
         return connectionType switch
         {
-            ConnectionType.SignalR => new SignalRBattleClient(
-                loggerFactory.CreateLogger<SignalRBattleClient>()),
-            ConnectionType.MagicOnion => new MagicOnionBattleClient(
-                loggerFactory.CreateLogger<MagicOnionBattleClient>()),
+            ConnectionType.SignalR => new SignalRBattleClient(loggerFactory.CreateLogger<SignalRBattleClient>()),
+            ConnectionType.MagicOnion => new MagicOnionBattleClient(loggerFactory.CreateLogger<MagicOnionBattleClient>()),
             _ => throw new ArgumentException($"Unsupported connection type: {connectionType}")
         };
     }

@@ -16,7 +16,7 @@ namespace CliClient.Clients;
 /// <summary>
 /// MagicOnion implementation of IInMemoryServerClient
 /// </summary>
-public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceiver, IAsyncDisposable
+internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceiver, IAsyncDisposable
 {
     private readonly ILogger<MagicOnionBattleClient> _logger;
     private readonly BattleReplayRenderer _replayRenderer;
@@ -60,7 +60,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
 
     public async Task<bool> ConnectAsync(string serverUrl, string? groupName = null)
     {
-        if (_hub != null && IsConnected)
+        if (IsConnected)
         {
             _logger.LogInformation("Already connected to server, disconnecting first");
             await DisconnectAsync();
@@ -215,8 +215,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
     public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
-        var battleReplayData = await _hub.GetBattleReplayAsync(battleId);
-        return battleReplayData;
+        return await _hub.GetBattleReplayAsync(battleId);
     }
 
     public async Task PlayBattleReplayAsync(BattleReplayData replayData)
@@ -237,7 +236,7 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
     {
         EnsureConnected();
         _currentGroupId = await _hub.JoinGroupAsync(groupName);
-        _logger.LogInformation("Joined group: {GroupId}", _currentGroupId);
+        _logger.LogInformation("Joined group: {GroupName} (ID: {GroupId})", groupName, _currentGroupId);
         return !string.IsNullOrEmpty(_currentGroupId);
     }
 
@@ -260,7 +259,6 @@ public class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceive
     {
         EnsureConnected();
         var groupInfo = await _hub.GetCurrentGroupAsync();
-
         if (groupInfo == null) return null;
 
         // Convert GroupInfo to ClientGroupInfo

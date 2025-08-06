@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Shared.Constants;
 using Shared.Contracts;
 using Shared.Models;
 
@@ -30,20 +31,19 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
             return false;
         }
 
-        // クリーンアップを行う
+        // Clear existing clients
         await CleanupClientsAsync();
 
-        // 各クライアントを作成して接続
+        // Create clients and connect them to the specified group
         for (int i = 0; i < clientCount; i++)
         {
             try
             {
                 var client = BattleClientFactory.Create(connectionType, loggerFactory);
 
-                // クライアントをリストに追加
                 _clients.Add(client);
 
-                // 接続
+                // Connect to the server
                 var success = await client.ConnectAsync(serverUrl, groupName);
                 if (!success)
                 {
@@ -61,7 +61,7 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
                 return false;
             }
 
-            // 少し待機して、同時接続による負荷を分散
+            // Wait a moment to spread the load of simultaneous connections
             if (i < clientCount - 1)
             {
                 await Task.Delay(100);
@@ -80,9 +80,9 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
         string seed,
         ConnectionType connectionType = ConnectionType.SignalR)
     {
-        // バトル再現専用の5クライアント接続
+        // Fullfill group to start battle reproduction
         var groupName = $"battle-reproduce-{seed}";
-        return await ConnectMultipleAsync(5, serverUrl, groupName, connectionType);
+        return await ConnectMultipleAsync(SystemDefines.MaxConnectionsPerGroup, serverUrl, groupName, connectionType);
     }
 
     /// <summary>
@@ -119,7 +119,6 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
             }
         }
 
-        // クリーンアップ
         await CleanupClientsAsync();
     }
 

@@ -24,6 +24,7 @@ internal class SignalRBattleClient : IBattleClient
     // Battle replay data storage
     private readonly Dictionary<int, List<BattleStatus>> _replayChunks = [];
     private int _expectedTotalChunks = 0;
+    private BattleReplaySummary? _battleSummary = null;
 
     // This is used to track if the battle has completed and to notify the client when it is done
     private readonly TaskCompletionSource<bool> _battleCompletionSource = new();
@@ -49,11 +50,11 @@ internal class SignalRBattleClient : IBattleClient
         _replayRenderer = new BattleReplayRenderer(_logger);
     }
 
-    public bool IsConnected => _connection?.State == HubConnectionState.Connected;
+    public bool IsConnected => _connection != null &&(_connection?.State == HubConnectionState.Connected);
 
     public async Task<bool> ConnectAsync(string serverUrl, string? groupName = null)
     {
-        if (_connection != null && IsConnected)
+        if (IsConnected)
         {
             _logger.LogInformation("Already connected to server, disconnecting first");
             await DisconnectAsync();
@@ -95,15 +96,15 @@ internal class SignalRBattleClient : IBattleClient
         {
             try
             {
-                _logger.LogInformation("Disconnecting from server");
+                _logger.LogInformation("Disconnecting from SignalR server");
                 await _connection.DisposeAsync();
                 _connection = null;
                 _currentGroupId = string.Empty;
-                _logger.LogInformation("Disconnected from server");
+                _logger.LogInformation("Disconnected from SignalR server");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during disconnection");
+                _logger.LogError(ex, "Error during SignalR disconnection");
             }
         }
     }
@@ -141,7 +142,6 @@ internal class SignalRBattleClient : IBattleClient
     public async Task WatchAsync(string key)
     {
         EnsureConnected();
-        // Simplified implementation - just log that watching is requested
         _logger.LogInformation("Watching key: {Key}", key);
         await _connection!.InvokeAsync("WatchAsync", key);
     }
@@ -169,6 +169,7 @@ internal class SignalRBattleClient : IBattleClient
         await Task.CompletedTask;
     }
 
+    // IBattleClient specific methods
     public async Task<bool> BroadcastMessageAsync(string message)
     {
         EnsureConnected();
@@ -204,6 +205,7 @@ internal class SignalRBattleClient : IBattleClient
         var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
         if (groupInfo == null) return null;
 
+        // Convert GroupInfo to ClientGroupInfo
         return new ClientGroupInfo(
             groupInfo.GroupId,
             groupInfo.Name,
@@ -228,8 +230,7 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
     {
         EnsureConnected();
-        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}",
-            battleId, seedValue, groupName);
+        _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}", battleId, seedValue, groupName);
 
         var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
         return result;
@@ -291,6 +292,7 @@ internal class SignalRBattleClient : IBattleClient
         });
         _connection.On<ConnectionsReadyData>("ConnectionsReady", data =>
         {
+            _logger.LogBattleInfo(new BattleLogMessages.ConnectionReadyHeader());
             _logger.LogBattleInfo(new BattleLogMessages.ConnectionsReady());
             _logger.LogBattleInfo(new BattleLogMessages.ConnectionsReadyDetails(data.BattleId.ToString(), data.Seed));
 
@@ -315,10 +317,8 @@ internal class SignalRBattleClient : IBattleClient
 
         _connection.On<BattleStartedData>("BattleStarted", (data) =>
         {
-            _logger.LogInformation("[BATTLE] ========== Battle Started! ==========");
-            _logger.LogInformation("[BATTLE] 🏆 Battle ID: {BattleId}", data.BattleId);
-            _logger.LogInformation("[BATTLE] 🎲 Seed: {Seed}", data.Seed);
-            _logger.LogInformation("[BATTLE] ====================================");
+            _logger.LogBattleInfo(new BattleLogMessages.BattleStarted());
+            _logger.LogBattleInfo(new BattleLogMessages.BattleStartedDetails(data.BattleId.ToString(), data.Seed));
             OnBattleStarted?.Invoke(data);
         });
 
@@ -326,12 +326,17 @@ internal class SignalRBattleClient : IBattleClient
         {
             try
             {
-                _logger.LogInformation("[BATTLE] Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns - BattleId: {BattleId}, Seed: {Seed}",
-                    replayData.ChunkIndex + 1, replayData.TotalChunks, replayData.TurnData.Count, replayData.BattleId, replayData.Seed);
+                _logger.LogBattleInfo(new BattleLogMessages.ReplayChunkReceived(replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count, (long)replayData.Seed));
 
                 // Store the chunk
                 _replayChunks[replayData.ChunkIndex] = replayData.TurnData;
                 _expectedTotalChunks = replayData.TotalChunks;
+
+                // Store battle summary if this is the last chunk
+                if (replayData.IsLastChunk && replayData.Summary.HasValue)
+                {
+                    _battleSummary = replayData.Summary.Value;
+                }
 
                 OnBattleReplayData?.Invoke(replayData);
 
@@ -347,26 +352,22 @@ internal class SignalRBattleClient : IBattleClient
             }
         });
 
+        _connection.On<BattleStatus>("BattleCompleted", (battleStatus) =>
+        {
+            _logger.LogInformation("[BATTLE] Battle completed! Final status received.");
+            // Battle completion is handled in the replay playback
+        });
+
         _connection.On<GroupDissolvedData>("GroupDissolved", (data) =>
         {
-            _logger.LogWarning("[GROUP] ❌ Group dissolved! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
-            _logger.LogWarning("[GROUP] 📄 Reason: {Reason}", data.Reason);
-            _logger.LogInformation("[GROUP] Connection will be closed automatically.");
+        _logger.LogBattleWarning(new BattleLogMessages.GroupDissolved(data.GroupName, data.GroupId, data.Reason));
             OnGroupDissolved?.Invoke(data);
         });
 
         _connection.On<GroupExtendedData>("GroupExtended", (data) =>
         {
-            _logger.LogInformation("[GROUP] ⏰ Group extended! Group: {GroupName} (ID: {GroupId})", data.GroupName, data.GroupId);
-            _logger.LogInformation("[GROUP] 🔄 Extension count: {ExtensionCount}/{MaxExtensions}", data.ExtensionCount, data.MaxExtensions);
-            _logger.LogInformation("[GROUP] 📅 New expiry time: {NewExpiryTime:yyyy-MM-dd HH:mm:ss}", data.NewExpiryTime);
+            _logger.LogBattleInfo(new BattleLogMessages.GroupExtended(data.GroupName, data.GroupId, data.ExtensionCount, data.MaxExtensions, data.NewExpiryTime));
             OnGroupExtended?.Invoke(data);
-        });
-
-        _connection.On<BattleStatus>("BattleCompleted", (battleStatus) =>
-        {
-            _logger.LogInformation("[BATTLE] Battle completed! Final status received.");
-            // Battle completion is handled in the replay playback
         });
 
         _connection.Closed += error =>
@@ -378,14 +379,14 @@ internal class SignalRBattleClient : IBattleClient
 
     private async Task PlayBattleReplayAsync(Guid battleId, int? seed)
     {
-        _logger.LogInformation("[BATTLE] All chunks received. Starting replay playback - BattleId: {BattleId}, Seed: {Seed}",
-            battleId, seed);
+        var seedValue = seed ?? 0;
+        _logger.LogBattleInfo(new BattleLogMessages.AllChunksReceived(battleId.ToString(), seedValue));
 
         // Reconstruct complete replay data using the service
         var battleStatuses = _replayRenderer.ReconstructReplayData(_replayChunks, _expectedTotalChunks);
 
-        // Play the replay using the service
-        await _replayRenderer.PlayReplayAsync(battleStatuses, battleId, seed);
+        // Play the replay using the service (disable showing total turns to avoid spoilers)
+        await _replayRenderer.PlayReplayAsync(battleStatuses, battleId, seed, _battleSummary);
 
         // Clean up
         _replayChunks.Clear();
