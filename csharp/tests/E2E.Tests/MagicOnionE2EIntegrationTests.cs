@@ -104,9 +104,7 @@ public class MagicOnionE2EIntegrationTests : IDisposable
         var factory = CreateFactory();
 
         // Use the actual MagicOnionBattleClient like in production
-        var client = new CliClient.Clients.MagicOnionBattleClient(
-            Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<CliClient.Clients.MagicOnionBattleClient>()
-        );
+        var client = new CliClient.Clients.MagicOnionBattleClient(Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<CliClient.Clients.MagicOnionBattleClient>());
 
         try
         {
