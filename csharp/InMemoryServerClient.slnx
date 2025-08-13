@@ -3,15 +3,31 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/src/">
-    <Project Path="src/BattleLogic/BattleLogic.csproj" />
-    <Project Path="src/CliClient/CliClient.csproj" />
-    <Project Path="src/InMemoryServer/InMemoryServer.csproj" />
-    <Project Path="src/Shared/Shared.csproj" />
+    <Project Path="src/BattleLogic/BattleLogic.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+    <Project Path="src/CliClient/CliClient.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+    <Project Path="src/InMemoryServer/InMemoryServer.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+    <Project Path="src/Shared/Shared.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/BattleLogic.Tests/BattleLogic.Tests.csproj" />
-    <Project Path="tests/E2E.Tests/E2E.Tests.csproj" />
-    <Project Path="tests/InMemoryServer.Tests/InMemoryServer.Tests.csproj" />
-    <Project Path="tests/CliClient.Tests/CliClient.Tests.csproj" />
+    <Project Path="tests/BattleLogic.Tests/BattleLogic.Tests.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+    <Project Path="tests/E2E.Tests/E2E.Tests.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+    <Project Path="tests/InMemoryServer.Tests/InMemoryServer.Tests.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
+    <Project Path="tests/CliClient.Tests/CliClient.Tests.csproj">
+      <Platform Solution="Debug|*" Project="x64" />
+    </Project>
   </Folder>
 </Solution>

@@ -8,6 +8,7 @@
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
     <NoWarn>xUnit1051</NoWarn>
+    <Platforms>x64;ARM64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
