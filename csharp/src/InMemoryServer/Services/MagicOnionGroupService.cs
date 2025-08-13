@@ -7,18 +7,10 @@ namespace InMemoryServer.Services;
 /// MagicOnion application-managed group service
 /// Based on: https://cysharp.github.io/MagicOnion/ja/streaminghub/group-application-managed
 /// </summary>
-public class MagicOnionGroupService : IDisposable
+public class MagicOnionGroupService(IMulticastGroupProvider groupProvider, ILogger<MagicOnionGroupService> logger) : IDisposable
 {
-    private readonly ILogger<MagicOnionGroupService> logger;
-    private readonly IMulticastGroupProvider groupProvider;
     private readonly Dictionary<string, IMulticastSyncGroup<Guid, IMagicOnionBattleHubReceiver>> _groups = new();
     private readonly Lock _lock = new();
-
-    public MagicOnionGroupService(IMulticastGroupProvider groupProvider, ILogger<MagicOnionGroupService> logger)
-    {
-        this.groupProvider = groupProvider;
-        this.logger = logger;
-    }
 
     /// <summary>
     /// Get or create a group for the specified group ID

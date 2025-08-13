@@ -9,24 +9,12 @@ namespace InMemoryServer.Services;
 /// <summary>
 /// Service for sending notifications across different protocols (SignalR and MagicOnion)
 /// </summary>
-public class CrossProtocolNotificationService
+public class CrossProtocolNotificationService(
+    ILogger<CrossProtocolNotificationService> logger,
+    ConnectionManager connectionManager,
+    IHubContext<SignalRBattleHub> signalRHubContext,
+    MagicOnionGroupService magicOnionGroupService)
 {
-    private readonly ILogger<CrossProtocolNotificationService> _logger;
-    private readonly ConnectionManager _connectionManager;
-    private readonly IHubContext<SignalRBattleHub> _signalRHubContext;
-    private readonly MagicOnionGroupService _magicOnionGroupService;
-
-    public CrossProtocolNotificationService(
-        ILogger<CrossProtocolNotificationService> logger,
-        ConnectionManager connectionManager,
-        IHubContext<SignalRBattleHub> signalRHubContext,
-        MagicOnionGroupService magicOnionGroupService)
-    {
-        _logger = logger;
-        _connectionManager = connectionManager;
-        _signalRHubContext = signalRHubContext;
-        _magicOnionGroupService = magicOnionGroupService;
-    }
 
     /// <summary>
     /// Send a notification to all clients in a group across all protocols
@@ -40,21 +28,21 @@ public class CrossProtocolNotificationService
         var signalRConnections = new List<string>();
         var magicOnionConnections = new List<Models.ConnectionInfo>();
 
-        _logger.LogDebug("CrossProtocolNotificationService.NotifyGroupAsync: {MethodName} for group {GroupId} with {ConnectionCount} connections",
+        logger.LogDebug("CrossProtocolNotificationService.NotifyGroupAsync: {MethodName} for group {GroupId} with {ConnectionCount} connections",
             methodName, groupId, connectionIds.Count());
 
         // Categorize connections by protocol
         foreach (var normalizedConnectionId in connectionIds)
         {
-            var connectionInfo = _connectionManager.GetConnectionInfo(normalizedConnectionId);
+            var connectionInfo = connectionManager.GetConnectionInfo(normalizedConnectionId);
             if (connectionInfo == null)
             {
-                _logger.LogWarning("CrossProtocolNotificationService: Connection info not found for {ConnectionId} in group {GroupId}",
+                logger.LogWarning("CrossProtocolNotificationService: Connection info not found for {ConnectionId} in group {GroupId}",
                     normalizedConnectionId, groupId);
                 continue;
             }
 
-            _logger.LogDebug("CrossProtocolNotificationService: Found {Protocol} connection {ConnectionId} in group {GroupId}",
+            logger.LogDebug("CrossProtocolNotificationService: Found {Protocol} connection {ConnectionId} in group {GroupId}",
                 connectionInfo.Protocol, normalizedConnectionId, groupId);
 
             switch (connectionInfo.Protocol)
@@ -73,37 +61,37 @@ public class CrossProtocolNotificationService
         {
             try
             {
-                _logger.LogDebug("CrossProtocolNotificationService sending {MethodName} to {Count} SignalR clients in group {GroupId}",
+                logger.LogDebug("CrossProtocolNotificationService sending {MethodName} to {Count} SignalR clients in group {GroupId}",
                     methodName, signalRConnections.Count, groupId);
-                await _signalRHubContext.Clients.Clients(signalRConnections)
+                await signalRHubContext.Clients.Clients(signalRConnections)
                     .SendAsync(methodName, data);
-                _logger.LogDebug("CrossProtocolNotificationService successfully sent {MethodName} to {Count} SignalR clients in group {GroupId}",
+                logger.LogDebug("CrossProtocolNotificationService successfully sent {MethodName} to {Count} SignalR clients in group {GroupId}",
                     methodName, signalRConnections.Count, groupId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending {MethodName} to SignalR clients in group {GroupId}",
+                logger.LogError(ex, "Error sending {MethodName} to SignalR clients in group {GroupId}",
                     methodName, groupId);
             }
         }
         else
         {
-            _logger.LogDebug("CrossProtocolNotificationService: No SignalR clients found for {MethodName} in group {GroupId}",
+            logger.LogDebug("CrossProtocolNotificationService: No SignalR clients found for {MethodName} in group {GroupId}",
                 methodName, groupId);
         }
 
         // Send to MagicOnion clients
         if (magicOnionConnections.Count > 0)
         {
-            _logger.LogDebug("CrossProtocolNotificationService sending {MethodName} to {Count} MagicOnion clients in group {GroupId}",
+            logger.LogDebug("CrossProtocolNotificationService sending {MethodName} to {Count} MagicOnion clients in group {GroupId}",
                 methodName, magicOnionConnections.Count, groupId);
             try
             {
                 // Use MagicOnion group service to send to all clients in the group
-                _logger.LogDebug("CrossProtocolNotificationService calling SendToAll for {MethodName} in group {GroupId}", methodName, groupId);
-                _magicOnionGroupService.SendToAll(groupId, receiver =>
+                logger.LogDebug("CrossProtocolNotificationService calling SendToAll for {MethodName} in group {GroupId}", methodName, groupId);
+                magicOnionGroupService.SendToAll(groupId, receiver =>
                 {
-                    _logger.LogDebug("CrossProtocolNotificationService executing SendToAll action for {MethodName} in group {GroupId}", methodName, groupId);
+                    logger.LogDebug("CrossProtocolNotificationService executing SendToAll action for {MethodName} in group {GroupId}", methodName, groupId);
                     switch (methodName)
                     {
                         case "MemberJoined":
@@ -143,14 +131,14 @@ public class CrossProtocolNotificationService
                                 receiver.OnGroupMessage(groupMessageData.SenderId, groupMessageData.Message);
                             break;
                     }
-                    _logger.LogDebug("CrossProtocolNotificationService SendToAll action completed for {MethodName} in group {GroupId}", methodName, groupId);
+                    logger.LogDebug("CrossProtocolNotificationService SendToAll action completed for {MethodName} in group {GroupId}", methodName, groupId);
                 });
-                _logger.LogDebug("CrossProtocolNotificationService SendToAll completed for {MethodName} in group {GroupId}", methodName, groupId);
-                _logger.LogDebug("Sent {MethodName} to {Count} MagicOnion clients in group {GroupId}", methodName, magicOnionConnections.Count, groupId);
+                logger.LogDebug("CrossProtocolNotificationService SendToAll completed for {MethodName} in group {GroupId}", methodName, groupId);
+                logger.LogDebug("Sent {MethodName} to {Count} MagicOnion clients in group {GroupId}", methodName, magicOnionConnections.Count, groupId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending {MethodName} to MagicOnion clients in group {GroupId}",
+                logger.LogError(ex, "Error sending {MethodName} to MagicOnion clients in group {GroupId}",
                     methodName, groupId);
             }
         }
@@ -164,10 +152,10 @@ public class CrossProtocolNotificationService
     /// <param name="data">Data to send</param>
     public async Task NotifyClientAsync<T>(string normalizedConnectionId, string methodName, T data)
     {
-        var connectionInfo = _connectionManager.GetConnectionInfo(normalizedConnectionId);
+        var connectionInfo = connectionManager.GetConnectionInfo(normalizedConnectionId);
         if (connectionInfo == null)
         {
-            _logger.LogWarning("Connection not found for normalized ID: {ConnectionId}", normalizedConnectionId);
+            logger.LogWarning("Connection not found for normalized ID: {ConnectionId}", normalizedConnectionId);
             return;
         }
 
@@ -176,19 +164,19 @@ public class CrossProtocolNotificationService
             switch (connectionInfo.Protocol)
             {
                 case ConnectionProtocol.SignalR:
-                    await _signalRHubContext.Clients.Client(connectionInfo.OriginalConnectionId)
+                    await signalRHubContext.Clients.Client(connectionInfo.OriginalConnectionId)
                         .SendAsync(methodName, data);
                     break;
                 case ConnectionProtocol.MagicOnion:
                     // For MagicOnion, we would need to find the specific client in the group
                     // This is more complex and might require additional tracking
-                    _logger.LogWarning("Individual MagicOnion client notification not yet implemented for method {MethodName}", methodName);
+                    logger.LogWarning("Individual MagicOnion client notification not yet implemented for method {MethodName}", methodName);
                     break;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending {MethodName} to client {ConnectionId} ({Protocol})",
+            logger.LogError(ex, "Error sending {MethodName} to client {ConnectionId} ({Protocol})",
                 methodName, normalizedConnectionId, connectionInfo.Protocol);
         }
     }

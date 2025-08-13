@@ -8,15 +8,9 @@ namespace InMemoryServer.Services;
 /// Uses original connection IDs directly - both SignalR (128-bit cryptographic random)
 /// and MagicOnion (GUID) provide sufficient uniqueness guarantees
 /// </summary>
-public class ConnectionManager
+public class ConnectionManager(ILogger<ConnectionManager> logger)
 {
-    private readonly ILogger<ConnectionManager> _logger;
     private readonly ConcurrentDictionary<string, Models.ConnectionInfo> _connections = new();
-
-    public ConnectionManager(ILogger<ConnectionManager> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Register a new connection using the original connection ID directly
@@ -36,7 +30,7 @@ public class ConnectionManager
 
         _connections[connectionId] = connectionInfo;
 
-        _logger.LogDebug("Registered {Protocol} connection: {ConnectionId}", protocol, connectionId);
+        logger.LogDebug("Registered {Protocol} connection: {ConnectionId}", protocol, connectionId);
 
         return connectionId;
     }
@@ -50,11 +44,11 @@ public class ConnectionManager
     {
         if (_connections.TryRemove(connectionId, out var connectionInfo))
         {
-            _logger.LogDebug("Unregistered {Protocol} connection: {ConnectionId}", connectionInfo.Protocol, connectionId);
+            logger.LogDebug("Unregistered {Protocol} connection: {ConnectionId}", connectionInfo.Protocol, connectionId);
             return true;
         }
 
-        _logger.LogWarning("Attempted to unregister unknown connection: {ConnectionId}", connectionId);
+        logger.LogWarning("Attempted to unregister unknown connection: {ConnectionId}", connectionId);
         return false;
     }
 

@@ -6,21 +6,11 @@ namespace InMemoryServer.Services;
 /// <summary>
 /// Service responsible for handling battle completion and group cleanup
 /// </summary>
-public class BattleCompletionService
+public class BattleCompletionService(
+    ILogger<BattleCompletionService> logger,
+    IGroupManager groupManager,
+    CrossProtocolNotificationService notificationService)
 {
-    private readonly ILogger<BattleCompletionService> logger;
-    private readonly IGroupManager groupManager;
-    private readonly CrossProtocolNotificationService notificationService;
-
-    public BattleCompletionService(
-        ILogger<BattleCompletionService> logger,
-        IGroupManager groupManager,
-        CrossProtocolNotificationService notificationService)
-    {
-        this.logger = logger;
-        this.groupManager = groupManager;
-        this.notificationService = notificationService;
-    }
 
     /// <summary>
     /// Handle battle completion with unified cleanup across all protocols
