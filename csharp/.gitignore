@@ -404,3 +404,4 @@ FodyWeavers.xsd
 
 # custom
 battle_replay/
+!LocalPackages/*.nupkg
