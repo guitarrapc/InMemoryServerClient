@@ -284,6 +284,15 @@ The server uses several techniques to optimize memory usage:
 
 5. **Efficient Field Representation**: Using 2D arrays and reference types efficiently for the battle field grid.
 
+## GameLift Server Integration
+
+You need GameLift Server SDK to run the server, which can be installed via local NuGet Package build via yourself.
+
+1. Download Server SDK: https://github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk
+2. Build NuPkg by `dotnet pack -c Release -o .artifacts -p:Version=5.3.0 -o .artifacts GameLiftServerSDK.sln`
+3. Place the artifact in the `csharp/LocalPackages` directory, and ensure the `NuGet.config` file points to this directory.
+4. Now you can restore sln.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE.md file for details.

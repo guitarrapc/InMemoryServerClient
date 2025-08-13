@@ -1,11 +1,14 @@
 ﻿using CliClient;
 using CliClient.Clients;
+using CliClient.Services.GameLift;
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Shared.Models;
 
 // Create ConsoleApp with dependency injection
 var app = ConsoleApp.Create()
+    .ConfigureDefaultConfiguration()
     .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
@@ -21,8 +24,14 @@ var app = ConsoleApp.Create()
             options.IncludeScopes = true;
         });
     })
-    .ConfigureServices((context, services) =>
+    .ConfigureServices((configuration, services) =>
     {
+        // Configure GameLift options
+        services.Configure<GameLiftOptions>(configuration.GetSection("GameLift"));
+
+        // Configure GameLift client services
+        services.ConfigureGameLiftClientServices();
+
         services.AddSingleton<MultiBattleClientManager>();
     });
 
