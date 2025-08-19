@@ -5,6 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Server -->
+    <PackageVersion Include="AWSSDK.SSO" Version="4.0.0.19" />
+    <PackageVersion Include="AWSSDK.SSOOIDC" Version="4.0.0.19" />
     <PackageVersion Include="GameLiftServerSDK" Version="5.3.0" />
     <PackageVersion Include="MagicOnion.Server" Version="7.0.6" />
     <!-- Client -->

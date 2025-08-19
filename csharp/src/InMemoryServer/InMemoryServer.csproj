@@ -19,6 +19,8 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.GameLift" />
     <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" />
+    <PackageReference Include="AWSSDK.SSO" />
+    <PackageReference Include="AWSSDK.SSOOIDC" />
     <PackageReference Include="GameLiftServerSDK" />
     <PackageReference Include="MagicOnion.Server" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
