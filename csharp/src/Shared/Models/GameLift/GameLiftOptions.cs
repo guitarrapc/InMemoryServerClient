@@ -84,6 +84,11 @@ public class GameLiftAnywhereOptions
     public string HostId { get; set; } = Environment.MachineName;
 
     /// <summary>
+    /// Host IP Address for GameLift server registration
+    /// </summary>
+    public string IpAddress { get; set; } = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName()).AddressList.First(x => x.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork).ToString();
+
+    /// <summary>
     /// Process ID for GameLift server registration
     /// </summary>
     public string ProcessId { get; set; } = Environment.ProcessId.ToString();

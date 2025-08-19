@@ -73,7 +73,7 @@ public class GameLiftAnywhereProvider(IAmazonGameLift gameLiftClient, IOptions<G
                     existingCompute.FleetId,
                     o.Anywhere.CustomLocation,
                     existingCompute.ComputeArn ?? string.Empty,
-                    Enum.Parse<Shared.Models.GameLift.ComputeStatus>(existingCompute.ComputeStatus.ToString())
+                    Enum.Parse<Shared.Models.GameLift.ComputeStatus>(existingCompute.ComputeStatus.ToString(), true)
                 );
             }
 
@@ -82,18 +82,18 @@ public class GameLiftAnywhereProvider(IAmazonGameLift gameLiftClient, IOptions<G
             {
                 FleetId = o.Anywhere.FleetId,
                 ComputeName = o.Anywhere.ComputeName,
-                Location = o.Anywhere.CustomLocation
+                Location = o.Anywhere.CustomLocation,
+                IpAddress = o.Anywhere.IpAddress,
             };
 
             var registerResponse = await gameLiftClient.RegisterComputeAsync(registerRequest, cancellationToken);
-
             logger.LogInformation("Registered new compute: {ComputeName}", registerResponse.Compute.ComputeName);
             return new ComputeInfo(
                 registerResponse.Compute.ComputeName,
                 registerResponse.Compute.FleetId,
                 o.Anywhere.CustomLocation,
                 registerResponse.Compute.ComputeArn ?? string.Empty,
-                Enum.Parse<Shared.Models.GameLift.ComputeStatus>(registerResponse.Compute.ComputeStatus.ToString())
+                Enum.Parse<Shared.Models.GameLift.ComputeStatus>(registerResponse.Compute.ComputeStatus.ToString(), true)
             );
         }
         catch (Exception ex)
