@@ -117,7 +117,17 @@ public class GameLiftAnywhereOptions
     /// <summary>
     /// Maximum concurrent game sessions
     /// </summary>
-    public int MaxConcurrentGameSessions { get; set; } = 1;
+    public int MaxConcurrentGameSessions { get; set; } = 3;
+
+    /// <summary>
+    /// Game session idle timeout
+    /// </summary>
+    public TimeSpan GameSessionIdleTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Delay before cleaning up completed game sessions
+    /// </summary>
+    public TimeSpan GameSessionCleanupDelay { get; set; } = TimeSpan.FromSeconds(30);
 }
 
 /// <summary>

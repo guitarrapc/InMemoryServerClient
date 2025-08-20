@@ -1,5 +1,6 @@
 ﻿using Shared.Models;
 using BattleLogic.Battle;
+using InMemoryServer.GameLift;
 
 namespace InMemoryServer.Services;
 
@@ -9,7 +10,8 @@ namespace InMemoryServer.Services;
 public class BattleCompletionService(
     ILogger<BattleCompletionService> logger,
     IGroupManager groupManager,
-    CrossProtocolNotificationService notificationService)
+    CrossProtocolNotificationService notificationService,
+    GameSessionManager? gameSessionManager = null)
 {
 
     /// <summary>
@@ -20,11 +22,7 @@ public class BattleCompletionService(
     /// <param name="battleId">Battle ID</param>
     /// <param name="seed">Battle seed</param>
     /// <param name="shouldDissolveGroup">Override for dissolve strategy. If null, uses configuration setting.</param>
-    public async Task HandleBattleCompletionAsync(
-        GroupInfo group,
-        BattleState battle,
-        Guid battleId,
-        int seed)
+    public async Task HandleBattleCompletionAsync(GroupInfo group, BattleState battle, Guid battleId, int seed)
     {
         try
         {
@@ -43,16 +41,28 @@ public class BattleCompletionService(
             // 2. Clear battle data to free memory
             battle.ClearBattleData();
 
-            // 3. Handle group cleanup
-            await groupManager.DissolveGroupAsync(
-                group.GroupId,
-                "Battle completed - group dissolved");
+            // 3. Handle GameLift GameSession termination if applicable
+            if (gameSessionManager != null && group.GroupId.StartsWith("gamelift-"))
+            {
+                var gameSessionId = group.GroupId.Replace("gamelift-", "");
+                logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Terminating GameSession {GameSessionId}", battleId, seed, gameSessionId);
 
-            logger.LogInformation(
-                "Battle {BattleId} (Seed: {Seed}): Group {GroupId} dissolved after battle completion",
-                battleId,
-                seed,
-                group.GroupId);
+                await gameSessionManager.TerminateGameSessionAsync(gameSessionId);
+            }
+
+            // 4. Handle group cleanup (for non-GameLift groups)
+            if (!group.GroupId.StartsWith("gamelift-"))
+            {
+                await groupManager.DissolveGroupAsync(
+                    group.GroupId,
+                    "Battle completed - group dissolved");
+
+                logger.LogInformation(
+                    "Battle {BattleId} (Seed: {Seed}): Group {GroupId} dissolved after battle completion",
+                    battleId,
+                    seed,
+                    group.GroupId);
+            }
         }
         catch (Exception ex)
         {

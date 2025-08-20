@@ -11,6 +11,7 @@ namespace InMemoryServer.GameLift;
 /// </summary>
 internal sealed class GameLiftAnywhereHostedService(
     IAmazonGameLift gameLiftClient,
+    GameSessionManager gameSessionManager,
     IOptions<GameLiftOptions> options,
     ILogger<GameLiftAnywhereHostedService> logger) : BackgroundService
 {
@@ -176,7 +177,7 @@ internal sealed class GameLiftAnywhereHostedService(
                 if (age > cleanupThreshold)
                 {
                     logger.LogInformation("Found existing compute {ComputeName} registered {Age:hh\\:mm\\:ss} ago (threshold: {Threshold:hh\\:mm\\:ss}). Cleaning up...",
-                        existingCompute.ComputeName, age, cleanupThreshold);                    await DeregisterComputeAsync(existingCompute.ComputeName, cancellationToken);
+                        existingCompute.ComputeName, age, cleanupThreshold); await DeregisterComputeAsync(existingCompute.ComputeName, cancellationToken);
                     return;
                 }
 
@@ -384,13 +385,9 @@ internal sealed class GameLiftAnywhereHostedService(
             logger.LogInformation("GameLift Server SDK initialized successfully");
 
             // Register process ready
-            logger.LogInformation("Registering process ready with GameLift...");
+            logger.LogInformation("Registering process ready with GameLift (Max concurrent sessions: {MaxSessions})...", o.Anywhere.MaxConcurrentGameSessions);
             var processParameters = new ProcessParameters(
-                onStartGameSession: (gameSession) =>
-                {
-                    logger.LogInformation("Game session started: {GameSessionId}", gameSession.GameSessionId);
-                    GameLiftServerAPI.ActivateGameSession();
-                },
+                onStartGameSession: async (gameSession) => await OnStartGameSession(gameSession, gameSessionManager, logger),
                 onUpdateGameSession: (updateGameSession) =>
                 {
                     logger.LogInformation("Game session updated: {GameSessionId}", updateGameSession.GameSession.GameSessionId);
@@ -398,11 +395,12 @@ internal sealed class GameLiftAnywhereHostedService(
                 onProcessTerminate: () =>
                 {
                     logger.LogInformation("Process termination requested");
-                    GameLiftServerAPI.ProcessEnding();
+                    _ = Task.Run(async () => await StopAsync(CancellationToken.None));
                 },
                 onHealthCheck: () =>
                 {
-                    logger.LogDebug("Health check requested");
+                    var stats = gameSessionManager?.GetGameSessionStats() ?? (0, 0, 0);
+                    logger.LogDebug("Health check - Active GameSessions: {Active}/{Max}", stats.Active, o.Anywhere.MaxConcurrentGameSessions);
                     return true;
                 },
                 port: 5001, // HTTPS unified port for both SignalR (HTTP/1) and MagicOnion (HTTP/2)
@@ -432,6 +430,10 @@ internal sealed class GameLiftAnywhereHostedService(
             }
 
             logger.LogInformation("GameLift Server SDK initialized and process ready signaled");
+
+            // Start background cleanup task
+            _ = Task.Run(async () => await RunPeriodicCleanupAsync(cancellationToken));
+
             return true;
         }
         catch (Exception ex)
@@ -452,12 +454,92 @@ internal sealed class GameLiftAnywhereHostedService(
 
             return false;
         }
+
+        static async Task OnStartGameSession(Aws.GameLift.Server.Model.GameSession gameSession, GameSessionManager gameSessionManager, ILogger logger)
+        {
+            logger.LogInformation("GameLift requested new GameSession: {GameSessionId}", gameSession.GameSessionId);
+
+            try
+            {
+                // Check if we can accept new GameSessions
+                if (gameSessionManager is null)
+                {
+                    logger.LogError("GameSessionManager is not initialized");
+                    GameLiftServerAPI.ProcessEnding();
+                    return;
+                }
+
+                if (!gameSessionManager.CanAcceptNewGameSession())
+                {
+                    logger.LogWarning("Cannot accept GameSession {GameSessionId}: Server at capacity", gameSession.GameSessionId);
+                    GameLiftServerAPI.ProcessEnding();
+                    return;
+                }
+
+                var success = await gameSessionManager.StartGameSessionAsync(gameSession);
+                if (!success)
+                {
+                    logger.LogError("Failed to start battle for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                    GameLiftServerAPI.ProcessEnding();
+                    return;
+                }
+
+                logger.LogInformation("Battle started successfully for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                GameLiftServerAPI.ActivateGameSession();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error starting battle for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                GameLiftServerAPI.ProcessEnding();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Run periodic cleanup of idle GameSessions
+    /// </summary>
+    private async Task RunPeriodicCleanupAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (gameSessionManager != null)
+                {
+                    await gameSessionManager.CleanupIdleGameSessionsAsync();
+
+                    // Log current stats periodically
+                    var stats = gameSessionManager.GetGameSessionStats();
+                    if (stats.Total > 0)
+                    {
+                        logger.LogDebug("GameSession stats - Active: {Active}, Completed: {Completed}, Total: {Total}",
+                            stats.Active, stats.Completed, stats.Total);
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation is requested
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in periodic cleanup task");
+        }
     }
 
     private async Task ProcessEndingAsync()
     {
         try
         {
+            // Cleanup GameSessions first
+            if (gameSessionManager != null)
+            {
+                logger.LogInformation("Cleaning up active GameSessions...");
+                await gameSessionManager.CleanupAllGameSessionsAsync();
+            }
+
             // Notify GameLift that the process is ending
             var outcome = GameLiftServerAPI.ProcessEnding();
             if (!outcome.Success)

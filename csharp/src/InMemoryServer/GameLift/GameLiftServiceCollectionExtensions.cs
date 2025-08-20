@@ -36,6 +36,9 @@ public static class GameLiftServiceCollectionExtensions
             // Register GameLift Anywhere hosted service for lifecycle management
             builder.Services.AddHostedService<GameLiftAnywhereHostedService>();
 
+            // Register GameSession manager for battle integration
+            builder.Services.AddSingleton<GameSessionManager>();
+
             // Log service registration (using builder's logging)
             Console.WriteLine("GameLift Anywhere services registered");
         }

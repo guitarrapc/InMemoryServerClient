@@ -78,7 +78,16 @@ Application Startup
 
 ## 4. 実装状況
 
-### ✅ 完了済み（最新アーキテクチャ v3）
+### ✅ 完了済み（最新アーキテクチャ v4）
+
+#### 🎮 GameSessionバトル統合 ✅ 完了
+- **GameSessionManager**: GameSessionとBattleStateの完全統合管理
+- **自動バトル開始**: `onStartGameSession`コールバック内でのバトル自動開始
+- **バトル完了処理**: バトル終了時のGameSession終了とリソース解放
+- **GameSessionとBattleの関連付け**: GameSessionIDとBattleIDの一対一対応
+- **仮想グループ作成**: GameLift用の5プレイヤー仮想グループ生成
+- **メモリ管理**: バトル完了後の適切なメモリクリーンアップ
+- **BattleCompletionService拡張**: GameLift GameSession終了処理の統合
 
 #### 🚀 WebSocketエンドポイント修正 ✅ 完了
 - **正しいエンドポイント形式**: `wss://{region}.api.amazongamelift.com`形式のWebSocketURLを動的構築
@@ -126,10 +135,12 @@ Application Startup
 
 #### 次の優先実装項目
 
-**1. アプリケーション連携（優先度: 高）**
-- [ ] GameSession開始時のバトル開始連携
-- [ ] `onStartGameSession`コールバックでのアプリ固有処理
-- [ ] GameSessionとInMemoryServerのバトル機能の統合
+**1. アプリケーション連携（優先度: 高）** ✅ 完了
+- [x] GameSession開始時のバトル開始連携
+- [x] `onStartGameSession`コールバックでのアプリ固有処理
+- [x] GameSessionとInMemoryServerのバトル機能の統合
+- [x] GameSessionIDとバトルIDの関連付け
+- [x] バトル完了時のGameSession終了処理
 
 **2. 統合テスト（優先度: 高）**
 - [ ] GameLift Anywhereモードでのサーバー起動テスト
@@ -233,15 +244,108 @@ Application Startup
 - **保守性向上**: 機能ごとの責任が明確に分離されている
 - **拡張性**: 新しいGameLiftサービス（FleetIQ等）の追加が容易
 
-## 8. 今後の課題と対応
+## 8. GameSessionライフサイクル設計ベストプラクティス
 
-### 短期的な課題
-1. ~~旧実装のクリーンアップ: 不要になったプロバイダークラスの削除~~ ✅ 完了
-2. ~~統合テスト: HostedService方式での動作確認~~ ✅ GameLift Anywhere動作確認完了
-3. ~~ドキュメント整備: 新しいアーキテクチャの運用手順~~ ✅ 完了
+### 現在の実装の問題点
+
+**❌ 問題のある設計（現在）:**
+- サーバー起動と同時にGameSession開始
+- 1サーバー = 1GameSession の固定関係
+- リソース効率が悪く、スケールしない
+
+**✅ 推奨設計:**
+- GameSession = 1つの具体的なバトル/マッチ
+- プレイヤー要求時にGameSession動的作成
+- 1サーバーで複数GameSessionの並行処理
+
+### GameSessionの適切な単位
+
+| 概念 | 説明 | このゲームでの例 |
+|------|------|------------------|
+| **GameSession** | 1つのゲームインスタンス | 5プレイヤーによる1回のオートバトル |
+| **Compute** | 1つの物理サーバー | PC、EC2インスタンス |
+| **Fleet** | Computeの集合 | 地域全体のサーバー群 |
+
+### コスト効率とスケーラビリティ
+
+**GameLift Anywhereの課金構造:**
+- **課金対象**: Computeインスタンス（物理サーバー）の稼働時間
+- **GameSession数**: コストに直接影響しない
+- **推奨**: 1サーバーで複数GameSessionを効率的に処理
+
+**現在 vs 推奨設計の比較:**
+
+```
+現在の設計（非効率）:
+┌─ Server ─────────────┐
+│ ◯ 1 GameSession     │ ← 常時1つのバトルのみ
+│ 💸 リソース使用率低い │
+└─────────────────────┘
+
+推奨設計（効率的）:
+┌─ Server ─────────────┐
+│ ◯ GameSession A     │ ← 複数バトル並行処理
+│ ◯ GameSession B     │
+│ ⭕ Ready for new     │
+│ 🚀 高スループット    │
+└─────────────────────┘
+```
+
+### 修正すべき実装項目
+
+**1. GameSessionの動的管理**
+- `onStartGameSession`コールバック時のみGameSession作成
+- バトル完了時のGameSession自動終了
+- 複数GameSessionの並行管理
+
+**2. リソース効率化**
+- 1サーバーでの複数バトル同時実行
+- GameSession終了後の即座なメモリクリーンアップ
+- 次のGameSession受け入れ準備の自動化
+
+**3. 設定の調整**
+```json
+{
+  "GameLift": {
+    "Anywhere": {
+      "MaxConcurrentGameSessions": 3,  // 同時実行可能なGameSession数
+      "GameSessionIdleTimeout": "00:02:00",
+      "GameSessionCleanupDelay": "00:00:30"  // バトル完了後の待機時間
+    }
+  }
+}
+```
+
+**MaxConcurrentGameSessions の重要性:**
+- **目的**: 1つのComputeインスタンス（サーバー）で同時実行できるGameSessionの上限
+- **リソース管理**: CPU・メモリ使用量を制御し、サーバー安定性を確保
+- **GameLiftの動作**: 上限に達すると、GameLiftは他のComputeに新しいGameSessionを割り当て
+- **推奨値**: サーバーのスペックに応じて調整（開発環境：1-3、本番環境：スペック次第）
+
+**このゲームでの考慮事項:**
+- 1バトル = 5プレイヤー分のAI処理とシミュレーション
+- バトル時間: 100-300ターン程度
+- メモリ使用量: バトルデータ、リプレイデータ、ログ
+- 推奨開始値: 2-3（様子を見て調整）
+
+## 9. 今後の課題と対応
+
+### ✅ 緊急対応完了（2025-08-20）
+1. **GameSessionライフサイクル修正**: ✅ 完了
+   - サーバー起動時の自動GameSession作成を停止
+   - `onStartGameSession`コールバックによる動的作成のみ
+   - 容量チェック機能の実装
+2. **複数GameSession対応**: ✅ 完了
+   - `MaxConcurrentGameSessions`設定による並行処理制限
+   - GameSession統計とモニタリング機能
+   - 定期的なアイドルセッションクリーンアップ
+3. **リソース効率化**: ✅ 完了
+   - バトル完了後の即座なメモリクリーンアップ
+   - 強制ガベージコレクションによるメモリ解放
+   - 設定可能なクリーンアップ遅延時間
 
 ### 中期的な拡張
-1. **GameSessionとアプリ統合**: バトルシステムとGameSessionの連携
+1. **スケーラビリティ**: より多くの同時GameSessionサポート
 2. **FleetIQ対応**: 新しいHostedServiceクラスの追加
 3. **監視機能**: GameLiftの状態監視とアラート機能
 

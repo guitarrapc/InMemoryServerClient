@@ -245,7 +245,7 @@ public class GameLiftAnywhereOptions
 
     // サーバーSDK設定
     public TimeSpan HealthCheckTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public int MaxConcurrentGameSessions { get; set; } = 1;
+    public int MaxConcurrentGameSessions { get; set; } = 3;
 }
 
 public enum GameLiftMode
