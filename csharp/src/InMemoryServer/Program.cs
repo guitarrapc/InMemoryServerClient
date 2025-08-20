@@ -1,5 +1,4 @@
 ﻿using Shared.Constants;
-using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Http1Server;
@@ -63,9 +62,6 @@ public class Program
 
         // Add a basic health check endpoint
         app.MapGet("/health", () => "Healthy");
-
-        // Create directory for battle replays
-        Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
 
         // Start the server
         Console.WriteLine($"InMemory Server starting...");
