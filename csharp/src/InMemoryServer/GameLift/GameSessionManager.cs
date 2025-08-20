@@ -17,7 +17,7 @@ public sealed class GameSessionManager(
     IOptions<GameLiftOptions> options)
 {
     private readonly ConcurrentDictionary<string, GameSessionInfo> _activeSessions = new();
-    
+
     /// <summary>
     /// Information about an active GameSession and its associated battle
     /// </summary>
@@ -25,13 +25,22 @@ public sealed class GameSessionManager(
     {
         public required string GameSessionId { get; init; }
         public required string GroupId { get; init; }
-        public required Guid BattleId { get; init; }
-        public required BattleState BattleState { get; init; }
-        public required GroupInfo GroupInfo { get; init; }
+        public Guid? BattleId { get; set; }
+        public BattleState? BattleState { get; set; }
+        public GroupInfo GroupInfo { get; set; } = null!;
         public DateTime StartTime { get; init; } = DateTime.UtcNow;
+        public DateTime? BattleStartTime { get; set; }
         public DateTime? CompletionTime { get; set; }
+        public bool IsBattleStarted { get; set; } = false;
         public bool IsCompleted { get; set; } = false;
         public bool IsTerminating { get; set; } = false;
+        public List<string> ConnectedClients { get; init; } = new();
+        public int RequiredPlayers { get; init; } = 5;
+
+        /// <summary>
+        /// Check if enough players have joined to start the battle
+        /// </summary>
+        public bool CanStartBattle => ConnectedClients.Count >= RequiredPlayers && !IsBattleStarted && !IsCompleted;
     }
 
     /// <summary>
@@ -53,7 +62,7 @@ public sealed class GameSessionManager(
     }
 
     /// <summary>
-    /// Start a GameSession and its associated battle
+    /// Prepare a GameSession and wait for players to connect
     /// </summary>
     public async Task<bool> StartGameSessionAsync(GameSession gameSession)
     {
@@ -72,32 +81,211 @@ public sealed class GameSessionManager(
                 return false;
             }
 
-            logger.LogInformation("Starting GameSession: {GameSessionId}", gameSession.GameSessionId);
+            logger.LogInformation("Preparing GameSession for players: {GameSessionId}", gameSession.GameSessionId);
 
-            // Create a virtual group for this GameSession
+            // Create a group for this GameSession (initially empty, waiting for real clients)
             var groupId = $"gamelift-{gameSession.GameSessionId}";
-            var battleId = Guid.NewGuid();
+
+            // Store session info in waiting state
+            var sessionInfo = new GameSessionInfo
+            {
+                GameSessionId = gameSession.GameSessionId,
+                GroupId = groupId,
+                RequiredPlayers = 5
+            };
+
+            _activeSessions[gameSession.GameSessionId] = sessionInfo;
+
+            logger.LogInformation(
+                "GameSession {GameSessionId} prepared and waiting for {RequiredPlayers} players to connect. Active sessions: {ActiveCount}/{MaxCount}",
+                gameSession.GameSessionId,
+                sessionInfo.RequiredPlayers,
+                _activeSessions.Values.Count(s => !s.IsCompleted),
+                o.Anywhere.MaxConcurrentGameSessions);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to prepare GameSession: {GameSessionId}", gameSession.GameSessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Handle player connection to a GameLift Anywhere group (if applicable)
+    /// </summary>
+    /// <param name="groupId">The group ID to check</param>
+    /// <param name="connectionId">The connection ID of the player</param>
+    /// <returns>True if this was a GameLift Anywhere connection, false otherwise</returns>
+    public async Task<bool> TryHandlePlayerConnectionAsync(string groupId, string connectionId)
+    {
+        // Check if this is a GameLift Anywhere group
+        if (!IsGameLiftAnywhereGroup(groupId))
+        {
+            return false;
+        }
+
+        var gameSessionId = ExtractGameSessionIdFromGroup(groupId);
+        var connected = await OnPlayerConnectedAsync(gameSessionId, connectionId);
+
+        if (connected)
+        {
+            logger.LogDebug("GameLift Anywhere: Notified GameSessionManager about client {ConnectionId} connection to GameSession {GameSessionId}",
+                connectionId, gameSessionId);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Handle player disconnection from a GameLift Anywhere group (if applicable)
+    /// </summary>
+    /// <param name="groupId">The group ID to check</param>
+    /// <param name="connectionId">The connection ID of the player</param>
+    /// <returns>True if this was a GameLift Anywhere disconnection, false otherwise</returns>
+    public async Task<bool> TryHandlePlayerDisconnectionAsync(string groupId, string connectionId)
+    {
+        // Check if this is a GameLift Anywhere group
+        if (!IsGameLiftAnywhereGroup(groupId))
+        {
+            return false;
+        }
+
+        var gameSessionId = ExtractGameSessionIdFromGroup(groupId);
+        await OnPlayerDisconnectedAsync(gameSessionId, connectionId);
+
+        logger.LogDebug("GameLift Anywhere: Notified GameSessionManager about client {ConnectionId} disconnection from GameSession {GameSessionId}",
+            connectionId, gameSessionId);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Check if a group ID represents a GameLift Anywhere group
+    /// </summary>
+    /// <param name="groupId">The group ID to check</param>
+    /// <returns>True if this is a GameLift Anywhere group, false otherwise</returns>
+    public static bool IsGameLiftAnywhereGroup(string? groupId)
+    {
+        return !string.IsNullOrEmpty(groupId) && groupId.StartsWith("gamelift-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Extract GameSession ID from a GameLift group ID
+    /// </summary>
+    /// <param name="groupId">The GameLift group ID (e.g., "gamelift-12345")</param>
+    /// <returns>The GameSession ID (e.g., "12345")</returns>
+    private static string ExtractGameSessionIdFromGroup(string groupId)
+    {
+        return groupId.Replace("gamelift-", "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Handle player connection to a GameSession
+    /// </summary>
+    public async Task<bool> OnPlayerConnectedAsync(string gameSessionId, string playerId)
+    {
+        if (!_activeSessions.TryGetValue(gameSessionId, out var sessionInfo))
+        {
+            logger.LogWarning("Player {PlayerId} tried to connect to unknown GameSession: {GameSessionId}", playerId, gameSessionId);
+            return false;
+        }
+
+        if (sessionInfo.IsCompleted || sessionInfo.IsTerminating)
+        {
+            logger.LogWarning("Player {PlayerId} tried to connect to completed GameSession: {GameSessionId}", playerId, gameSessionId);
+            return false;
+        }
+
+        if (sessionInfo.ConnectedClients.Contains(playerId))
+        {
+            logger.LogWarning("Player {PlayerId} is already connected to GameSession: {GameSessionId}", playerId, gameSessionId);
+            return true;
+        }
+
+        if (sessionInfo.ConnectedClients.Count >= sessionInfo.RequiredPlayers)
+        {
+            logger.LogWarning("GameSession {GameSessionId} is already full ({Count}/{Required})",
+                gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
+            return false;
+        }
+
+        // Add player to the session
+        sessionInfo.ConnectedClients.Add(playerId);
+
+        logger.LogInformation("Player {PlayerId} connected to GameSession {GameSessionId} ({Count}/{Required})",
+            playerId, gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
+
+        // Check if we have enough players to start the battle
+        if (sessionInfo.CanStartBattle)
+        {
+            logger.LogInformation("GameSession {GameSessionId} has enough players ({Count}/{Required}). Starting battle...",
+                gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
+
+            await StartBattleForGameSessionAsync(sessionInfo);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Handle player disconnection from a GameSession
+    /// </summary>
+    public async Task OnPlayerDisconnectedAsync(string gameSessionId, string playerId)
+    {
+        if (!_activeSessions.TryGetValue(gameSessionId, out var sessionInfo))
+        {
+            logger.LogDebug("Player {PlayerId} disconnected from unknown GameSession: {GameSessionId}", playerId, gameSessionId);
+            return;
+        }
+
+        sessionInfo.ConnectedClients.Remove(playerId);
+
+        logger.LogInformation("Player {PlayerId} disconnected from GameSession {GameSessionId} ({Count}/{Required})",
+            playerId, gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
+
+        // If battle hasn't started yet and we don't have enough players, continue waiting
+        // If battle has started, let it continue (players are simulated)
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Start battle for a GameSession once enough players have connected
+    /// </summary>
+    private async Task StartBattleForGameSessionAsync(GameSessionInfo sessionInfo)
+    {
+        try
+        {
+            sessionInfo.IsBattleStarted = true;
+            sessionInfo.BattleStartTime = DateTime.UtcNow;
+            sessionInfo.BattleId = Guid.NewGuid();
 
             // Create services
             using var scope = serviceProvider.CreateScope();
-            var groupManager = scope.ServiceProvider.GetRequiredService<IGroupManager>();
             var loggerFactory = scope.ServiceProvider.GetRequiredService<ILoggerFactory>();
             var replayWriterFactory = scope.ServiceProvider.GetRequiredService<BattleLogic.Infrastructures.BattleReplayWriter.BattleReplayWriterFactory>();
 
-            // Create a virtual group with max players (5)
-            var virtualGroup = new GroupInfo
+            // Create actual group with connected players
+            var groupInfo = new GroupInfo
             {
-                GroupId = groupId,
-                Name = $"GameLift-{gameSession.GameSessionId}",
-                MaxConnections = 5,
-                ConnectionCount = 5,
+                GroupId = sessionInfo.GroupId,
+                Name = $"GameLift-{sessionInfo.GameSessionId}",
+                MaxConnections = sessionInfo.RequiredPlayers,
+                ConnectionCount = sessionInfo.ConnectedClients.Count,
                 CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddHours(2), // GameLift sessions expire after some time
-                ClientIds = new List<string> { "player1", "player2", "player3", "player4", "player5" }
+                ExpiresAt = DateTime.UtcNow.AddHours(2),
+                ClientIds = new List<string>(sessionInfo.ConnectedClients)
             };
 
+            sessionInfo.GroupInfo = groupInfo;
+
             // Create battle context
-            var battleContext = new GameLiftBattleGroupContext(groupId, 5);
+            var battleContext = new GameLiftBattleGroupContext(
+                sessionInfo.GroupId,
+                sessionInfo.ConnectedClients.Count,
+                sessionInfo.ConnectedClients);
 
             // Generate random seed for the battle
             var random = new Random();
@@ -105,37 +293,25 @@ public sealed class GameSessionManager(
 
             // Create battle state
             var battleLogger = loggerFactory.CreateLogger<BattleState>();
-            var battleState = new BattleState(battleId, seed, battleContext, battleLogger, replayWriterFactory);
-
-            // Store session info
-            var sessionInfo = new GameSessionInfo
-            {
-                GameSessionId = gameSession.GameSessionId,
-                GroupId = groupId,
-                BattleId = battleId,
-                BattleState = battleState,
-                GroupInfo = virtualGroup
-            };
-
-            _activeSessions[gameSession.GameSessionId] = sessionInfo;
+            var battleState = new BattleState(sessionInfo.BattleId.Value, seed, battleContext, battleLogger, replayWriterFactory);
+            sessionInfo.BattleState = battleState;
 
             logger.LogInformation(
-                "GameSession {GameSessionId} associated with Battle {BattleId} (Seed: {Seed}). Active sessions: {ActiveCount}/{MaxCount}",
-                gameSession.GameSessionId,
-                battleId,
+                "Starting battle for GameSession {GameSessionId} with Battle {BattleId} (Seed: {Seed}) and players: [{Players}]",
+                sessionInfo.GameSessionId,
+                sessionInfo.BattleId,
                 seed,
-                _activeSessions.Values.Count(s => !s.IsCompleted),
-                o.Anywhere.MaxConcurrentGameSessions);
+                string.Join(", ", sessionInfo.ConnectedClients));
 
-            // Start battle asynchronously (pre-computation)
+            // Start battle asynchronously
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    logger.LogInformation("Starting battle pre-computation for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                    logger.LogInformation("Running battle for GameSession: {GameSessionId}", sessionInfo.GameSessionId);
                     await battleState.RunBattleAsync();
 
-                    logger.LogInformation("Battle pre-computation completed for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                    logger.LogInformation("Battle completed for GameSession: {GameSessionId}", sessionInfo.GameSessionId);
 
                     // Battle is completed, mark session as ready for termination
                     sessionInfo.IsCompleted = true;
@@ -145,28 +321,28 @@ public sealed class GameSessionManager(
                     CleanupBattleMemory(sessionInfo);
 
                     // Schedule GameSession termination after cleanup delay
+                    var o = options.Value;
                     _ = Task.Run(async () =>
                     {
                         await Task.Delay(o.Anywhere.GameSessionCleanupDelay);
-                        await TerminateGameSessionAsync(gameSession.GameSessionId);
+                        await TerminateGameSessionAsync(sessionInfo.GameSessionId);
                     });
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error during battle execution for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                    logger.LogError(ex, "Error during battle execution for GameSession: {GameSessionId}", sessionInfo.GameSessionId);
                     sessionInfo.IsCompleted = true;
                     sessionInfo.CompletionTime = DateTime.UtcNow;
                     CleanupBattleMemory(sessionInfo);
-                    await TerminateGameSessionAsync(gameSession.GameSessionId);
+                    await TerminateGameSessionAsync(sessionInfo.GameSessionId);
                 }
             });
-
-            return true;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to start GameSession: {GameSessionId}", gameSession.GameSessionId);
-            return false;
+            logger.LogError(ex, "Failed to start battle for GameSession: {GameSessionId}", sessionInfo.GameSessionId);
+            sessionInfo.IsCompleted = true;
+            sessionInfo.CompletionTime = DateTime.UtcNow;
         }
     }
 
@@ -178,7 +354,7 @@ public sealed class GameSessionManager(
         try
         {
             // Clear battle data to free memory immediately
-            sessionInfo.BattleState.ClearBattleData();
+            sessionInfo.BattleState?.ClearBattleData();
         }
         catch (Exception ex)
         {
@@ -217,7 +393,7 @@ public sealed class GameSessionManager(
                 logger.LogInformation(
                     "GameSession {GameSessionId} terminated. Battle {BattleId} cleanup completed. Active sessions: {ActiveCount}",
                     gameSessionId,
-                    sessionInfo.BattleId,
+                    sessionInfo.BattleId ?? Guid.Empty,
                     activeSessions);
             }
             else
@@ -299,13 +475,27 @@ public sealed class GameSessionManager(
 /// <summary>
 /// Battle group context for GameLift-initiated battles
 /// </summary>
-internal sealed class GameLiftBattleGroupContext(string groupId, int connectedCount) : Shared.Contracts.IBattleGroupContext
+internal sealed class GameLiftBattleGroupContext : Shared.Contracts.IBattleGroupContext
 {
-    public string GroupId { get; } = groupId;
-    public string Name { get; } = $"GameLift-{groupId}";
-    public int MaxClients { get; } = 5;
-    public int ConnectedCount { get; } = connectedCount;
-    public IReadOnlyList<string> ClientIds { get; } = Enumerable.Range(1, connectedCount)
-        .Select(i => $"gamelift-player-{i}")
-        .ToList();
+    public string GroupId { get; }
+    public string Name { get; }
+    public int MaxClients { get; }
+    public int ConnectedCount { get; }
+    public IReadOnlyList<string> ClientIds { get; }
+
+    public GameLiftBattleGroupContext(string groupId, int connectedCount, IReadOnlyList<string> clientIds)
+    {
+        GroupId = groupId;
+        Name = $"GameLift-{groupId}";
+        MaxClients = 5;
+        ConnectedCount = connectedCount;
+        ClientIds = clientIds;
+    }
+
+    public GameLiftBattleGroupContext(string groupId, int connectedCount)
+        : this(groupId, connectedCount, Enumerable.Range(1, connectedCount)
+            .Select(i => $"gamelift-player-{i}")
+            .ToList())
+    {
+    }
 }

@@ -22,10 +22,12 @@ public class SignalRBattleHub(
     CrossProtocolNotificationService notificationService,
     ILoggerFactory loggerFactory,
     BattleReplayWriterFactory replayWriterFactory,
-    BattleCompletionService battleCompletionService) : Hub
+    BattleCompletionService battleCompletionService,
+    GameLift.GameSessionManager? gameSessionManager = null) : Hub
 {
     private static readonly Lock _eventSetupLock = new();
 
+    // key-value operations
     /// <summary>
     /// Get value by key
     /// </summary>
@@ -111,39 +113,7 @@ public class SignalRBattleHub(
         return true;
     }
 
-    /// <summary>
-    /// Join a group
-    /// </summary>
-    public async Task<string> JoinGroupAsync(string? groupName = null)
-    {
-        var connectionId = Context.ConnectionId;
-
-        // Find or create group
-        var group = await groupManager.JoinGroupAsync(connectionId, groupName);
-        await Groups.AddToGroupAsync(connectionId, group.GroupId);
-
-        logger.LogDebug("SignalR client {ConnectionId} joined group: {GroupName} (ID: {GroupId})", connectionId, group.Name, group.GroupId);
-
-        // Notify all members across protocols
-        var memberJoinedData = new MemberJoinedData
-        {
-            ConnectionId = connectionId,
-            GroupId = group.GroupId,
-            GroupName = group.Name,
-            CurrentMemberCount = group.ConnectionCount,
-            MaxMembers = SystemDefines.MaxConnectionsPerGroup
-        };
-        await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "MemberJoined", memberJoinedData);
-
-        // Check if group is full and battle should start
-        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
-        {
-            await StartBattleAsync(group);
-        }
-
-        return group.GroupId;
-    }
-
+    // battle group operation
     /// <summary>
     /// Broadcast message to current group
     /// </summary>
@@ -179,11 +149,93 @@ public class SignalRBattleHub(
     }
 
     /// <summary>
+    /// Join a group
+    /// </summary>
+    public async Task<string> JoinGroupAsync(string? groupName = null)
+    {
+        var connectionId = Context.ConnectionId;
+
+        // Check if this is a GameLift GameSession group
+        if (GameLift.GameSessionManager.IsGameLiftAnywhereGroup(groupName) && gameSessionManager != null)
+        {
+            return await JoinGameLiftGameSessionAsync(connectionId, groupName!);
+        }
+
+        // Regular group joining for Direct mode
+        return await JoinRegularGroupAsync(connectionId, groupName);
+    }
+
+    /// <summary>
+    /// Join a GameLift GameSession
+    /// </summary>
+    private async Task<string> JoinGameLiftGameSessionAsync(string connectionId, string groupName)
+    {
+        logger.LogInformation("SignalR Client {ConnectionId} attempting to join GameLift GameSession group: {GroupName}", connectionId, groupName);
+
+        // Use GameSessionManager to handle GameLift Anywhere connection
+        var success = await gameSessionManager!.TryHandlePlayerConnectionAsync(groupName, connectionId);
+        if (!success)
+        {
+            logger.LogWarning("Failed to connect SignalR client {ConnectionId} to GameLift group: {GroupName}", connectionId, groupName);
+            throw new InvalidOperationException($"Cannot join GameLift group {groupName}");
+        }
+
+        // Add to SignalR group for communication
+        await Groups.AddToGroupAsync(connectionId, groupName);
+
+        logger.LogInformation("SignalR Client {ConnectionId} successfully joined GameLift group: {GroupName}", connectionId, groupName);
+        return groupName;
+    }
+
+    /// <summary>
+    /// Join a regular group (Direct mode)
+    /// </summary>
+    private async Task<string> JoinRegularGroupAsync(string connectionId, string? groupName)
+    {
+        // Find or create group
+        var group = await groupManager.JoinGroupAsync(connectionId, groupName);
+        await Groups.AddToGroupAsync(connectionId, group.GroupId);
+
+        logger.LogDebug("SignalR client {ConnectionId} joined group: {GroupName} (ID: {GroupId})", connectionId, group.Name, group.GroupId);
+
+        // Notify all members across protocols
+        var memberJoinedData = new MemberJoinedData
+        {
+            ConnectionId = connectionId,
+            GroupId = group.GroupId,
+            GroupName = group.Name,
+            CurrentMemberCount = group.ConnectionCount,
+            MaxMembers = SystemDefines.MaxConnectionsPerGroup
+        };
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "MemberJoined", memberJoinedData);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "SignalR NotifyGroupAsync failed for connection {ConnectionId}, group: {GroupId}", connectionId, group.GroupId);
+            }
+        });
+
+
+        // Check if group is full and battle should start
+        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
+        {
+            await StartBattleAsync(group);
+        }
+
+        return group.GroupId;
+    }
+
+    /// <summary>
     /// Get all available groups
     /// </summary>
     public async Task<IEnumerable<GroupInfo>> GetGroupsAsync()
     {
-        logger.LogDebug($"Client {Context.ConnectionId} requesting group list");
+        var connectionId = Context.ConnectionId;
+        logger.LogDebug("Client {ConnectionId} requesting group list", connectionId);
         return await groupManager.GetAllGroupsAsync();
     }
 
@@ -192,10 +244,11 @@ public class SignalRBattleHub(
     /// </summary>
     public async Task<GroupInfo?> GetCurrentGroupAsync()
     {
+        var connectionId = Context.ConnectionId;
         var groupId = await groupManager.GetGroupIdForConnectionAsync(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            logger.LogWarning($"Client {Context.ConnectionId} requested current group but is not in any group");
+            logger.LogWarning("Client {ConnectionId} requested battle status but is not in any group", connectionId);
             return null;
         }
 
@@ -207,18 +260,18 @@ public class SignalRBattleHub(
     /// </summary>
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
+        var connectionId = Context.ConnectionId;
         var groupId = await groupManager.GetGroupIdForConnectionAsync(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
         {
-            logger.LogWarning($"Client {Context.ConnectionId} requested battle status but is not in any group");
+            logger.LogWarning("Client {ConnectionId} requested battle status but is not in any group", connectionId);
             return null;
         }
 
         var group = await groupManager.GetGroupInfoAsync(groupId);
         if (group is null || string.IsNullOrEmpty(group.BattleId))
         {
-            logger.LogWarning($"Group {groupId} does not have an active battle");
-
+            logger.LogWarning("Group {GroupId} does not have an active battle", groupId);
             return new BattleStatus
             {
                 IsInProgress = false,
@@ -236,22 +289,12 @@ public class SignalRBattleHub(
     }
 
     /// <summary>
-    /// Execute battle action
-    /// </summary>
-    public async Task<bool> BattleActionAsync(string actionType)
-    {
-        // For the initial implementation, battle is fully automated
-        // This method is included for future expansion
-        logger.LogDebug($"Client {Context.ConnectionId} requested battle action {actionType}, but battles are currently automated");
-        return false;
-    }
-
-    /// <summary>
     /// Get battle replay data
     /// </summary>
     public async Task<string?> GetBattleReplayAsync(Guid battleId)
     {
-        logger.LogDebug($"Client {Context.ConnectionId} requested battle replay for battle: {battleId}");
+        var connectionId = Context.ConnectionId;
+        logger.LogDebug("Client {ConnectionId} requested battle replay for battle: {BattleId}", connectionId, battleId);
 
         var replayPath = Path.Combine(BattleSystemDefines.BattleReplayDirectory, $"{battleId}.jsonl");
         if (File.Exists(replayPath))
@@ -266,15 +309,79 @@ public class SignalRBattleHub(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error reading battle replay file: {replayPath}");
+                logger.LogError(ex, "Error reading battle replay file: {ReplayPath}", replayPath);
                 return null;
             }
         }
         else
         {
-            logger.LogWarning($"Battle replay file not found: {replayPath}");
+            logger.LogWarning("Battle replay file not found: {ReplayPath}", replayPath);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Confirms that a client has received the ConnectionsReady notification
+    /// </summary>
+    public async Task<bool> ConfirmConnectionReadyAsync()
+    {
+        var connectionId = Context.ConnectionId;
+        logger.LogDebug("Client {ConnectionId} is attempting to confirm connection ready", connectionId);
+
+        var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
+        if (string.IsNullOrEmpty(groupId))
+        {
+            logger.LogWarning("Client {ConnectionId} attempted to confirm connection ready but is not in any group", connectionId);
+            return false;
+        }
+
+        var group = await groupManager.GetGroupInfoAsync(groupId);
+        if (group is null || string.IsNullOrEmpty(group.BattleId))
+        {
+            logger.LogWarning("Group {GroupId} does not have an active battle for connection ready confirmation", groupId);
+            return false;
+        }
+
+        // Get battle state
+        if (!state.BattleStates.TryGetValue(group.BattleId, out var battle))
+        {
+            logger.LogWarning("Battle state not found for battle {BattleId}", group.BattleId);
+            return false;
+        }
+
+        // Mark this client as having confirmed connection readiness
+        battle.MarkConnectionReadyConfirmed(connectionId);
+        logger.LogDebug("Client {ConnectionId} confirmed connection ready for battle {BattleId}", connectionId, group.BattleId);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Reproduce a battle with specific battle ID and seed
+    /// </summary>
+    public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
+    {
+        var connectionId = Context.ConnectionId;
+        var seed = BattleSeed.CreateCombinedSeed(battleId, seedValue);
+
+        logger.LogDebug("Client {ConnectionId} requesting battle reproduction - BattleId: {BattleId}, SeedValue: {SeedValue}, NumericSeed: {NumericSeed}",
+    connectionId, battleId, seedValue, seed);
+
+        // Get or create group for reproduction
+        var group = await groupManager.JoinGroupAsync(connectionId, groupName);
+
+        // Add to MagicOnion group
+        await Groups.AddToGroupAsync(connectionId, group.GroupId);
+
+        logger.LogDebug("Client {ConnectionId} joined reproduction group: {GroupName} (ID: {GroupId})", connectionId, group.Name, group.GroupId);
+
+        // Check if group is full and battle should start with reproduction
+        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
+        {
+            await StartReproduceBattleAsync(group, battleId, seed);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -297,8 +404,7 @@ public class SignalRBattleHub(
         state.BattleStates[battleId.ToString()] = battle;
 
         // 1. Notify all clients that connections are ready
-        logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready",
-            battleId, seed);
+        logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Notifying all clients that connections are ready", battleId, seed);
         var connectionsReadyData = new ConnectionsReadyData { BattleId = battleId, Seed = seed };
         await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "ConnectionsReady", connectionsReadyData);
 
@@ -324,7 +430,7 @@ public class SignalRBattleHub(
 
                 if (await Task.WhenAny(Task.Delay(50), timeoutTask) == timeoutTask) // 50ms polling for better responsiveness
                 {
-                    // タイムアウト発生、確認が揃わなかった
+                    // timeout occured, clients did not confirm within 30 seconds
                     var elapsed = DateTime.UtcNow - startTime;
                     var finalConfirmedCount = battle.GetConfirmedConnectionCount();
                     logger.LogWarning("Battle {BattleId} (Seed: {Seed}): Timed out after {Elapsed:F1}s waiting for client confirmations. Got {ConfirmedCount}/{TotalCount} confirmations. Proceeding anyway.", battleId, seed, elapsed.TotalSeconds, finalConfirmedCount, group.ConnectionCount);
@@ -342,61 +448,13 @@ public class SignalRBattleHub(
             var battleStartedData = new BattleStartedData { BattleId = battleId, Seed = seed };
             await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleStarted", battleStartedData);
 
-            // 4. Run pre-computation (完全にサーバーサイドで計算完了)
+            // 4. Run pre-computation (Complete pre-computation on server-side)
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Starting pre-computation of battle simulation", battleId, seed);
             await battle.RunBattleAsync();
 
             // 5. Send all battle data to clients for replay
             logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Sending battle replay data to clients", battleId, seed);
-            var allTurnData = battle.GetAllTurnData();
-
-            // Check if data is too large, split if necessary
-            const int maxTurnsPerChunk = 50; // Send in chunks of 50 turns
-            var chunks = allTurnData.Chunk(maxTurnsPerChunk).ToList();
-
-            logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Sending {TurnCount} turns in {ChunkCount} chunk(s)", battleId, seed, allTurnData.Count, chunks.Count);
-
-            for (int i = 0; i < chunks.Count; i++)
-            {
-                var chunk = chunks[i];
-                var isLastChunk = i == chunks.Count - 1;
-                var turnDataList = new List<BattleStatus>(chunk.Length);
-                turnDataList.AddRange(chunk);
-
-                var replayData = new BattleReplayData
-                {
-                    BattleId = battleId,
-                    Seed = seed,
-                    TurnData = turnDataList,
-                    ChunkIndex = i,
-                    TotalChunks = chunks.Count,
-                    IsLastChunk = isLastChunk,
-                    Summary = isLastChunk ? battle.GetBattleReplaySummary() : null
-                };
-
-                await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleReplayData", replayData);
-
-                // Clear chunk data immediately after sending to reduce memory pressure
-                turnDataList.Clear();
-
-                // Free memory for processed chunk
-                if (i > 0 && chunks.Count > 2)
-                {
-                    // Clear previous chunk data from allTurnData to help GC
-                    var startIndex = (i - 1) * maxTurnsPerChunk;
-                    var endIndex = Math.Min(startIndex + maxTurnsPerChunk, allTurnData.Count);
-                    for (int j = startIndex; j < endIndex; j++)
-                    {
-                        if (j < allTurnData.Count)
-                        {
-                            // Clear references within the status object
-                            allTurnData[j].Players.Clear();
-                            allTurnData[j].Enemies.Clear();
-                            allTurnData[j].RecentLogs.Clear();
-                        }
-                    }
-                }
-            }
+            await SendBattleReplayData(group, battle, battleId, seed);
 
             // 6. Handle battle completion with unified service (uses configuration default)
             await battleCompletionService.HandleBattleCompletionAsync(group, battle, battleId, seed);
@@ -404,161 +462,59 @@ public class SignalRBattleHub(
     }
 
     /// <summary>
-    /// Called when a client connects
+    /// Send battle replay data to clients in chunks
     /// </summary>
-    public override async Task OnConnectedAsync()
+    private async Task SendBattleReplayData(GroupInfo group, BattleState battle, Guid battleId, int seed)
     {
-        var connectionId = Context.ConnectionId;
-        connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
+        var allTurnData = battle.GetAllTurnData();
 
-        state.ConnectionCount++;
-        logger.LogDebug("SignalR client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
+        // Check if data is too large, split if necessary
+        const int maxTurnsPerChunk = 50; // Send in chunks of 50 turns
+        var chunks = allTurnData.Chunk(maxTurnsPerChunk).ToList();
 
-        await base.OnConnectedAsync();
-    }
+        logger.LogInformation("Battle {BattleId} (Seed: {Seed}): Sending {TurnCount} turns in {ChunkCount} chunk(s)", battleId, seed, allTurnData.Count, chunks.Count);
 
-    /// <summary>
-    /// Called when a client disconnects
-    /// </summary>
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        var connectionId = Context.ConnectionId;
-        var connectionRemoved = connectionManager.UnregisterConnection(connectionId);
-
-        if (connectionRemoved)
+        for (int i = 0; i < chunks.Count; i++)
         {
-            state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);            // Leave group if in one and notify other members
-            var (leftGroup, newCount) = await groupManager.LeaveGroupAsync(connectionId);
-            if (leftGroup != null)
+            var chunk = chunks[i];
+            var isLastChunk = i == chunks.Count - 1;
+            var turnDataList = new List<BattleStatus>(chunk.Length);
+            turnDataList.AddRange(chunk);
+
+            var replayData = new BattleReplayData
             {
-                // Notify remaining group members that this client left
-                var memberLeftData = new MemberLeftData
+                BattleId = battleId,
+                Seed = seed,
+                TurnData = turnDataList,
+                ChunkIndex = i,
+                TotalChunks = chunks.Count,
+                IsLastChunk = isLastChunk,
+                Summary = isLastChunk ? battle.GetBattleReplaySummary() : null
+            };
+
+            await notificationService.NotifyGroupAsync(group.GroupId, group.ClientIds, "BattleReplayData", replayData);
+
+            // Clear chunk data immediately after sending to reduce memory pressure
+            turnDataList.Clear();
+
+            // Free memory for processed chunk
+            if (i > 0 && chunks.Count > 2)
+            {
+                // Clear previous chunk data from allTurnData to help GC
+                var startIndex = (i - 1) * maxTurnsPerChunk;
+                var endIndex = Math.Min(startIndex + maxTurnsPerChunk, allTurnData.Count);
+                for (int j = startIndex; j < endIndex; j++)
                 {
-                    ConnectionId = connectionId,
-                    GroupId = leftGroup.GroupId,
-                    GroupName = leftGroup.Name,
-                    CurrentMemberCount = newCount,
-                    MaxMembers = SystemDefines.MaxConnectionsPerGroup
-                };
-                var remainingClients = leftGroup.ClientIds.Where(id => id != connectionId);
-                await Clients.Clients(remainingClients).SendAsync("MemberLeft", memberLeftData);
-
-                logger.LogDebug("Notified {Count} remaining clients about member leaving group {GroupName}", remainingClients.Count(), leftGroup.Name);
+                    if (j < allTurnData.Count)
+                    {
+                        // Clear references within the status object
+                        allTurnData[j].Players.Clear();
+                        allTurnData[j].Enemies.Clear();
+                        allTurnData[j].RecentLogs.Clear();
+                    }
+                }
             }
-
-            logger.LogDebug("SignalR client {ConnectionId} disconnected. Total connections: {Count}", connectionId, state.ConnectionCount);
         }
-
-        await base.OnDisconnectedAsync(exception);
-    }
-
-    /// <summary>
-    /// Get server status
-    /// </summary>
-    public async Task<ServerStatus> GetServerStatusAsync()
-    {
-        logger.LogDebug($"Client {Context.ConnectionId} requested server status");
-
-        var status = new ServerStatus
-        {
-            Uptime = DateTime.UtcNow - state.StartTime,
-            TotalConnections = state.ConnectionCount,
-            GroupCount = (await groupManager.GetAllGroupsAsync()).Count(),
-            ActiveBattleCount = state.BattleStates.Count
-        };
-
-        // Get group summaries
-        foreach (var group in await groupManager.GetAllGroupsAsync())
-        {
-            status.Groups.Add(new GroupSummary
-            {
-                GroupId = group.GroupId,
-                Name = group.Name,
-                ConnectionCount = group.ConnectionCount,
-                BattleId = group.BattleId
-            });
-        }
-
-        // Get battle summaries
-        foreach (var battleEntry in state.BattleStates)
-        {
-            var battleState = battleEntry.Value;
-            var battleStatus = battleState.GetStatus();
-
-            status.ActiveBattles.Add(new BattleSummary
-            {
-                BattleId = battleEntry.Key,
-                GroupId = battleState.GroupId,
-                CurrentTurn = battleStatus.CurrentTurn,
-                PlayerCount = battleStatus.Players.Count,
-                EnemyCount = battleStatus.Enemies.Count,
-                StartedAt = battleState.StartTime
-            });
-        }
-
-        return status;
-    }
-
-    /// <summary>
-    /// Confirms that a client has received the ConnectionsReady notification
-    /// </summary>
-    public async Task<bool> ConfirmConnectionReadyAsync()
-    {
-        var clientId = Context.ConnectionId;
-        logger.LogDebug($"Client {clientId} is attempting to confirm connection ready");
-
-        var groupId = await groupManager.GetGroupIdForConnectionAsync(clientId);
-        if (string.IsNullOrEmpty(groupId))
-        {
-            logger.LogWarning($"Client {clientId} attempted to confirm connection ready but is not in any group");
-            return false;
-        }
-
-        var group = await groupManager.GetGroupInfoAsync(groupId);
-        if (group is null || string.IsNullOrEmpty(group.BattleId))
-        {
-            logger.LogWarning($"Group {groupId} does not have an active battle for connection ready confirmation");
-            return false;
-        }
-
-        // Get battle state
-        if (!state.BattleStates.TryGetValue(group.BattleId, out var battle))
-        {
-            logger.LogWarning($"Battle state not found for battle {group.BattleId}");
-            return false;
-        }
-
-        // Mark this client as having confirmed connection readiness
-        battle.MarkConnectionReadyConfirmed(clientId);
-        logger.LogDebug($"Client {clientId} confirmed connection ready for battle {group.BattleId}");
-
-        return true;
-    }
-
-    /// <summary>
-    /// Reproduce a battle with specific battle ID and seed
-    /// </summary>
-    public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
-    {
-        // Convert seed value to numeric using server-side logic
-        var seed = BattleSeed.CreateCombinedSeed(battleId, seedValue);
-
-        var clientId = Context.ConnectionId;
-        logger.LogDebug("Client {ClientId} requesting battle reproduction - BattleId: {BattleId}, SeedValue: {SeedValue}, NumericSeed: {NumericSeed}", clientId, battleId, seedValue, seed);
-
-        // Get or create group for reproduction
-        var group = await groupManager.JoinGroupAsync(clientId, groupName);
-        await Groups.AddToGroupAsync(clientId, group.GroupId);
-
-        logger.LogDebug("Client {ClientId} joined reproduction group: {GroupName} (ID: {GroupId})", clientId, group.Name, group.GroupId);
-
-        // Check if group is full and battle should start with reproduction
-        if (group.IsFull() && string.IsNullOrEmpty(group.BattleId))
-        {
-            await StartReproduceBattleAsync(group, battleId, seed);
-        }
-
-        return true;
     }
 
     /// <summary>
@@ -748,5 +704,114 @@ public class SignalRBattleHub(
         }
 
         return success;
+    }
+
+    /// <summary>
+    /// Get server status
+    /// </summary>
+    public async Task<ServerStatus> GetServerStatusAsync()
+    {
+        logger.LogDebug($"Client {Context.ConnectionId} requested server status");
+
+        var status = new ServerStatus
+        {
+            Uptime = DateTime.UtcNow - state.StartTime,
+            TotalConnections = state.ConnectionCount,
+            GroupCount = (await groupManager.GetAllGroupsAsync()).Count(),
+            ActiveBattleCount = state.BattleStates.Count
+        };
+
+        // Get group summaries
+        foreach (var group in await groupManager.GetAllGroupsAsync())
+        {
+            status.Groups.Add(new GroupSummary
+            {
+                GroupId = group.GroupId,
+                Name = group.Name,
+                ConnectionCount = group.ConnectionCount,
+                BattleId = group.BattleId
+            });
+        }
+
+        // Get battle summaries
+        foreach (var battleEntry in state.BattleStates)
+        {
+            var battleState = battleEntry.Value;
+            var battleStatus = battleState.GetStatus();
+
+            status.ActiveBattles.Add(new BattleSummary
+            {
+                BattleId = battleEntry.Key,
+                GroupId = battleState.GroupId,
+                CurrentTurn = battleStatus.CurrentTurn,
+                PlayerCount = battleStatus.Players.Count,
+                EnemyCount = battleStatus.Enemies.Count,
+                StartedAt = battleState.StartTime
+            });
+        }
+
+        return status;
+    }
+
+
+    /// <summary>
+    /// Called when a client connects
+    /// </summary>
+    public override async Task OnConnectedAsync()
+    {
+        var connectionId = Context.ConnectionId;
+        connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
+
+        state.ConnectionCount++;
+        logger.LogDebug("SignalR client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
+
+        await base.OnConnectedAsync();
+    }
+
+    /// <summary>
+    /// Called when a client disconnects
+    /// </summary>
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        var connectionId = Context.ConnectionId;
+        var connectionRemoved = connectionManager.UnregisterConnection(connectionId);
+
+        if (connectionRemoved)
+        {
+            state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);
+
+            // Handle GameLift Anywhere disconnection if applicable
+            if (gameSessionManager != null)
+            {
+                var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
+                if (!string.IsNullOrEmpty(groupId))
+                {
+                    await gameSessionManager.TryHandlePlayerDisconnectionAsync(groupId, connectionId);
+                }
+            }
+
+            // Leave group if in one and notify other members
+            var (leftGroup, newCount) = await groupManager.LeaveGroupAsync(connectionId);
+            if (leftGroup != null)
+            {
+                // Notify remaining group members that this client left
+                var memberLeftData = new MemberLeftData
+                {
+                    ConnectionId = connectionId,
+                    GroupId = leftGroup.GroupId,
+                    GroupName = leftGroup.Name,
+                    CurrentMemberCount = newCount,
+                    MaxMembers = SystemDefines.MaxConnectionsPerGroup
+                };
+                var remainingClients = leftGroup.ClientIds.Where(id => id != connectionId);
+                await Clients.Clients(remainingClients).SendAsync("MemberLeft", memberLeftData);
+
+                logger.LogDebug("Notified {Count} remaining clients about member leaving group {GroupName}", remainingClients.Count(), leftGroup.Name);
+            }
+
+            logger.LogDebug("SignalR client {ConnectionId} disconnected. Total connections: {Count}", connectionId, state.ConnectionCount);
+        }
+
+        await base.OnDisconnectedAsync(exception);
     }
 }
