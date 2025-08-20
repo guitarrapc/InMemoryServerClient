@@ -1,4 +1,7 @@
 ﻿using CliClient.Clients;
+using CliClient.GameLift;
+using NSubstitute;
+using Shared.Contracts;
 
 namespace CliClient.Tests;
 
@@ -147,7 +150,8 @@ public class ErrorHandlingTests : IDisposable
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
+        var gameLiftClientProvider = Substitute.For<IGameLiftClientProvider>();
+        var command = new ConsoleCommand(manager, _loggerFactory, logger, gameLiftClientProvider);
 
         // Act & Assert - Command creation should not throw
         Assert.NotNull(command);
@@ -155,7 +159,7 @@ public class ErrorHandlingTests : IDisposable
         // Verify proper dependency injection
         var type = typeof(ConsoleCommand);
         var constructor = type.GetConstructors()[0];
-        Assert.Equal(3, constructor.GetParameters().Length);
+        Assert.Equal(4, constructor.GetParameters().Length);
     }
 
     [Fact]

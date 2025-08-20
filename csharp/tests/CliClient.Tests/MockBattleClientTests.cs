@@ -1,4 +1,7 @@
 ﻿using CliClient.Clients;
+using CliClient.GameLift;
+using NSubstitute;
+using Shared.Contracts;
 
 namespace CliClient.Tests;
 
@@ -152,7 +155,8 @@ public class MockBattleClientTests
 
         var manager = new MultiBattleClientManager(_loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
+        var gameLiftClientProvider = Substitute.For<IGameLiftClientProvider>();
+        var command = new ConsoleCommand(manager, _loggerFactory, logger, gameLiftClientProvider);
 
         // Act & Assert - Verify mock setup
         var value = await mockClient.GetAsync("test-key");
