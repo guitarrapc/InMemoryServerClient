@@ -89,7 +89,7 @@ dotnet run
 ```bash
 cd csharp
 docker build -t inmemory-server .
-docker run -p 5000:5000 inmemory-server
+docker run -p 5001:5001 inmemory-server
 ```
 
 ### Client Usage
@@ -178,8 +178,8 @@ Here's an example of a typical group session workflow:
 
 3. **Connect to the server and check available groups:**
    ```
-   > connect http://localhost:5000
-   Connected to server: http://localhost:5000
+   > connect https://localhost:5001
+   Connected to server: https://localhost:5001
 
    > groups
    Available groups:
@@ -247,7 +247,7 @@ Here's an example of a typical group session workflow:
 
 12. **For automation, use the connect-battle command to test with multiple clients:**
     ```bash
-    dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+    dotnet run -- connect-battle -u https://localhost:5001 -g test-battle -c 5
     ```
     This will create 5 client connections in the same group, trigger a battle, and display the replay automatically.
 

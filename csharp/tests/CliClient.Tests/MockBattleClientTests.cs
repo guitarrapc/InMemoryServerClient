@@ -31,11 +31,11 @@ public class MockBattleClientTests
     {
         // Arrange
         var mockClient = Substitute.For<IBattleClient>();
-        mockClient.ConnectAsync("http://localhost:5000", "test-group").Returns(true);
+        mockClient.ConnectAsync("https://localhost:5001", "test-group").Returns(true);
         mockClient.IsConnected.Returns(true);
 
         // Act
-        var result = await mockClient.ConnectAsync("http://localhost:5000", "test-group");
+        var result = await mockClient.ConnectAsync("https://localhost:5001", "test-group");
 
         // Assert
         Assert.True(result);
@@ -168,11 +168,11 @@ public class MockBattleClientTests
 
         // Act
         _ = mockClient.IsConnected;
-        mockClient.ConnectAsync("http://localhost:5000", "test");
+        mockClient.ConnectAsync("https://localhost:5001", "test");
 
         // Assert - Verify calls were made
         _ = mockClient.Received(1).IsConnected;
-        mockClient.Received(1).ConnectAsync("http://localhost:5000", "test");
+        mockClient.Received(1).ConnectAsync("https://localhost:5001", "test");
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public class MockBattleClientTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            mockClient.ConnectAsync("http://localhost:5000", "test"));
+            mockClient.ConnectAsync("https://localhost:5001", "test"));
     }
 
     [Theory]

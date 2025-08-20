@@ -102,7 +102,7 @@ dotnet run
 ```bash
 cd csharp
 docker build -t inmemory-server .
-docker run -p 5000:5000 inmemory-server
+docker run -p 5001:5001 inmemory-server
 ```
 
 ### クライアント使用方法
@@ -117,17 +117,17 @@ dotnet run
 単一コマンドで複数クライアントを使用してバトルをテストするには：
 ```bash
 cd csharp/src/CliClient
-dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+dotnet run -- connect-battle -u https://localhost:5001 -g test-battle -c 5
 ```
 これにより、自動バトルを開始するために同じグループに5つのクライアント接続が作成されます。
 
 #### 単発コマンド例
 ```bash
 # バトルテスト用に複数セッションを接続
-dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 1
+dotnet run -- connect-battle -u https://localhost:5001 -g battle-group -c 1
 
 # バトルテスト用に単一セッションを接続
-dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -c 5
+dotnet run -- connect-battle -u https://localhost:5001 -g battle-group -c 5
 ```
 
 #### インタラクティブモードコマンド
@@ -171,8 +171,8 @@ help                                 - Show help
 
 3. **サーバーに接続し、利用可能なグループを確認する：**
    ```
-   > connect http://localhost:5000
-   Connected to server: http://localhost:5000
+   > connect https://localhost:5001
+   Connected to server: https://localhost:5001
 
    > groups
    Available groups:
@@ -240,7 +240,7 @@ help                                 - Show help
 
 12. **自動化のために、connect-battleコマンドを使用して複数のクライアントでテストします：**
     ```bash
-    dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -c 5
+    dotnet run -- connect-battle -u https://localhost:5001 -g test-battle -c 5
     ```
     これにより、同じグループに5つのクライアント接続が作成され、バトルが開始され、リプレイが自動的に表示されます。
 

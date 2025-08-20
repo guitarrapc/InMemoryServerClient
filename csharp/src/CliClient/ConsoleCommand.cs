@@ -58,14 +58,14 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                         break;
 
                     case "connect":
-                        var url = args.Length > 1 ? args[1] : "http://localhost:5000";
+                        var url = args.Length > 1 ? args[1] : "https://localhost:5001";
                         var group = args.Length > 2 ? args[2] : "battle-group";
                         var connectionType = Enum.Parse<ConnectionType>(args.Length > 3 ? args[3] : "SignalR");
                         await ConnectAsync(url, group, connectionType);
                         break;
 
                     case "connect-battle":
-                        var battleUrl = args.Length > 1 ? args[1] : "http://localhost:5000";
+                        var battleUrl = args.Length > 1 ? args[1] : "https://localhost:5001";
                         var battleGroup = args.Length > 2 ? args[2] : "battle-group";
                         var count = args.Length > 3 && int.TryParse(args[3], out var c) ? c : 5;
                         var battleConnectionType = Enum.Parse<ConnectionType>(args.Length > 4 ? args[4] : "SignalR");
@@ -204,7 +204,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="group">-g, Group name (optional)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     private async Task ConnectAsync(
-        string url = "http://localhost:5000",
+        string url = "https://localhost:5001",
         string group = "battle-group",
         ConnectionType connectionType = ConnectionType.SignalR)
     {
@@ -806,7 +806,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     [Command("connect-battle")]
-    public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR)
+    public async Task ConnectMultipleAsync(string url = "https://localhost:5001", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR)
     {
         if (count <= 0 || count > 10)
         {
@@ -881,7 +881,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         string seed,
         int count = 5,
         string groupName = "test-group",
-        string serverUrl = "http://localhost:5000",
+        string serverUrl = "https://localhost:5001",
         ConnectionType connectionType = ConnectionType.SignalR)
     {
         // Validate parameters
@@ -1029,7 +1029,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     {
         Console.WriteLine("""
         Available commands:
-          connect [url] [group]  - Connect to server (default: http://localhost:5000)
+          connect [url] [group]  - Connect to server (default: https://localhost:5001)
           connect-battle [url] [group] [count] [connectionType] - Connect multiple sessions (default: 5) to start a battle (use: SignalR or MagicOnion)
           disconnect             - Disconnect from server
           status                 - Show connection status

@@ -42,7 +42,7 @@ public class MultiBattleClientManagerTests : IDisposable
         // Act
         var result = await _manager.ConnectMultipleAsync(
             clientCount,
-            "http://localhost:5000",
+            "https://localhost:5001",
             "test-group");
 
         // Assert
@@ -58,7 +58,7 @@ public class MultiBattleClientManagerTests : IDisposable
 
         // Arrange
         const int clientCount = 1;
-        const string serverUrl = "http://localhost:5000";
+        const string serverUrl = "https://localhost:5001";
         const string groupName = "test-group";
 
         // Act & Assert (method should exist and not throw immediately)
@@ -74,7 +74,7 @@ public class MultiBattleClientManagerTests : IDisposable
     public async Task ReproduceBattleAsync_WithValidParameters_HasCorrectSignature()
     {
         // Arrange
-        const string serverUrl = "http://localhost:5000";
+        const string serverUrl = "https://localhost:5001";
         const string seed = "12345";
 
         // Act
@@ -91,7 +91,7 @@ public class MultiBattleClientManagerTests : IDisposable
     public async Task ReproduceBattleAsync_WithInvalidSeed_HasCorrectBehavior(string? seed)
     {
         // Act
-        var result = await _manager.ReproduceBattleAsync("http://localhost:5000", seed!, ConnectionType.SignalR);
+        var result = await _manager.ReproduceBattleAsync("https://localhost:5001", seed!, ConnectionType.SignalR);
 
         // Assert
         Assert.False(result); // Expected to fail
@@ -117,7 +117,7 @@ public class MultiBattleClientManagerTests : IDisposable
     public async Task ConnectMultipleAsync_WithDifferentConnectionTypes_AcceptsValidTypes(ConnectionType connectionType)
     {
         // Act
-        var result = await _manager.ConnectMultipleAsync(1, "http://localhost:5000", "test", connectionType);
+        var result = await _manager.ConnectMultipleAsync(1, "https://localhost:5001", "test", connectionType);
 
         // Assert
         Assert.False(result); // Expected to fail without running server, but method should accept the parameter
@@ -145,7 +145,7 @@ public class MultiBattleClientManagerTests : IDisposable
         // Act
         var result = await _manager.ConnectMultipleAsync(
             clientCount,
-            "http://localhost:5000",
+            "https://localhost:5001",
             "test-group",
             ConnectionType.SignalR);
 

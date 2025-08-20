@@ -21,12 +21,10 @@ public class ErrorHandlingTests : IDisposable
         var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
 
         // Act
-        var result1 = await client.ConnectAsync("http://localhost:5000");
-        var result2 = await client.ConnectAsync("http://localhost:5001");
+        var result1 = await client.ConnectAsync("https://localhost:5001");
 
         // Assert
         Assert.False(result1); // Expected to fail without server
-        Assert.False(result2); // Expected to fail without server
         Assert.False(client.IsConnected);
     }
 
@@ -37,12 +35,10 @@ public class ErrorHandlingTests : IDisposable
         var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
 
         // Act
-        var result1 = await client.ConnectAsync("http://localhost:5000");
-        var result2 = await client.ConnectAsync("http://localhost:5001");
+        var result1 = await client.ConnectAsync("https://localhost:5001");
 
         // Assert
         Assert.False(result1);
-        Assert.False(result2);
         Assert.False(client.IsConnected);
     }
 
@@ -53,8 +49,7 @@ public class ErrorHandlingTests : IDisposable
         var manager = new MultiBattleClientManager(_loggerFactory);
 
         // Act
-        var result = await manager.ConnectMultipleAsync(
-            1000, "http://localhost:5000", "test-group");
+        var result = await manager.ConnectMultipleAsync(1000, "https://localhost:5001", "test-group");
 
         // Assert
         Assert.False(result); // Expected to fail
@@ -64,7 +59,7 @@ public class ErrorHandlingTests : IDisposable
     [InlineData("")]
     [InlineData("not-a-url")]
     [InlineData("ftp://invalid-protocol")]
-    [InlineData("http://")]
+    [InlineData("https://")]
     public async Task BattleClient_InvalidUrls_HandlesGracefully(string invalidUrl)
     {
         // Arrange
@@ -98,7 +93,7 @@ public class ErrorHandlingTests : IDisposable
         await manager.DisposeAsync();
 
         // Act
-        var result = await manager.ConnectMultipleAsync(1, "http://localhost:5000", "test");
+        var result = await manager.ConnectMultipleAsync(1, "https://localhost:5001", "test");
 
         // Assert
         Assert.False(result);
@@ -115,7 +110,7 @@ public class ErrorHandlingTests : IDisposable
 
         // Act
         var result = await manager.ConnectMultipleAsync(
-            invalidCount, "http://localhost:5000", "test");
+            invalidCount, "https://localhost:5001", "test");
 
         // Assert
         Assert.False(result);
@@ -201,7 +196,7 @@ public class ErrorHandlingTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             var groupName = $"concurrent-group-{i}";
-            tasks.Add(manager.ConnectMultipleAsync(1, "http://localhost:5000", groupName));
+            tasks.Add(manager.ConnectMultipleAsync(1, "https://localhost:5001", groupName));
         }
 
         var results = await Task.WhenAll(tasks);

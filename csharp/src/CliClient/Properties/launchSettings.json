@@ -2,19 +2,19 @@
   "profiles": {
     "CliClient - Http/1": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u http://localhost:5000 -g battle-group -c 1"
+      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 1"
     },
     "CliClient - Http/1 (5)": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u http://localhost:5000 -g battle-group -c 5"
+      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 5"
     },
     "CliClient - Http/2": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u http://localhost:5001 -g battle-group -c 1 --connection-type MagicOnion"
+      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 1 --connection-type MagicOnion"
     },
     "CliClient - Http/2 (5)": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u http://localhost:5001 -g battle-group -c 5 --connection-type MagicOnion"
+      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 5 --connection-type MagicOnion"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker"

@@ -49,31 +49,6 @@ GameLift Anywhereの1ポート制約に対応するため、KestrelでHTTP/1（S
 - ✅ ALPN による自動プロトコル選択
 - ⚠️ TLS証明書の設定が必要
 
-### 2. 開発環境用の簡単設定
-
-```json
-{
-  "Kestrel": {
-    "Endpoints": {
-      "Unified": {
-        "Url": "https://localhost:5001",
-        "Protocols": "Http1AndHttp2"
-      }
-    }
-  },
-  "GameLift": {
-    "Anywhere": {
-      "WebSocketUrl": "wss://localhost:5001/battlehub"
-    }
-  }
-}
-```
-
-**特徴:**
-- ✅ ASP.NET Core開発証明書を自動使用
-- ✅ 設定が最小限
-- ⚠️ 開発環境のみ推奨
-
 ## 証明書設定
 
 ### 開発環境

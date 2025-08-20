@@ -104,7 +104,7 @@ public async Task TestName_WithoutServer()
 [Fact]
 public async Task TestName_RequiresExternalServer()
 {
-    var result = await client.ConnectAsync("http://localhost:5000");
+    var result = await client.ConnectAsync("https://localhost:5001");
     Assert.True(result); // 外部サーバーの状態次第で失敗
 }
 ```

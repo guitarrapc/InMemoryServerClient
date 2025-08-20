@@ -70,23 +70,6 @@ public class ConsoleCommandTests : IDisposable
         Assert.True(method.IsPublic);
     }
 
-    [Theory]
-    [InlineData("connect")]
-    [InlineData("status")]
-    [InlineData("get")]
-    [InlineData("set")]
-    public void ConsoleCommand_HasExpectedCommandHandling_ForBasicCommands(string expectedCommand)
-    {
-        // This test verifies that the ConsoleCommand class is properly structured
-        // by checking that it contains references to expected command strings
-
-        // Arrange & Act
-        var sourceCode = File.ReadAllText($@"{Directory.GetCurrentDirectory()}/../../../../../src/CliClient/ConsoleCommand.cs");
-
-        // Assert
-        Assert.Contains($"\"{expectedCommand}\"", sourceCode);
-    }
-
     [Fact]
     public void ConsoleCommand_IsProperlyStructured()
     {

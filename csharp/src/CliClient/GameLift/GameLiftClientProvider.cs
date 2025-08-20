@@ -88,9 +88,7 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
             // 3. Get the connection info from the game session
 
             // For this implementation, we'll use the configured WebSocket URL
-            var endpoint = !string.IsNullOrEmpty(_options.Anywhere.WebSocketUrl)
-                ? _options.Anywhere.WebSocketUrl
-                : "wss://localhost:5001/battlehub";
+            var endpoint = "wss://localhost:5001/battlehub";
 
             _logger.LogInformation("Using GameLift Anywhere endpoint: {Endpoint}", endpoint);
             return endpoint;

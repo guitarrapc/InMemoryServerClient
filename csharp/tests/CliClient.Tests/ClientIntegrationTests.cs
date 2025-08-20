@@ -265,7 +265,7 @@ public class ClientIntegrationTests : IDisposable
         // Arrange
         var options = new ConnectionOptions
         {
-            ServerUrl = "http://localhost:5000",
+            ServerUrl = "https://localhost:5001",
             GroupName = "test-group"
         };
 
@@ -274,7 +274,7 @@ public class ClientIntegrationTests : IDisposable
 
         // Assert
         Assert.NotNull(client);
-        Assert.Equal("http://localhost:5000", options.ServerUrl);
+        Assert.Equal("https://localhost:5001", options.ServerUrl);
         Assert.Equal("test-group", options.GroupName);
     }
 
@@ -285,7 +285,7 @@ public class ClientIntegrationTests : IDisposable
     public async Task SignalR_ConnectToExternalServer_WhenServerAvailable()
     {
         // Arrange
-        const string serverUrl = "http://localhost:5000";
+        const string serverUrl = "https://localhost:5001";
         var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
 
         if (!isServerAvailable)
@@ -324,7 +324,7 @@ public class ClientIntegrationTests : IDisposable
     public async Task BattleReplay_Integration_WithExternalServer()
     {
         // Arrange
-        const string serverUrl = "http://localhost:5000";
+        const string serverUrl = "https://localhost:5001";
         const string groupName = "integration-test-group";
 
         var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
