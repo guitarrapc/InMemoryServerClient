@@ -138,7 +138,8 @@ internal sealed class GameLiftAnywhereHostedService(
             {
                 FleetId = o.Anywhere.FleetId,
                 ComputeName = o.Anywhere.ComputeName,
-                Location = o.Anywhere.CustomLocation
+                Location = o.Anywhere.CustomLocation,
+                IpAddress = o.Anywhere.IpAddress,
             };
 
             var registerResponse = await gameLiftClient.RegisterComputeAsync(registerRequest, cancellationToken);
@@ -212,8 +213,28 @@ internal sealed class GameLiftAnywhereHostedService(
             }
 
             logger.LogInformation("Initializing GameLift Server SDK with WebSocket URL: {WebSocketUrl}", webSocketUrl);
+            logger.LogDebug("Server parameters - ProcessId: {ProcessId}, HostId: {HostId}, FleetId: {FleetId}", o.Anywhere.ProcessId, o.Anywhere.HostId, o.Anywhere.FleetId);
+            logger.LogDebug("Auth Token length: {TokenLength} characters", _currentAuthToken.Value.AuthToken.Length);
+            logger.LogDebug("Auth Token expiration: {ExpirationTime}", _currentAuthToken.Value.ExpirationTime);
 
-            // Initialize GameLift Server SDK
+            // Validate required parameters
+            if (string.IsNullOrEmpty(o.Anywhere.ProcessId))
+            {
+                logger.LogError("ProcessId is empty");
+                return false;
+            }
+            if (string.IsNullOrEmpty(o.Anywhere.HostId))
+            {
+                logger.LogError("HostId is empty");
+                return false;
+            }
+            if (string.IsNullOrEmpty(o.Anywhere.FleetId))
+            {
+                logger.LogError("FleetId is empty");
+                return false;
+            }
+
+            // Initialize GameLift Server SDK with timeout
             var serverParameters = new ServerParameters(
                 webSocketUrl: webSocketUrl, // Use WebSocket URL from response
                 processId: o.Anywhere.ProcessId,
@@ -222,14 +243,33 @@ internal sealed class GameLiftAnywhereHostedService(
                 authToken: _currentAuthToken.Value.AuthToken
             );
 
-            var initOutcome = GameLiftServerAPI.InitSDK(serverParameters);
-            if (!initOutcome.Success)
+            logger.LogInformation("Calling GameLiftServerAPI.InitSDK...");
+
+            // Run InitSDK in a separate task to avoid potential deadlock
+            var initTask = Task.Run(() => GameLiftServerAPI.InitSDK(serverParameters));
+
+            // Wait for initialization with timeout
+            if (await Task.WhenAny(initTask, Task.Delay(30000, cancellationToken)) == initTask)
             {
-                logger.LogError("Failed to initialize GameLift Server SDK: {Error}", initOutcome.Error.ErrorMessage);
+                var initOutcome = await initTask;
+                logger.LogInformation("InitSDK completed with success: {Success}", initOutcome.Success);
+
+                if (!initOutcome.Success)
+                {
+                    logger.LogError("Failed to initialize GameLift Server SDK: {Error}", initOutcome.Error?.ErrorMessage ?? "Unknown error");
+                    return false;
+                }
+            }
+            else
+            {
+                logger.LogError("GameLift Server SDK initialization timed out after 30 seconds");
                 return false;
             }
 
+            logger.LogInformation("GameLift Server SDK initialized successfully");
+
             // Register process ready
+            logger.LogInformation("Registering process ready with GameLift...");
             var processParameters = new ProcessParameters(
                 onStartGameSession: (gameSession) =>
                 {
@@ -245,15 +285,34 @@ internal sealed class GameLiftAnywhereHostedService(
                     logger.LogInformation("Process termination requested");
                     GameLiftServerAPI.ProcessEnding();
                 },
-                onHealthCheck: () => true,
+                onHealthCheck: () =>
+                {
+                    logger.LogDebug("Health check requested");
+                    return true;
+                },
                 port: 5000, // HTTP/1 port for SignalR
                 logParameters: new LogParameters([])
             );
 
-            var processReadyOutcome = GameLiftServerAPI.ProcessReady(processParameters);
-            if (!processReadyOutcome.Success)
+            logger.LogInformation("Calling GameLiftServerAPI.ProcessReady...");
+
+            // Run ProcessReady in a separate task with timeout
+            var processReadyTask = Task.Run(() => GameLiftServerAPI.ProcessReady(processParameters));
+
+            if (await Task.WhenAny(processReadyTask, Task.Delay(30000, cancellationToken)) == processReadyTask)
             {
-                logger.LogError("Failed to signal process ready: {Error}", processReadyOutcome.Error.ErrorMessage);
+                var processReadyOutcome = await processReadyTask;
+                logger.LogInformation("ProcessReady completed with success: {Success}", processReadyOutcome.Success);
+
+                if (!processReadyOutcome.Success)
+                {
+                    logger.LogError("Failed to signal process ready: {Error}", processReadyOutcome.Error?.ErrorMessage ?? "Unknown error");
+                    return false;
+                }
+            }
+            else
+            {
+                logger.LogError("GameLift ProcessReady timed out after 30 seconds");
                 return false;
             }
 
@@ -262,7 +321,20 @@ internal sealed class GameLiftAnywhereHostedService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to initialize GameLift Server SDK");
+            logger.LogError(ex, "Failed to initialize GameLift Server SDK - Exception details: {ExceptionType}: {Message}",
+                ex.GetType().Name, ex.Message);
+
+            // Log additional details for common issues
+            if (ex.Message.Contains("websocket") || ex.Message.Contains("WebSocket"))
+            {
+                logger.LogError("WebSocket connection issue detected. Check network connectivity and GameLift service availability.");
+            }
+
+            if (ex.Message.Contains("authentication") || ex.Message.Contains("auth"))
+            {
+                logger.LogError("Authentication issue detected. Verify AuthToken validity and expiration time.");
+            }
+
             return false;
         }
     }
