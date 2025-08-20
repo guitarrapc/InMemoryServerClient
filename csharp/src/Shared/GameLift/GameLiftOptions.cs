@@ -100,6 +100,16 @@ public class GameLiftAnywhereOptions
     /// </summary>
     public TimeSpan AuthTokenRefreshInterval { get; set; } = TimeSpan.FromHours(1);
 
+    /// <summary>
+    /// Cleanup threshold for old compute instances
+    /// </summary>
+    public TimeSpan ComputeCleanupThreshold { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Whether to cleanup compute instance on application shutdown
+    /// </summary>
+    public bool CleanupComputeOnShutdown { get; set; } = false;
+
     // Server SDK settings
     /// <summary>
     /// Health check timeout

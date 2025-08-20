@@ -85,6 +85,15 @@ Application Startup
 - **動作確認完了**: GameLift Anywhereサーバー登録・InitSDK・ProcessReady処理が正常動作
 - **地域対応**: AWS地域設定に基づく適切なエンドポイント選択機能
 
+#### 🧹 Computeクリーンナップ機能（実装完了）
+- **スマートクリーンナップ**: ローカル開発に最適化されたCompute管理
+  - 複数インスタンス検出時の全クリーンナップ
+  - 名前が異なるComputeの自動削除・再登録
+  - 1時間以上古いComputeの自動削除・再登録
+  - 設定可能なクリーンナップしきい値（`ComputeCleanupThreshold`）
+- **終了時クリーンナップ**: アプリケーション終了時のCompute削除オプション（`CleanupComputeOnShutdown`）
+- **詳細ログ**: クリーンナップ処理の進行状況を詳細に記録
+
 #### モジュラー設計による関心事の分離
 - **フォルダ構成**: Server/GameLift、Shared/GameLift、Client/GameLiftによる明確な責任分離
 - **疎結合設計**: ASP.NET Core標準の`IHostedService`パターンを採用
@@ -101,6 +110,9 @@ Application Startup
 - **サーバーSDK（WSS）**: InitSDK, ProcessReady, ActivateGameSession, ProcessEnding
 - **WebSocketエンドポイント**: 地域ベース動的構築（`wss://{region}.api.amazongamelift.com`）
 - **動作確認**: GameLift Anywhereでの接続・認証・SDK初期化が正常動作
+- **Computeクリーンナップ**: ローカル開発向けのスマートクリーンナップ機能
+  - 複数インスタンス・異名・古いComputeの自動削除
+  - 設定可能なクリーンナップ閾値とシャットダウン時削除
 - **認証情報管理**: AWS Profile/SSO優先、フォールバック機構付き
 - **エラーハンドリング**: 適切なログ出力と例外処理
 - **自動シャットダウン**: ASP.NET Core終了時のGameLift通知
@@ -154,7 +166,60 @@ Application Startup
 - 実際のFleet環境でのテスト
 - 運用手順書の整備
 
-## 6. 設計の利点
+## 6. Computeクリーンナップ戦略
+
+### クリーンナップロジック
+
+ローカル開発環境での使用を前提とした、効率的なCompute管理を実装：
+
+#### クリーンナップケース
+
+1. **複数インスタンス検出時**
+   - 1台以上のComputeが存在する場合、全てクリーンナップして新規登録
+   - ローカル開発では通常1台のみ使用するため
+
+2. **異なる名前のCompute**
+   - 設定で指定されたComputeName と異なる名前のComputeが存在する場合、削除して新規登録
+   - 設定変更時の自動調整
+
+3. **古いCompute**
+   - 登録から指定時間（デフォルト1時間）経過したComputeを削除して新規登録
+   - 開発セッション間でのクリーンリスタート
+
+#### 設定オプション
+
+```json
+{
+  "GameLift": {
+    "Anywhere": {
+      "ComputeCleanupThreshold": "01:00:00",  // クリーンナップ閾値
+      "CleanupComputeOnShutdown": false       // 終了時削除の有無
+    }
+  }
+}
+```
+
+#### 運用上の利点
+
+- **開発効率向上**: 古いComputeによる接続問題の解消
+- **リソース管理**: 不要なComputeインスタンスの自動削除
+- **設定変更対応**: ComputeName変更時の自動調整
+- **クリーンリスタート**: 開発セッション間での確実なリセット
+
+### クリーンナップログ例
+
+```
+[GameLift] Checking for old compute instances to cleanup in fleet: fleet-xxx
+[GameLift] Found 2 compute instance(s) in fleet
+[GameLift] Found 2 compute instances (expected 1). Cleaning up all instances for localhost usage
+[GameLift] Deregistering compute: old-compute-01 from fleet: fleet-xxx
+[GameLift] Successfully deregistered compute: old-compute-01
+[GameLift] Deregistering compute: old-compute-02 from fleet: fleet-xxx
+[GameLift] Successfully deregistered compute: old-compute-02
+[GameLift] Registering new compute: local-compute-01 in fleet: fleet-xxx
+```
+
+## 7. 設計の利点
 
 ### ASP.NET Core標準パターンによる利点
 - **自動ライフサイクル管理**: 起動・シャットダウンが自動で適切に処理される
@@ -168,7 +233,7 @@ Application Startup
 - **保守性向上**: 機能ごとの責任が明確に分離されている
 - **拡張性**: 新しいGameLiftサービス（FleetIQ等）の追加が容易
 
-## 7. 今後の課題と対応
+## 8. 今後の課題と対応
 
 ### 短期的な課題
 1. ~~旧実装のクリーンアップ: 不要になったプロバイダークラスの削除~~ ✅ 完了
@@ -180,7 +245,7 @@ Application Startup
 2. **FleetIQ対応**: 新しいHostedServiceクラスの追加
 3. **監視機能**: GameLiftの状態監視とアラート機能
 
-## 8. 参考
+## 9. 参考
 - [AWS公式ドキュメント: GameLift Anywhere](https://docs.aws.amazon.com/ja_jp/gamelift/latest/developerguide/fleets-anywhere.html)
 - [AWS SDK for .NET: GameLift API](https://docs.aws.amazon.com/sdkfornet/v3/apidocs/items/GameLift/NGameLift.html)
 - [AWS公式ドキュメント: C# server SDK 5.x for Amazon GameLift Servers -- Actions](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/integration-server-sdk5-csharp-actions.html)

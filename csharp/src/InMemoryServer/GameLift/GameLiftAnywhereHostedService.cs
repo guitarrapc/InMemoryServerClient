@@ -62,6 +62,14 @@ internal sealed class GameLiftAnywhereHostedService(
             // Notify GameLift that the process is ending
             await ProcessEndingAsync();
 
+            // Cleanup compute instance if configured
+            var o = options.Value;
+            if (o.Anywhere.CleanupComputeOnShutdown && _currentCompute != null)
+            {
+                logger.LogInformation("Cleaning up compute instance on shutdown: {ComputeName}", _currentCompute.Value.ComputeName);
+                await DeregisterComputeAsync(_currentCompute.Value.ComputeName, cancellationToken);
+            }
+
             logger.LogInformation("GameLift Anywhere hosted service stopped successfully");
         }
         catch (Exception ex)
@@ -77,6 +85,9 @@ internal sealed class GameLiftAnywhereHostedService(
         var o = options.Value;
         try
         {
+            // Clean up old compute instances first
+            await CleanupOldComputeInstancesAsync(cancellationToken);
+
             // Register compute if not exists
             var compute = await RegisterComputeAsync(cancellationToken);
             if (compute.ComputeName == string.Empty)
@@ -106,12 +117,107 @@ internal sealed class GameLiftAnywhereHostedService(
         }
     }
 
+    private async Task CleanupOldComputeInstancesAsync(CancellationToken cancellationToken)
+    {
+        var o = options.Value;
+        try
+        {
+            logger.LogInformation("Checking for old compute instances to cleanup in fleet: {FleetId}", o.Anywhere.FleetId);
+
+            var listRequest = new ListComputeRequest
+            {
+                FleetId = o.Anywhere.FleetId
+            };
+
+            var listResponse = await gameLiftClient.ListComputeAsync(listRequest, cancellationToken);
+            var computeList = listResponse.ComputeList;
+
+            logger.LogInformation("Found {ComputeCount} compute instance(s) in fleet", computeList.Count);
+
+            // Case 1: Multiple compute instances - cleanup all and start fresh
+            if (computeList.Count > 1)
+            {
+                logger.LogWarning("Found {ComputeCount} compute instances (expected 1). Cleaning up all instances for localhost usage",
+                    computeList.Count);
+
+                foreach (var compute in computeList)
+                {
+                    await DeregisterComputeAsync(compute.ComputeName, cancellationToken);
+                }
+                return;
+            }
+
+            // Case 2: Single compute instance - check if it needs cleanup
+            if (computeList.Count == 1)
+            {
+                var existingCompute = computeList[0];
+
+                // Case 2a: Different compute name - remove and register new one
+                if (existingCompute.ComputeName != o.Anywhere.ComputeName)
+                {
+                    logger.LogInformation("Found existing compute with different name: {ExistingName} (expected: {ExpectedName}). Cleaning up...",
+                        existingCompute.ComputeName, o.Anywhere.ComputeName);
+
+                    await DeregisterComputeAsync(existingCompute.ComputeName, cancellationToken);
+                    return;
+                }
+
+                // Case 2b: Same compute name - check age
+                var registrationTime = existingCompute.CreationTime ?? DateTime.UtcNow;
+                var age = DateTime.UtcNow - registrationTime;
+                var cleanupThreshold = o.Anywhere.ComputeCleanupThreshold;
+
+                if (age > cleanupThreshold)
+                {
+                    logger.LogInformation("Found existing compute {ComputeName} registered {Age:hh\\:mm\\:ss} ago (threshold: {Threshold:hh\\:mm\\:ss}). Cleaning up...",
+                        existingCompute.ComputeName, age, cleanupThreshold);                    await DeregisterComputeAsync(existingCompute.ComputeName, cancellationToken);
+                    return;
+                }
+
+                logger.LogInformation("Existing compute {ComputeName} is recent (age: {Age:hh\\:mm\\:ss}). Reusing...",
+                    existingCompute.ComputeName, age);
+            }
+
+            // Case 3: No compute instances - nothing to cleanup
+            if (computeList.Count == 0)
+            {
+                logger.LogInformation("No existing compute instances found. Will register new compute");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error during compute cleanup. Continuing with registration...");
+        }
+    }
+
+    private async Task DeregisterComputeAsync(string computeName, CancellationToken cancellationToken)
+    {
+        var o = options.Value;
+        try
+        {
+            logger.LogInformation("Deregistering compute: {ComputeName} from fleet: {FleetId}", computeName, o.Anywhere.FleetId);
+
+            var deregisterRequest = new DeregisterComputeRequest
+            {
+                FleetId = o.Anywhere.FleetId,
+                ComputeName = computeName
+            };
+
+            await gameLiftClient.DeregisterComputeAsync(deregisterRequest, cancellationToken);
+            logger.LogInformation("Successfully deregistered compute: {ComputeName}", computeName);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to deregister compute: {ComputeName}", computeName);
+        }
+    }
+
     private async Task<ComputeInfo> RegisterComputeAsync(CancellationToken cancellationToken)
     {
         var o = options.Value;
         try
         {
-            // Check if compute already exists
+            // After cleanup, check if our compute still exists (reuse case)
             var listRequest = new ListComputeRequest
             {
                 FleetId = o.Anywhere.FleetId
@@ -123,7 +229,7 @@ internal sealed class GameLiftAnywhereHostedService(
 
             if (existingCompute != null)
             {
-                logger.LogInformation("Using existing compute: {ComputeName}", existingCompute.ComputeName);
+                logger.LogInformation("Reusing existing compute: {ComputeName}", existingCompute.ComputeName);
                 return new ComputeInfo(
                     existingCompute.ComputeName,
                     existingCompute.FleetId,
@@ -134,6 +240,8 @@ internal sealed class GameLiftAnywhereHostedService(
             }
 
             // Register new compute
+            logger.LogInformation("Registering new compute: {ComputeName} in fleet: {FleetId}", o.Anywhere.ComputeName, o.Anywhere.FleetId);
+
             var registerRequest = new RegisterComputeRequest
             {
                 FleetId = o.Anywhere.FleetId,
@@ -144,7 +252,7 @@ internal sealed class GameLiftAnywhereHostedService(
 
             var registerResponse = await gameLiftClient.RegisterComputeAsync(registerRequest, cancellationToken);
 
-            logger.LogInformation("Registered new compute: {ComputeName}", registerResponse.Compute.ComputeName);
+            logger.LogInformation("Successfully registered new compute: {ComputeName}", registerResponse.Compute.ComputeName);
             return new ComputeInfo(
                 registerResponse.Compute.ComputeName,
                 registerResponse.Compute.FleetId,
