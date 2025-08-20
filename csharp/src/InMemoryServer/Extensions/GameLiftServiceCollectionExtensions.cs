@@ -19,35 +19,37 @@ public static class GameLiftServiceCollectionExtensions
     /// <returns>Host application builder for chaining</returns>
     public static IHostApplicationBuilder ConfigureGameLiftServices(this WebApplicationBuilder builder, string configSection = "GameLift")
     {
-        // Configure GameLift options
+        // Always configure GameLift options for configuration binding
         builder.Services.Configure<GameLiftOptions>(builder.Configuration.GetSection(configSection));
 
-        // Register factory
-        builder.Services.AddSingleton<IGameServerProviderFactory, GameServerProviderFactory>();
-
-        // Register a singleton instance of the selected provider for proper lifecycle management
-        builder.Services.AddSingleton<IGameServerProvider>(serviceProvider =>
-        {
-            var factory = serviceProvider.GetRequiredService<IGameServerProviderFactory>();
-            return factory.CreateProvider();
-        });
-
-        // Register providers - always register both, factory will choose which to use
-        builder.Services.AddTransient<DirectConnectionProvider>();
-        builder.Services.AddTransient<GameLiftAnywhereProvider>();
-
-        // Conditionally register AWS GameLift client only for non-Direct modes
-        // We check the configuration early to avoid registering unnecessary services
+        // Check GameLift mode early to conditionally register services
         var config = builder.Configuration.GetSection(configSection);
         var gameLiftMode = config.GetValue<string>("Mode") ?? "Direct";
 
-        if (!string.Equals(gameLiftMode, "Direct", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(gameLiftMode, "Anywhere", StringComparison.OrdinalIgnoreCase))
         {
+            // Register GameLift Anywhere specific services
             builder.Services.AddSingleton<IAmazonGameLift>(serviceProvider =>
             {
                 var options = serviceProvider.GetRequiredService<IOptions<GameLiftOptions>>().Value;
                 return CreateGameLiftClient(options);
             });
+
+            // Register GameLift Anywhere hosted service for lifecycle management
+            builder.Services.AddHostedService<GameLiftAnywhereHostedService>();
+
+            // Log service registration (using builder's logging)
+            Console.WriteLine("GameLift Anywhere services registered");
+        }
+        else if (string.Equals(gameLiftMode, "FleetIQ", StringComparison.OrdinalIgnoreCase))
+        {
+            // Future: Register GameLift FleetIQ specific services
+            throw new NotImplementedException("GameLift FleetIQ support will be implemented in Phase 2");
+        }
+        else
+        {
+            // Direct mode - no additional services needed
+            Console.WriteLine("GameLift Direct mode - no additional services registered");
         }
 
         return builder;
