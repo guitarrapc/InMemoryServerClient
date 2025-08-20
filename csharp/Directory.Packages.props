@@ -20,7 +20,8 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
     <!-- Server/Client -->
     <PackageVersion Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-    <PackageVersion Include="AWSSDK.GameLift" Version="4.0.1.7" />
+    <PackageVersion Include="AWSSDK.GameLift" Version="4.0.1" />
+    <PackageVersion Include="AWSSDK.Core" Version="4.0.0.23" />
     <PackageVersion Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.2.1" />
     <!-- Shared -->
     <PackageVersion Include="MagicOnion.Abstractions" Version="7.0.6" />

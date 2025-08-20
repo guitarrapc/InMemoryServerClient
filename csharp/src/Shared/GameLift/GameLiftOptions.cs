@@ -74,6 +74,8 @@ public class GameLiftAnywhereOptions
 
     /// <summary>
     /// WebSocket URL for direct connection fallback
+    /// Note: For GameLift Anywhere mode, the actual WebSocket URL is obtained dynamically
+    /// from GetComputeAuthToken API response and this field is not used.
     /// </summary>
     public string WebSocketUrl { get; set; } = string.Empty;
 

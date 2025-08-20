@@ -15,11 +15,13 @@ Amazon GameLift Anywhereは、AWS GameLiftのFleet管理機能をオンプレミ
 2. **認証トークン取得**: サーバーは`GetComputeAuthToken`でFleet/Compute用のAuthTokenとServiceSdkEndpoint(WSS)を取得
 
 ### (B) サーバーSDK（WebSocket）
-3. **SDK初期化**: サーバーSDKはServiceSdkEndpoint(WSS)にAuthTokenで接続し、GameSession管理の準備
+3. **SDK初期化**: サーバーSDKは地域ベースのGameLift WebSocketエンドポイント（例：`wss://gamelift.{region}.amazonaws.com`）にAuthTokenで接続し、GameSession管理の準備
 4. **ProcessReady**: サーバーSDKがGameLiftに自身の準備完了を通知
 5. **GameSession管理**: GameLiftからの指示でゲームセッションの開始/終了を管理
 
-## 3. アーキテクチャ概要
+**重要な注意事項**:
+- WebSocketURLはAWSリージョンに基づいて決定される（例：us-west-2の場合 `wss://gamelift.us-west-2.amazonaws.com`）
+- `GetComputeAuthToken`のレスポンスにはWebSocket URLは含まれないため、リージョン設定から動的に構築する## 3. アーキテクチャ概要
 
 ### 新しい疎結合アーキテクチャ（v2）
 

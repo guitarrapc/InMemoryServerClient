@@ -33,7 +33,7 @@ public enum ComputeStatus
 /// </summary>
 public readonly record struct AuthTokenInfo(
     string AuthToken,
-    string ServiceSdkEndpoint,
+    string WebSocketUrl,
     DateTime ExpirationTime)
 {
     /// <summary>

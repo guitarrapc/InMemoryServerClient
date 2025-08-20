@@ -1,4 +1,4 @@
-using Amazon.GameLift;
+﻿using Amazon.GameLift;
 using Amazon.GameLift.Model;
 using Aws.GameLift.Server;
 using Microsoft.Extensions.Options;
@@ -172,10 +172,16 @@ internal sealed class GameLiftAnywhereHostedService(
 
             var response = await gameLiftClient.GetComputeAuthTokenAsync(request, cancellationToken);
 
+            // Build WebSocket URL based on AWS region
+            var region = o.AWS.Region;
+            var websocketUrl = $"wss://gamelift.{region}.amazonaws.com";
+
             logger.LogInformation("Retrieved auth token for compute: {ComputeName}", o.Anywhere.ComputeName);
+            logger.LogInformation("Using WebSocket URL: {WebSocketUrl} for region: {Region}", websocketUrl, region);
+
             return new AuthTokenInfo(
                 response.AuthToken,
-                response.FleetArn ?? string.Empty,
+                websocketUrl, // Use region-based WebSocket URL
                 response.ExpirationTimestamp ?? DateTime.UtcNow.AddHours(1)
             );
         }
@@ -197,9 +203,19 @@ internal sealed class GameLiftAnywhereHostedService(
         var o = options.Value;
         try
         {
+            // Use WebSocket URL from auth token response
+            var webSocketUrl = _currentAuthToken.Value.WebSocketUrl;
+            if (string.IsNullOrEmpty(webSocketUrl))
+            {
+                logger.LogError("WebSocket URL is empty in auth token response");
+                return false;
+            }
+
+            logger.LogInformation("Initializing GameLift Server SDK with WebSocket URL: {WebSocketUrl}", webSocketUrl);
+
             // Initialize GameLift Server SDK
             var serverParameters = new ServerParameters(
-                webSocketUrl: o.Anywhere.WebSocketUrl,
+                webSocketUrl: webSocketUrl, // Use WebSocket URL from response
                 processId: o.Anywhere.ProcessId,
                 hostId: o.Anywhere.HostId,
                 fleetId: o.Anywhere.FleetId,
