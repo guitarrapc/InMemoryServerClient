@@ -17,44 +17,20 @@ namespace InMemoryServer.Http2Server;
 /// <summary>
 /// MagicOnion streaming hub implementation for real-time communication
 /// </summary>
-public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>, IMagicOnionBattleHub
+public class MagicOnionBattleHub(
+    ILogger<MagicOnionBattleHub> logger,
+    InMemoryState state,
+    ConnectionManager connectionManager,
+    InMemoryServer.Services.IGroupManager groupManager,
+    CrossProtocolNotificationService notificationService,
+    ILoggerFactory loggerFactory,
+    BattleReplayWriterFactory replayWriterFactory,
+    MagicOnionGroupService magicOnionGroupService,
+    BattleCompletionService battleCompletionService,
+    GameLift.GameSessionManager? gameSessionManager = null) : StreamingHubBase<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>, IMagicOnionBattleHub
 {
-    private readonly ILogger<MagicOnionBattleHub> logger;
-    private readonly InMemoryState state;
-    private readonly ConnectionManager connectionManager;
-    private readonly InMemoryServer.Services.IGroupManager groupManager;
-    private readonly CrossProtocolNotificationService notificationService;
-    private readonly ILoggerFactory loggerFactory;
-    private readonly BattleReplayWriterFactory replayWriterFactory;
-    private readonly MagicOnionGroupService magicOnionGroupService;
-    private readonly BattleCompletionService battleCompletionService;
-    private readonly GameSessionManager? gameSessionManager;
     private static readonly object _eventSetupLock = new();
     private static bool _eventHandlersSetup = false;
-
-    public MagicOnionBattleHub(
-        ILogger<MagicOnionBattleHub> logger,
-        InMemoryState state,
-        ConnectionManager connectionManager,
-        InMemoryServer.Services.IGroupManager groupManager,
-        CrossProtocolNotificationService notificationService,
-        ILoggerFactory loggerFactory,
-        BattleReplayWriterFactory replayWriterFactory,
-        MagicOnionGroupService magicOnionGroupService,
-        BattleCompletionService battleCompletionService,
-        GameSessionManager? gameSessionManager = null)
-    {
-        this.logger = logger;
-        this.state = state;
-        this.connectionManager = connectionManager;
-        this.groupManager = groupManager;
-        this.notificationService = notificationService;
-        this.loggerFactory = loggerFactory;
-        this.replayWriterFactory = replayWriterFactory;
-        this.magicOnionGroupService = magicOnionGroupService;
-        this.battleCompletionService = battleCompletionService;
-        this.gameSessionManager = gameSessionManager;
-    }
 
 
     // Key-Value operations
