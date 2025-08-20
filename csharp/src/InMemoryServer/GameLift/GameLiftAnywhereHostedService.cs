@@ -120,6 +120,12 @@ internal sealed class GameLiftAnywhereHostedService(
     private async Task CleanupOldComputeInstancesAsync(CancellationToken cancellationToken)
     {
         var o = options.Value;
+        if (o.Anywhere.CleanupComputeOnStartup)
+        {
+            logger.LogInformation("Clean up compute instances on start up was disabled, clean up not executed.");
+            return;
+        }
+
         try
         {
             logger.LogInformation("Checking for old compute instances to cleanup in fleet: {FleetId}", o.Anywhere.FleetId);

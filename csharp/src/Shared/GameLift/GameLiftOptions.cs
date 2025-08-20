@@ -106,6 +106,11 @@ public class GameLiftAnywhereOptions
     public TimeSpan ComputeCleanupThreshold { get; set; } = TimeSpan.FromHours(1);
 
     /// <summary>
+    /// Whether to cleanup compute instance on application startup
+    /// </summary>
+    public bool CleanupComputeOnStartup { get; set; } = false;
+
+    /// <summary>
     /// Whether to cleanup compute instance on application shutdown
     /// </summary>
     public bool CleanupComputeOnShutdown { get; set; } = false;
