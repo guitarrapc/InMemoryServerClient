@@ -80,12 +80,12 @@ Application Startup
 
 ### ✅ 完了済み（最新アーキテクチャ v3）
 
-#### 🚀 WebSocketエンドポイント修正（動作確認済み）
+#### 🚀 WebSocketエンドポイント修正 ✅ 完了
 - **正しいエンドポイント形式**: `wss://{region}.api.amazongamelift.com`形式のWebSocketURLを動的構築
 - **動作確認完了**: GameLift Anywhereサーバー登録・InitSDK・ProcessReady処理が正常動作
 - **地域対応**: AWS地域設定に基づく適切なエンドポイント選択機能
 
-#### 🧹 Computeクリーンナップ機能（実装完了）
+#### 🧹 Computeクリーンナップ機能 ✅ 完了
 - **スマートクリーンナップ**: ローカル開発に最適化されたCompute管理
   - 複数インスタンス検出時の全クリーンナップ
   - 名前が異なるComputeの自動削除・再登録
@@ -94,13 +94,13 @@ Application Startup
 - **終了時クリーンナップ**: アプリケーション終了時のCompute削除オプション（`CleanupComputeOnShutdown`）
 - **詳細ログ**: クリーンナップ処理の進行状況を詳細に記録
 
-#### モジュラー設計による関心事の分離
+#### モジュラー設計による関心事の分離 ✅ 完了
 - **フォルダ構成**: Server/GameLift、Shared/GameLift、Client/GameLiftによる明確な責任分離
 - **疎結合設計**: ASP.NET Core標準の`IHostedService`パターンを採用
 - **条件付きサービス登録**: Anywhereモード時のみGameLift関連サービスを登録
 - **起動オーバーヘッド削減**: Directモード時は関連コードが一切実行されない
 
-#### フェーズ1A: 基盤実装
+#### フェーズ1A: 基盤実装 ✅ 完了
 - **設定システム**: `GameLiftOptions`クラスによる設定管理 (appsettings.json + 環境変数)
 - **HostedService**: `GameLiftAnywhereHostedService`による適切なライフサイクル管理
 - **モデル定義**: `ComputeInfo`, `AuthTokenInfo`等の構造体
