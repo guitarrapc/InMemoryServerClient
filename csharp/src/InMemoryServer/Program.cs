@@ -56,9 +56,8 @@ public class Program
         // Build the app
         var app = builder.Build();
 
-        // Initialize GameLift provider
-        var gameServerProviderFactory = app.Services.GetRequiredService<IGameServerProviderFactory>();
-        var gameServerProvider = gameServerProviderFactory.CreateProvider();
+        // Get GameLift provider from DI (singleton)
+        var gameServerProvider = app.Services.GetRequiredService<IGameServerProvider>();
 
         var initResult = await gameServerProvider.InitializeAsync();
         if (!initResult)
@@ -68,7 +67,7 @@ public class Program
         }
 
         // Notify GameLift that the process is ready (for Anywhere mode)
-        var processParameters = new ProcessParameters(
+        var processParameters = new GameServerProcessParameters(
             Port: 5000, // HTTP/1 port for SignalR
             LogPaths: []);
 
@@ -105,7 +104,9 @@ public class Program
             {
                 try
                 {
-                    await gameServerProvider.ShutdownAsync();
+                    // Get provider from DI since gameServerProvider variable might be out of scope
+                    var provider = app.Services.GetRequiredService<IGameServerProvider>();
+                    await provider.ShutdownAsync();
                 }
                 catch (Exception ex)
                 {

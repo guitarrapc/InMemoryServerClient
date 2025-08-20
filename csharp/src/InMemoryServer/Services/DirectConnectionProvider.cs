@@ -35,7 +35,7 @@ internal class DirectConnectionProvider(ILogger<DirectConnectionProvider> logger
         return Task.FromResult(true);
     }
 
-    public Task<bool> ProcessReadyAsync(ProcessParameters parameters, CancellationToken cancellationToken = default)
+    public Task<bool> ProcessReadyAsync(GameServerProcessParameters parameters, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Direct connection mode - process ready not applicable");
         return Task.FromResult(true);

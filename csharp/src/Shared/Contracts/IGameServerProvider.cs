@@ -42,7 +42,7 @@ public interface IGameServerProvider
     /// <param name="parameters">Process parameters</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if process ready was successful</returns>
-    Task<bool> ProcessReadyAsync(ProcessParameters parameters, CancellationToken cancellationToken = default);
+    Task<bool> ProcessReadyAsync(GameServerProcessParameters parameters, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Activate game session (server SDK operation)
@@ -129,10 +129,10 @@ public enum GameServerStatus
 }
 
 /// <summary>
-/// Process parameters for GameLift ProcessReady
+/// Process parameters for Game Server ProcessReady
 /// </summary>
 /// <param name="Port">Server port</param>
 /// <param name="LogPaths">Log file paths</param>
-public readonly record struct ProcessParameters(
+public readonly record struct GameServerProcessParameters(
     int Port,
     string[] LogPaths);

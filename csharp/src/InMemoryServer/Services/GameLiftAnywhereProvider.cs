@@ -1,5 +1,7 @@
-﻿using Amazon.GameLift;
+﻿
+using Amazon.GameLift;
 using Amazon.GameLift.Model;
+using Aws.GameLift.Server;
 using Microsoft.Extensions.Options;
 using Shared.Contracts;
 using Shared.Models.GameLift;
@@ -130,31 +132,84 @@ public class GameLiftAnywhereProvider(IAmazonGameLift gameLiftClient, IOptions<G
         }
     }
 
+
+    // GameLift Server SDKの初期化状態
+    private bool _serverSdkInitialized = false;
+
     public Task<bool> InitServerSdkAsync(AuthTokenInfo authToken, CancellationToken cancellationToken = default)
     {
-        // TODO: Implement Server SDK initialization in future iteration
-        logger.LogInformation("Server SDK initialization - placeholder implementation");
+        // GameLift Server SDKの初期化
+        logger.LogInformation("Initializing GameLift Server SDK (WSS)");
+        var outcome = GameLiftServerAPI.InitSDK();
+        if (!outcome.Success)
+        {
+            logger.LogError("GameLiftServerAPI.InitSDK failed: {Error}", outcome.Error.ToString());
+            return Task.FromResult(false);
+        }
+        logger.LogInformation("GameLiftServerAPI.InitSDK succeeded");
+        _serverSdkInitialized = outcome.Success;
+        return Task.FromResult(outcome.Success);
+    }
+
+
+    public Task<bool> ProcessReadyAsync(GameServerProcessParameters parameters, CancellationToken cancellationToken = default)
+    {
+        if (!_serverSdkInitialized)
+        {
+            logger.LogError("GameLiftServerAPI not initialized. Call InitServerSdkAsync first.");
+            return Task.FromResult(false);
+        }
+        logger.LogInformation("Calling GameLiftServerAPI.ProcessReady...");
+        var processParameters = new ProcessParameters(
+            onStartGameSession: session =>
+            {
+                logger.LogInformation("[GameLift] OnStartGameSession: {GameSessionId}", session.GameSessionId);
+                // 必要に応じてActivateGameSessionを呼ぶ
+                GameLiftServerAPI.ActivateGameSession();
+            },
+            onUpdateGameSession: session =>
+            {
+                logger.LogInformation("[GameLift] OnUpdateGameSession: {GameSessionId}", session.GameSession.GameSessionId);
+            },
+            onProcessTerminate: () =>
+            {
+                logger.LogInformation("[GameLift] OnProcessTerminate called");
+                GameLiftServerAPI.ProcessEnding();
+            },
+            onHealthCheck: () =>
+            {
+                logger.LogInformation("[GameLift] OnHealthCheck");
+                return true;
+            },
+            port: parameters.Port,
+            logParameters: new LogParameters
+            {
+                LogPaths = parameters.LogPaths,
+            }
+        );
+        var outcome = GameLiftServerAPI.ProcessReady(processParameters);
+        if (!outcome.Success)
+        {
+            logger.LogError("GameLiftServerAPI.ProcessReady failed: {Error}", outcome.Error.ToString());
+            return Task.FromResult(false);
+        }
+        logger.LogInformation("GameLiftServerAPI.ProcessReady succeeded");
         return Task.FromResult(true);
     }
 
-    public Task<bool> ProcessReadyAsync(ProcessParameters parameters, CancellationToken cancellationToken = default)
-    {
-        // TODO: Implement Process Ready in future iteration
-        logger.LogInformation("Process Ready - placeholder implementation");
-        return Task.FromResult(true);
-    }
 
     public Task ActivateGameSessionAsync(string gameSessionId, CancellationToken cancellationToken = default)
     {
-        // TODO: Implement Game Session activation in future iteration
-        logger.LogInformation("Activate Game Session: {GameSessionId} - placeholder implementation", gameSessionId);
+        logger.LogInformation("Calling GameLiftServerAPI.ActivateGameSession for {GameSessionId}", gameSessionId);
+        GameLiftServerAPI.ActivateGameSession();
         return Task.CompletedTask;
     }
 
+
     public Task ProcessEndingAsync(CancellationToken cancellationToken = default)
     {
-        // TODO: Implement Process Ending in future iteration
-        logger.LogInformation("Process Ending - placeholder implementation");
+        logger.LogInformation("Calling GameLiftServerAPI.ProcessEnding");
+        GameLiftServerAPI.ProcessEnding();
         return Task.CompletedTask;
     }
 
@@ -167,9 +222,16 @@ public class GameLiftAnywhereProvider(IAmazonGameLift gameLiftClient, IOptions<G
         return Task.FromResult(endpoint);
     }
 
-    public Task ShutdownAsync(CancellationToken cancellationToken = default)
+    public async Task ShutdownAsync(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Shutting down GameLift Anywhere provider");
-        return Task.CompletedTask;
+
+        // Notify GameLift that the process is ending
+        if (_serverSdkInitialized)
+        {
+            await ProcessEndingAsync(cancellationToken);
+        }
+
+        logger.LogInformation("GameLift Anywhere provider shutdown complete");
     }
 }
