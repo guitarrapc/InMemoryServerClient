@@ -72,13 +72,6 @@ public class GameLiftAnywhereOptions
     /// </summary>
     public string CustomLocation { get; set; } = string.Empty;
 
-    /// <summary>
-    /// WebSocket URL for direct connection fallback
-    /// Note: For GameLift Anywhere mode, the actual WebSocket URL is obtained dynamically
-    /// from GetComputeAuthToken API response and this field is not used.
-    /// </summary>
-    public string WebSocketUrl { get; set; } = string.Empty;
-
     // Control plane settings
     /// <summary>
     /// Host ID for GameLift server registration

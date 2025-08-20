@@ -65,8 +65,6 @@ public class Program
 
         // Start the server
         Console.WriteLine($"InMemory Server starting...");
-        Console.WriteLine($"HTTP/1 (SignalR) available on port {SystemDefines.DefaultServerPort}");
-        Console.WriteLine($"HTTP/2 (MagicOnion) available on port {SystemDefines.DefaultHttp2ServerPort}");
         Console.WriteLine($"SignalR Hub available at {SystemDefines.HubRoute}");
 
         // Configure the app to listen on the specified ports (Kestrel configuration from appsettings.json will be used)

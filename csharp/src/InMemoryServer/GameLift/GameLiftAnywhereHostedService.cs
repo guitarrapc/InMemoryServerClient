@@ -405,7 +405,7 @@ internal sealed class GameLiftAnywhereHostedService(
                     logger.LogDebug("Health check requested");
                     return true;
                 },
-                port: 5000, // HTTP/1 port for SignalR
+                port: 5001, // HTTPS unified port for both SignalR (HTTP/1) and MagicOnion (HTTP/2)
                 logParameters: new LogParameters([])
             );
 

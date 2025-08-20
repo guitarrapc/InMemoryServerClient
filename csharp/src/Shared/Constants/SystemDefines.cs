@@ -11,16 +11,6 @@ public static class SystemDefines
     public const string HubRoute = "/inmemoryhub";
 
     /// <summary>
-    /// Default server port (HTTP/1 - SignalR)
-    /// </summary>
-    public const int DefaultServerPort = 5000;
-
-    /// <summary>
-    /// Default server port for HTTP/2 (MagicOnion)
-    /// </summary>
-    public const int DefaultHttp2ServerPort = 5001;
-
-    /// <summary>
     /// Maximum connections per group
     /// </summary>
     public const int MaxConnectionsPerGroup = 5;
