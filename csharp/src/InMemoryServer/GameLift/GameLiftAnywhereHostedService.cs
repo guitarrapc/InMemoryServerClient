@@ -2,9 +2,9 @@ using Amazon.GameLift;
 using Amazon.GameLift.Model;
 using Aws.GameLift.Server;
 using Microsoft.Extensions.Options;
-using Shared.Models.GameLift;
+using Shared.GameLift;
 
-namespace InMemoryServer.Services;
+namespace InMemoryServer.GameLift;
 
 /// <summary>
 /// Hosted service for managing GameLift Anywhere server lifecycle
@@ -129,7 +129,7 @@ internal sealed class GameLiftAnywhereHostedService(
                     existingCompute.FleetId,
                     o.Anywhere.CustomLocation,
                     existingCompute.ComputeArn ?? string.Empty,
-                    Enum.Parse<Shared.Models.GameLift.ComputeStatus>(existingCompute.ComputeStatus.ToString(), true)
+                    Enum.Parse<Shared.GameLift.ComputeStatus>(existingCompute.ComputeStatus.ToString(), true)
                 );
             }
 
@@ -149,13 +149,13 @@ internal sealed class GameLiftAnywhereHostedService(
                 registerResponse.Compute.FleetId,
                 o.Anywhere.CustomLocation,
                 registerResponse.Compute.ComputeArn ?? string.Empty,
-                Enum.Parse<Shared.Models.GameLift.ComputeStatus>(registerResponse.Compute.ComputeStatus.ToString(), true)
+                Enum.Parse<Shared.GameLift.ComputeStatus>(registerResponse.Compute.ComputeStatus.ToString(), true)
             );
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to register compute");
-            return new ComputeInfo(string.Empty, string.Empty, string.Empty, string.Empty, Shared.Models.GameLift.ComputeStatus.Unknown);
+            return new ComputeInfo(string.Empty, string.Empty, string.Empty, string.Empty, Shared.GameLift.ComputeStatus.Unknown);
         }
     }
 

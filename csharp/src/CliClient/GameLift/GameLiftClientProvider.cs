@@ -3,9 +3,9 @@ using Amazon.GameLift.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shared.Contracts;
-using Shared.Models.GameLift;
+using Shared.GameLift;
 
-namespace CliClient.Services;
+namespace CliClient.GameLift;
 
 /// <summary>
 /// GameLift client provider for connecting to GameLift Anywhere servers
@@ -48,7 +48,7 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
         throw new ArgumentOutOfRangeException(nameof(_options.Mode), _options.Mode, "Unknown GameLift mode");
     }
 
-    public async Task<List<GameServerInfo>> SearchGameServersAsync(CancellationToken cancellationToken = default)
+    public async Task<List<GameServerInfo>> SearchGameServersAsync(string fleetId, string location, CancellationToken cancellationToken = default)
     {
         if (_options.Mode == GameLiftMode.Direct)
         {
@@ -58,7 +58,7 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
 
         if (_options.Mode == GameLiftMode.Anywhere)
         {
-            return await SearchAnywhereGameServersAsync(cancellationToken);
+            return await SearchAnywhereGameServersAsync(fleetId, location, cancellationToken);
         }
 
         if (_options.Mode == GameLiftMode.FleetIQ)
@@ -106,7 +106,7 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
         }
     }
 
-    private async Task<List<GameServerInfo>> SearchAnywhereGameServersAsync(CancellationToken cancellationToken)
+    private async Task<List<GameServerInfo>> SearchAnywhereGameServersAsync(string fleetId, string location, CancellationToken cancellationToken)
     {
         try
         {
@@ -116,12 +116,12 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
                 return [];
             }
 
-            _logger.LogInformation("Searching for GameLift Anywhere compute instances in fleet: {FleetId}", _options.Anywhere.FleetId);
+            _logger.LogInformation("Searching for GameLift Anywhere compute instances in fleet: {FleetId}", fleetId);
 
             var request = new ListComputeRequest
             {
-                FleetId = _options.Anywhere.FleetId,
-                Location = _options.Anywhere.CustomLocation
+                FleetId = fleetId,
+                Location = location
             };
 
             var response = await _gameLiftClient.ListComputeAsync(request, cancellationToken);
@@ -129,11 +129,14 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
             var gameServers = response.ComputeList
                 .Where(c => c.ComputeStatus == Amazon.GameLift.ComputeStatus.ACTIVE)
                 .Select(c => new GameServerInfo(
-                    c.ComputeArn,
-                    c.ComputeName,
-                    c.FleetId,
-                    c.Location,
-                    MapComputeStatus(c.ComputeStatus)))
+                    c.ComputeArn ?? string.Empty,  // GameServerId
+                    fleetId,                        // FleetId
+                    string.Empty,                   // InstanceId (not applicable for Anywhere)
+                    string.Empty,                   // IpAddress (would need to be resolved)
+                    5001,                          // Port (default)
+                    MapComputeStatus(c.ComputeStatus), // Status
+                    c.ComputeName ?? string.Empty  // ConnectionInfo
+                ))
                 .ToList();
 
             _logger.LogInformation("Found {Count} active game servers", gameServers.Count);

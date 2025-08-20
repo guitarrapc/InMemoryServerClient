@@ -1,10 +1,8 @@
 ﻿using Amazon.GameLift;
 using Microsoft.Extensions.Options;
-using Shared.Contracts;
-using InMemoryServer.Services;
-using Shared.Models.GameLift;
+using Shared.GameLift;
 
-namespace InMemoryServer.Extensions;
+namespace InMemoryServer.GameLift;
 
 /// <summary>
 /// Extension methods for configuring GameLift services

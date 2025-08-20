@@ -1,4 +1,4 @@
-﻿namespace Shared.Models.GameLift;
+﻿namespace Shared.GameLift;
 
 /// <summary>
 /// GameLift configuration options

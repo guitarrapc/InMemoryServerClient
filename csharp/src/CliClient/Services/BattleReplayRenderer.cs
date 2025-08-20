@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Shared.Battle;
 using CliClient.Constants;
-using CliClient.Extensions;
 using CliClient.Models;
 
 namespace CliClient.Services;

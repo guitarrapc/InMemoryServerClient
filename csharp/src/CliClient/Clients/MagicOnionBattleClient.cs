@@ -7,7 +7,6 @@ using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Grpc.Net.Client;
 using System.Diagnostics.CodeAnalysis;
-using CliClient.Extensions;
 using CliClient.Models;
 using CliClient.Services;
 

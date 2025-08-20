@@ -3,7 +3,7 @@ using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Http1Server;
-using InMemoryServer.Extensions;
+using InMemoryServer.GameLift;
 
 namespace InMemoryServer;
 

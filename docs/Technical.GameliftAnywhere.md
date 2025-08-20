@@ -82,13 +82,37 @@ Application Startup
 
 ## 4. 実装状況
 
-### ✅ 完了済み
+### ✅ 完了済み（最新アーキテクチャ v3）
 
-#### アーキテクチャ改善（v2）
+#### モジュラー設計による関心事の分離
+- **フォルダ構成**: Server/GameLift、Shared/GameLift、Client/GameLiftによる明確な責任分離
 - **疎結合設計**: ASP.NET Core標準の`IHostedService`パターンを採用
-- **条件付きサービス登録**: 必要な時だけGameLift関連サービスを登録
-- **責任分離**: Program.csからGameLift初期化ロジックを完全分離
+- **条件付きサービス登録**: Anywhereモード時のみGameLift関連サービスを登録
 - **起動オーバーヘッド削減**: Directモード時は関連コードが一切実行されない
+
+#### 新しいファイル構成
+**Server/GameLift/**
+- `GameLiftAnywhereHostedService.cs`: サーバーSDK管理とライフサイクル制御
+- `GameLiftServiceCollectionExtensions.cs`: サーバー側DI設定
+
+**Shared/GameLift/**
+- `GameLiftOptions.cs`: 設定管理
+- `GameLiftModels.cs`: 共通データモデル（ComputeInfo、AuthTokenInfoなど）
+- `GameServerModels.cs`: ゲームサーバー関連モデル（GameServerInfo、GameServerStatusなど）
+
+**Shared/Contracts/**
+- `IGameLiftClientProvider.cs`: クライアント統合インターフェース
+
+**Client/GameLift/**
+- `GameLiftClientProvider.cs`: GameLiftクライアント実装
+- `GameLiftClientServiceCollectionExtensions.cs`: クライアント側DI設定
+- `NullAmazonGameLift.cs`: Directモード用のNull Object実装
+
+#### 削除された旧実装（クリーンアップ完了）
+- `GameLiftAnywhereProvider.cs`: 旧プロバイダー設計の削除
+- `DirectConnectionProvider.cs`: 旧プロバイダー設計の削除
+- `GameServerProviderFactory.cs`: 旧ファクトリー設計の削除
+- `IGameServerProvider.cs`: 旧抽象化インターフェースの削除
 
 #### フェーズ1A: 基盤実装
 - **設定システム**: `GameLiftOptions`クラスによる設定管理 (appsettings.json + 環境変数)
@@ -107,14 +131,15 @@ Application Startup
 - **Fleet Anywhere対応**: FleetIdベースのサーバー検索
 - **Direct Mode維持**: 既存の直接接続機能の保持
 
-### ⏳ 保留中（旧実装の残骸）
-- **旧プロバイダーシステム**: `IGameServerProvider`、`GameServerProviderFactory`等は残存
-- **クリーンアップ**: 不要なクラスの削除は今後実施
+### ⚠️ 部分実装（改善が必要）
+- **統合テスト**: モジュラー構成に対応したテストの更新が必要
+- **エラーハンドリング詳細**: より詳細な例外情報とリトライ機構の拡充
+- **ログ出力詳細**: GameLift固有のメトリクス、ヘルスチェック状況の詳細ログ
 
 ### 📋 今後の実装予定
 
 #### クライアント機能拡張
-- [ ] Fleet探索・自動接続機能
+- [ ] Fleet探索・自動接続機能の拡充
 - [ ] GameSession参加時の自動処理
 
 #### アプリケーション連携

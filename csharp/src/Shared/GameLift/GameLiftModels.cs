@@ -1,4 +1,4 @@
-﻿namespace Shared.Models.GameLift;
+﻿namespace Shared.GameLift;
 
 /// <summary>
 /// Compute information for GameLift Anywhere

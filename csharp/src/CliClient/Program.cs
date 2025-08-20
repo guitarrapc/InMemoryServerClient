@@ -1,10 +1,10 @@
 ﻿using CliClient;
 using CliClient.Clients;
-using CliClient.Services.GameLift;
+using CliClient.GameLift;
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Shared.Models.GameLift;
+using Shared.GameLift;
 
 // Create ConsoleApp with dependency injection
 var app = ConsoleApp.Create()

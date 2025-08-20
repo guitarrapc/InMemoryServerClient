@@ -4,7 +4,6 @@ using Shared.Battle;
 using Shared.Constants;
 using Shared.Contracts;
 using Shared.Models;
-using CliClient.Extensions;
 using CliClient.Models;
 using CliClient.Services;
 

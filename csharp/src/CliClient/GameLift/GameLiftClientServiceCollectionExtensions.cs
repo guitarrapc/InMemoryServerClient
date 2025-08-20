@@ -2,9 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Shared.Contracts;
-using Shared.Models.GameLift;
+using Shared.GameLift;
 
-namespace CliClient.Services.GameLift;
+namespace CliClient.GameLift;
 
 /// <summary>
 /// Extension methods for configuring GameLift client services

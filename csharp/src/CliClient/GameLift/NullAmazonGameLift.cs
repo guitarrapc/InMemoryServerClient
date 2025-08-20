@@ -3,7 +3,7 @@ using Amazon.GameLift.Model;
 using Amazon.Runtime;
 using Amazon.Runtime.Endpoints;
 
-namespace CliClient.Services.GameLift;
+namespace CliClient.GameLift;
 
 public class NullAmazonGameLift : IAmazonGameLift
 {
