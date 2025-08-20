@@ -98,25 +98,6 @@ object?[] args = [connectionId, groupName]; // ヒープ割り当て
 - ValueTupleはスタック上に配置されるため、GCの対象にならない
 - object[]は必ずヒープ割り当てが発生する
 
-## 移行ガイド
-
-### 段階的移行
-1. **新しいサービスを並行導入**
-2. **既存コードとの共存**
-3. **段階的置き換え**
-4. **旧サービスの削除**
-
-### 移行例
-```csharp
-// Before (従来版)
-using CliClient.Extensions;
-_logger.LogBattleInfo(svc => svc.FormatMemberJoined(data.ConnectionId, data.GroupName));
-
-// After (型安全版)
-using CliClient.Extensions; // TypeSafeBattleLoggerExtensionsに変更
-_logger.LogBattleInfo(svc => svc.FormatMemberJoined(data.ConnectionId, data.GroupName));
-```
-
 ## 実装の詳細
 
 ### LogMessage構造体
