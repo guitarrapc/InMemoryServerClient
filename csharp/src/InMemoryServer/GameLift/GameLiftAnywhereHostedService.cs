@@ -174,8 +174,9 @@ internal sealed class GameLiftAnywhereHostedService(
             var response = await gameLiftClient.GetComputeAuthTokenAsync(request, cancellationToken);
 
             // Build WebSocket URL based on AWS region
+            // see: https://github.com/search?q=repo%3Aaws-samples%2Famazon-gamelift-anywhere-sample%20api.amazongamelift.com&type=code
             var region = o.AWS.Region;
-            var websocketUrl = $"wss://gamelift.{region}.amazonaws.com";
+            var websocketUrl = $"wss://{region}.api.amazongamelift.com";
 
             logger.LogInformation("Retrieved auth token for compute: {ComputeName}", o.Anywhere.ComputeName);
             logger.LogInformation("Using WebSocket URL: {WebSocketUrl} for region: {Region}", websocketUrl, region);
