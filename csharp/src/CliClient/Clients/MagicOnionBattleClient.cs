@@ -18,6 +18,7 @@ namespace CliClient.Clients;
 internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubReceiver, IAsyncDisposable
 {
     private readonly ILogger<MagicOnionBattleClient> _logger;
+    private readonly CancellationToken _cancellationToken; // cancel when Ctrl+C is pressed
     private readonly BattleReplayRenderer _replayRenderer;
     private IMagicOnionBattleHub? _hub;
     private GrpcChannel? _channel;
@@ -30,8 +31,7 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
     private BattleReplaySummary? _battleSummary = null;
 
     // This is used to track if the battle has completed and to notify the client when it is done
-    private readonly TaskCompletionSource<bool> _battleCompletionSource = new();
-
+    private readonly TaskCompletionSource<bool> _battleCompletionSource;
     public TaskCompletionSource<bool> BattleCompletionSource => _battleCompletionSource;
 
     // Events
@@ -49,10 +49,13 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
     public event Action<GroupDissolvedData>? OnGroupDissolved;
     public event Action<GroupExtendedData>? OnGroupExtended;
 
-    public MagicOnionBattleClient(ILogger<MagicOnionBattleClient> logger)
+    public MagicOnionBattleClient(ILogger<MagicOnionBattleClient> logger, CancellationToken cancellationToken)
     {
         _logger = logger;
+        _cancellationToken = cancellationToken;
         _replayRenderer = new BattleReplayRenderer(_logger);
+        _battleCompletionSource = new TaskCompletionSource<bool>();
+        cancellationToken.Register(() => _battleCompletionSource.SetCanceled());
     }
 
     public bool IsConnected => _hub != null;
@@ -78,7 +81,7 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
             });
 
             // Connect to the streaming hub
-            _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this);
+            _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this, cancellationToken: _cancellationToken);
 
             _logger.LogInformation("Connected to MagicOnion server");
 
@@ -119,7 +122,7 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
             });
 
             // Connect to the streaming hub
-            _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this);
+            _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this, cancellationToken: _cancellationToken);
 
             _logger.LogInformation("Connected to MagicOnion test server");
 

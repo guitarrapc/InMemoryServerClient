@@ -15,6 +15,7 @@ namespace CliClient.Clients;
 internal class SignalRBattleClient : IBattleClient
 {
     private readonly ILogger<SignalRBattleClient> _logger;
+    private readonly CancellationToken _cancellationToken; // cancel when Ctrl+C is pressed
     private readonly BattleReplayRenderer _replayRenderer;
     private HubConnection? _connection;
     private string _serverUrl = string.Empty;
@@ -26,8 +27,7 @@ internal class SignalRBattleClient : IBattleClient
     private BattleReplaySummary? _battleSummary = null;
 
     // This is used to track if the battle has completed and to notify the client when it is done
-    private readonly TaskCompletionSource<bool> _battleCompletionSource = new();
-
+    private readonly TaskCompletionSource<bool> _battleCompletionSource;
     public TaskCompletionSource<bool> BattleCompletionSource => _battleCompletionSource;
 
     // Events
@@ -43,10 +43,13 @@ internal class SignalRBattleClient : IBattleClient
     public event Action<GroupDissolvedData>? OnGroupDissolved;
     public event Action<GroupExtendedData>? OnGroupExtended;
 
-    public SignalRBattleClient(ILogger<SignalRBattleClient> logger)
+    public SignalRBattleClient(ILogger<SignalRBattleClient> logger, CancellationToken cancellationToken)
     {
         _logger = logger;
+        _cancellationToken = cancellationToken;
         _replayRenderer = new BattleReplayRenderer(_logger);
+        _battleCompletionSource = new TaskCompletionSource<bool>();
+        cancellationToken.Register(() => _battleCompletionSource.SetCanceled());
     }
 
     public bool IsConnected => _connection != null &&(_connection?.State == HubConnectionState.Connected);
@@ -83,7 +86,7 @@ internal class SignalRBattleClient : IBattleClient
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to connect to server");
+            _logger.LogError(ex, $"Failed to connect SignalR server {_serverUrl}");
             await DisconnectAsync();
             return false;
         }
@@ -111,19 +114,19 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<string?> GetAsync(string key)
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<string?>("GetAsync", key);
+        return await _connection!.InvokeAsync<string?>("GetAsync", key, _cancellationToken);
     }
 
     public async Task<bool> SetAsync(string key, string value)
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("SetAsync", key, value);
+        return await _connection!.InvokeAsync<bool>("SetAsync", key, value, _cancellationToken);
     }
 
     public async Task<bool> DeleteAsync(string key)
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("DeleteAsync", key);
+        return await _connection!.InvokeAsync<bool>("DeleteAsync", key, _cancellationToken);
     }
 
     public async Task<IReadOnlyList<string>> ListKeysAsync(string? pattern = null)
@@ -134,7 +137,7 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<IReadOnlyList<string>> ListAsync(string? pattern = null)
     {
         EnsureConnected();
-        var result = await _connection!.InvokeAsync<string[]>("ListKeysAsync", pattern ?? string.Empty);
+        var result = await _connection!.InvokeAsync<string[]>("ListKeysAsync", pattern ?? string.Empty, _cancellationToken);
         return result;
     }
 
@@ -142,7 +145,7 @@ internal class SignalRBattleClient : IBattleClient
     {
         EnsureConnected();
         _logger.LogInformation("Watching key: {Key}", key);
-        await _connection!.InvokeAsync("WatchAsync", key);
+        await _connection!.InvokeAsync("WatchAsync", key, _cancellationToken);
     }
 
     public async Task<bool> BroadcastAsync(string message)
@@ -158,7 +161,7 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<BattleReplayData?>("GetBattleReplayAsync", battleId);
+        return await _connection!.InvokeAsync<BattleReplayData?>("GetBattleReplayAsync", battleId, _cancellationToken);
     }
 
     public async Task PlayBattleReplayAsync(BattleReplayData replayData)
@@ -172,13 +175,13 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<bool> BroadcastMessageAsync(string message)
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("BroadcastAsync", message);
+        return await _connection!.InvokeAsync<bool>("BroadcastAsync", message, _cancellationToken);
     }
 
     public async Task<bool> JoinGroupAsync(string groupName)
     {
         EnsureConnected();
-        _currentGroupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName);
+        _currentGroupId = await _connection!.InvokeAsync<string>("JoinGroupAsync", groupName, _cancellationToken);
         _logger.LogInformation("Joined group: {GroupName} (ID: {GroupId})", groupName, _currentGroupId);
         return !string.IsNullOrEmpty(_currentGroupId);
     }
@@ -186,7 +189,7 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
     {
         EnsureConnected();
-        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
+        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync", _cancellationToken);
 
         // Convert GroupInfo to ClientGroupInfo
         return groups.Select(g => new ClientGroupInfo(
@@ -201,7 +204,7 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
     {
         EnsureConnected();
-        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
+        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync", _cancellationToken);
         if (groupInfo == null) return null;
 
         // Convert GroupInfo to ClientGroupInfo
@@ -217,13 +220,13 @@ internal class SignalRBattleClient : IBattleClient
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync");
+        return await _connection!.InvokeAsync<BattleStatus?>("GetBattleStatusAsync", _cancellationToken);
     }
 
     public async Task<bool> ConfirmConnectionReadyAsync()
     {
         EnsureConnected();
-        return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync");
+        return await _connection!.InvokeAsync<bool>("ConfirmConnectionReadyAsync", _cancellationToken);
     }
 
     public async Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName)
@@ -231,14 +234,14 @@ internal class SignalRBattleClient : IBattleClient
         EnsureConnected();
         _logger.LogInformation("Requesting battle reproduction - BattleId: {BattleId}, Seed: {Seed}, GroupName: {GroupName}", battleId, seedValue, groupName);
 
-        var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
+        var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName, _cancellationToken);
         return result;
     }
 
     public async Task<ServerStatusInfo> GetServerStatusAsync()
     {
         EnsureConnected();
-        var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
+        var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync", _cancellationToken);
 
         // Convert ServerStatus to ServerStatusInfo
         var groups = serverStatus.Groups.Select(g => new ClientGroupInfo(
@@ -359,7 +362,7 @@ internal class SignalRBattleClient : IBattleClient
 
         _connection.On<GroupDissolvedData>("GroupDissolved", (data) =>
         {
-        _logger.LogBattleWarning(new BattleLogMessages.GroupDissolved(data.GroupName, data.GroupId, data.Reason));
+            _logger.LogBattleWarning(new BattleLogMessages.GroupDissolved(data.GroupName, data.GroupId, data.Reason));
             OnGroupDissolved?.Invoke(data);
         });
 

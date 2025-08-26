@@ -1,5 +1,4 @@
 ﻿using CliClient.Clients;
-using CliClient.GameLift;
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Shared.Contracts;
@@ -208,7 +207,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     private async Task ConnectAsync(
         string url = "https://localhost:5001",
         string group = "battle-group",
-        ConnectionType connectionType = ConnectionType.SignalR)
+        ConnectionType connectionType = ConnectionType.SignalR,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -219,7 +219,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                 _client = null;
             }
 
-            _client = BattleClientFactory.Create(connectionType, loggerFactory);
+            _client = BattleClientFactory.Create(connectionType, loggerFactory, cancellationToken);
             if (await _client.ConnectAsync(url, group))
             {
                 logger.LogInformation($"Connected to server: {url}");
@@ -807,9 +807,12 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
+    /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("connect-battle")]
-    public async Task ConnectMultipleAsync(string url = "https://localhost:5001", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR)
+    public async Task ConnectMultipleAsync(string url = "https://localhost:5001", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
+        cancellationToken.Register(() => logger.LogInformation("Ctrl+C Pressed. Cancelling proceeding executions."));
+
         if (count <= 0 || count > 10)
         {
             logger.LogError("接続数は1から10の間で指定してください");
@@ -830,7 +833,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             logger.LogInformation($"Group name: {group}");
 
             // 新しいMultiClientManagerを使用
-            if (await multiClientManager.ConnectMultipleAsync(count, url, group, connectionType))
+            if (await multiClientManager.ConnectMultipleAsync(count, url, cancellationToken, group, connectionType))
             {
                 logger.LogInformation($"Successfully connected {count} clients to group: {group}");
                 logger.LogInformation($"If this completes the group (5 sessions), a battle should start automatically!");
@@ -875,6 +878,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="groupName">-g, Group name (optional)</param>
     /// <param name="serverUrl">-u, Server URL</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
+    /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
     [Command("battle-reproduce")]
@@ -884,7 +888,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         int count = 5,
         string groupName = "test-group",
         string serverUrl = "https://localhost:5001",
-        ConnectionType connectionType = ConnectionType.SignalR)
+        ConnectionType connectionType = ConnectionType.SignalR,
+        CancellationToken cancellationToken = default)
     {
         // Validate parameters
         if (!Guid.TryParse(battleId, out var parsedBattleId))
@@ -924,7 +929,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             {
                 try
                 {
-                    var connection = BattleClientFactory.Create(connectionType, loggerFactory);
+                    var connection = BattleClientFactory.Create(connectionType, loggerFactory, cancellationToken);
 
                     var success = await connection.ConnectAsync(serverUrl, groupName);
                     if (!success)
@@ -1129,8 +1134,9 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="location">-l, Location (optional)</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
+    /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("gamelift-connect-battle")]
-    public async Task ConnectGameLiftBattleAsync(string? fleetId = null, string? location = null, int count = 5, ConnectionType connectionType = ConnectionType.SignalR)
+    public async Task ConnectGameLiftBattleAsync(string? fleetId = null, string? location = null, int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
         if (count <= 0 || count > 10)
         {
@@ -1153,7 +1159,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
             logger.LogInformation("Group name: {GroupName}", groupName);
 
-            if (await multiClientManager.ConnectMultipleAsync(count, endpoint, groupName, connectionType))
+            if (await multiClientManager.ConnectMultipleAsync(count, endpoint, cancellationToken, groupName, connectionType))
             {
                 logger.LogInformation("Successfully connected {Count} clients via GameLift", count);
                 logger.LogInformation("Waiting for battle to complete...");
@@ -1171,31 +1177,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         {
             logger.LogError(ex, "Failed to connect to GameLift battle");
             Environment.ExitCode = 1;
-        }
-    }
-
-    private async Task<IBattleClient> ConnectWithOptionsAsync(ConnectionOptions options, ConnectionType connectionType)
-    {
-        IBattleClient? client = null;
-        try
-        {
-            client = BattleClientFactory.Create(connectionType, loggerFactory);
-
-            var success = await client.ConnectAsync(options.ServerUrl, options.GroupName);
-            if (!success)
-            {
-                throw new InvalidOperationException("Failed to connect to server");
-            }
-
-            return client;
-        }
-        catch
-        {
-            if (client is not null)
-            {
-                await client.DisposeAsync();
-            }
-            throw;
         }
     }
 

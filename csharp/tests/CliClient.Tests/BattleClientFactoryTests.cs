@@ -17,8 +17,12 @@ public class BattleClientFactoryTests
     [Fact]
     public void Create_WithSignalRConnectionType_ReturnsSignalRBattleClient()
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         // Act
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client);
@@ -28,8 +32,12 @@ public class BattleClientFactoryTests
     [Fact]
     public void Create_WithMagicOnionConnectionType_ReturnsMagicOnionBattleClient()
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         // Act
-        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client);
@@ -41,10 +49,11 @@ public class BattleClientFactoryTests
     {
         // Arrange
         var unsupportedType = (ConnectionType)999;
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
-            BattleClientFactory.Create(unsupportedType, _loggerFactory));
+        var exception = Assert.Throws<ArgumentException>(() => BattleClientFactory.Create(unsupportedType, _loggerFactory, ct));
 
         Assert.Contains("Unsupported connection type", exception.Message);
     }
@@ -52,8 +61,12 @@ public class BattleClientFactoryTests
     [Fact]
     public void Create_WithDefaultConnectionType_ReturnsSignalRBattleClient()
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         // Act
-        var client = BattleClientFactory.Create(_loggerFactory);
+        var client = BattleClientFactory.Create(_loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client);
@@ -63,9 +76,12 @@ public class BattleClientFactoryTests
     [Fact]
     public void Create_WithNullLoggerFactory_ThrowsArgumentNullException()
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() =>
-            BattleClientFactory.Create(ConnectionType.SignalR, null!));
+        Assert.Throws<ArgumentNullException>(() => BattleClientFactory.Create(ConnectionType.SignalR, null!, ct));
     }
 
     [Theory]
@@ -73,8 +89,12 @@ public class BattleClientFactoryTests
     [InlineData(ConnectionType.MagicOnion)]
     public void Create_WithValidConnectionTypes_ReturnsNonNullClient(ConnectionType connectionType)
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         // Act
-        var client = BattleClientFactory.Create(connectionType, _loggerFactory);
+        var client = BattleClientFactory.Create(connectionType, _loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client);
@@ -84,9 +104,13 @@ public class BattleClientFactoryTests
     [Fact]
     public void Create_MultipleCallsWithSameParameters_ReturnsDifferentInstances()
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+
         // Act
-        var client1 = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
-        var client2 = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        var client1 = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, ct);
+        var client2 = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client1);

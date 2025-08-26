@@ -1,7 +1,4 @@
 ﻿using CliClient.Clients;
-using CliClient.GameLift;
-using NSubstitute;
-using Shared.Contracts;
 
 namespace CliClient.Tests;
 
@@ -21,7 +18,8 @@ public class ErrorHandlingTests : IDisposable
     public async Task SignalRBattleClient_MultipleConnectCalls_HandlesGracefully()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
 
         // Act
         var result1 = await client.ConnectAsync("https://localhost:5001");
@@ -35,7 +33,8 @@ public class ErrorHandlingTests : IDisposable
     public async Task MagicOnionBattleClient_MultipleConnectCalls_HandlesGracefully()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory, cts.Token);
 
         // Act
         var result1 = await client.ConnectAsync("https://localhost:5001");
@@ -49,10 +48,11 @@ public class ErrorHandlingTests : IDisposable
     public async Task MultiBattleClientManager_ExcessiveClientCount_HandlesGracefully()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var manager = new MultiBattleClientManager(_loggerFactory);
 
         // Act
-        var result = await manager.ConnectMultipleAsync(1000, "https://localhost:5001", "test-group");
+        var result = await manager.ConnectMultipleAsync(1000, "https://localhost:5001", cts.Token, "test-group");
 
         // Assert
         Assert.False(result); // Expected to fail
@@ -66,7 +66,8 @@ public class ErrorHandlingTests : IDisposable
     public async Task BattleClient_InvalidUrls_HandlesGracefully(string invalidUrl)
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
 
         // Act
         var result = await client.ConnectAsync(invalidUrl);
@@ -80,7 +81,8 @@ public class ErrorHandlingTests : IDisposable
     public async Task BattleClient_OperationsAfterDispose_HandlesGracefully()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
         await client.DisposeAsync();
 
         // Act & Assert - Operations after dispose should throw InvalidOperationException for SignalR
@@ -92,11 +94,12 @@ public class ErrorHandlingTests : IDisposable
     public async Task MultiBattleClientManager_OperationsAfterDispose_HandlesGracefully()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var manager = new MultiBattleClientManager(_loggerFactory);
         await manager.DisposeAsync();
 
         // Act
-        var result = await manager.ConnectMultipleAsync(1, "https://localhost:5001", "test");
+        var result = await manager.ConnectMultipleAsync(1, "https://localhost:5001", cts.Token, "test");
 
         // Assert
         Assert.False(result);
@@ -109,11 +112,11 @@ public class ErrorHandlingTests : IDisposable
     public async Task MultiBattleClientManager_InvalidClientCounts_ReturnsExpectedResults(int invalidCount)
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var manager = new MultiBattleClientManager(_loggerFactory);
 
         // Act
-        var result = await manager.ConnectMultipleAsync(
-            invalidCount, "https://localhost:5001", "test");
+        var result = await manager.ConnectMultipleAsync(invalidCount, "https://localhost:5001", cts.Token, "test");
 
         // Assert
         Assert.False(result);
@@ -123,7 +126,8 @@ public class ErrorHandlingTests : IDisposable
     public async Task BattleClient_LargeDataOperations_HandlesGracefully()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
         var largeValue = new string('x', 10000); // 10KB string
 
         // Act & Assert
@@ -135,7 +139,8 @@ public class ErrorHandlingTests : IDisposable
     public async Task BattleClient_SpecialCharacterHandling_WorksCorrectly()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
         var specialKey = "key-with-特殊文字-and-emoji-🚀";
         var specialValue = "value-with-特殊文字-and-newlines\n\r\t";
 
@@ -166,13 +171,13 @@ public class ErrorHandlingTests : IDisposable
     public async Task BattleClientFactory_ConcurrentCreation_HandlesCorrectly()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var tasks = new List<Task<IBattleClient>>();
 
         // Act - Create multiple clients concurrently
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(Task.Run(() =>
-                BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory)));
+            tasks.Add(Task.Run(() => BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token)));
         }
 
         var clients = await Task.WhenAll(tasks);
@@ -193,6 +198,7 @@ public class ErrorHandlingTests : IDisposable
     public async Task MultiBattleClientManager_ConcurrentOperations_HandlesCorrectly()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var manager = new MultiBattleClientManager(_loggerFactory);
         var tasks = new List<Task<bool>>();
 
@@ -200,7 +206,7 @@ public class ErrorHandlingTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             var groupName = $"concurrent-group-{i}";
-            tasks.Add(manager.ConnectMultipleAsync(1, "https://localhost:5001", groupName));
+            tasks.Add(manager.ConnectMultipleAsync(1, "https://localhost:5001", cts.Token, groupName));
         }
 
         var results = await Task.WhenAll(tasks);
@@ -214,11 +220,11 @@ public class ErrorHandlingTests : IDisposable
     public void BattleClientFactory_InvalidEnumValue_ThrowsAppropriateException()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var invalidConnectionType = (ConnectionType)999;
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
-            BattleClientFactory.Create(invalidConnectionType, _loggerFactory));
+        var exception = Assert.Throws<ArgumentException>(() => BattleClientFactory.Create(invalidConnectionType, _loggerFactory, cts.Token));
 
         Assert.Contains("Unsupported connection type", exception.Message);
     }

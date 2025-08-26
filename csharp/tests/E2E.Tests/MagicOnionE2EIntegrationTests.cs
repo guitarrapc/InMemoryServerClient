@@ -101,10 +101,12 @@ public class MagicOnionE2EIntegrationTests : IDisposable
     public async Task ProductionLikeMagicOnionTest_CompareWithRealImplementation()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<CliClient.Clients.MagicOnionBattleClient>();
         var factory = CreateFactory();
 
         // Use the actual MagicOnionBattleClient like in production
-        var client = new CliClient.Clients.MagicOnionBattleClient(Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<CliClient.Clients.MagicOnionBattleClient>());
+        var client = new CliClient.Clients.MagicOnionBattleClient(loggerFactory, cts.Token);
 
         try
         {

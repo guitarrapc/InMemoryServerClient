@@ -1,7 +1,4 @@
 ﻿using CliClient.Clients;
-using CliClient.GameLift;
-using NSubstitute;
-using Shared.Contracts;
 
 namespace CliClient.Tests;
 
@@ -24,9 +21,11 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
 
         // Act
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client);
@@ -39,9 +38,11 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
 
         // Act
-        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory, ct);
 
         // Assert
         Assert.NotNull(client);
@@ -68,7 +69,9 @@ public class ClientIntegrationTests : IDisposable
     public async Task ClientLifecycle_SignalR_CreateConnectDispose_WorksCorrectly_WithoutServer()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, ct);
 
         // Act & Assert - Initial state
         Assert.False(client.IsConnected);
@@ -86,12 +89,14 @@ public class ClientIntegrationTests : IDisposable
     public async Task ClientLifecycle_SignalR_CreateConnectDispose_WorksCorrectly_WithEmbeddedServer()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
+        var ct = cts.Token;
         using var serverManager = new TestServerManager();
         await serverManager.StartServerAsync();
 
         Console.WriteLine($"🔗 Server URL from manager: {serverManager.ServerUrl}");
 
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, ct);
 
         try
         {
@@ -131,7 +136,8 @@ public class ClientIntegrationTests : IDisposable
     public async Task ClientLifecycle_MagicOnion_CreateConnectDispose_WorksCorrectly_WithoutServer()
     {
         // Arrange
-        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
+        using var cts = new CancellationTokenSource();
+        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory, cts.Token);
 
         // Act & Assert - Initial state
         Assert.False(client.IsConnected);
@@ -150,8 +156,9 @@ public class ClientIntegrationTests : IDisposable
         // Arrange
         using var serverManager = new TestServerManager();
         await serverManager.StartServerAsync();
+        using var cts = new CancellationTokenSource();
 
-        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.MagicOnion, _loggerFactory, cts.Token);
 
         try
         {
@@ -177,11 +184,12 @@ public class ClientIntegrationTests : IDisposable
     public async Task MultiBattleClientManager_WithDifferentConnectionTypes_HandlesCorrectly_WithoutServer()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         var manager = new MultiBattleClientManager(_loggerFactory);
 
         // Act & Assert - Test with SignalR
         var signalRResult = await manager.ConnectMultipleAsync(
-            1, "http://localhost:9999", "test-signalr", ConnectionType.SignalR); // 使用されていないポート
+            1, "http://localhost:9999", cts.Token, "test-signalr", ConnectionType.SignalR); // 使用されていないポート
         Assert.False(signalRResult); // Expected to fail without server
 
         // Cleanup
@@ -189,7 +197,7 @@ public class ClientIntegrationTests : IDisposable
 
         // Act & Assert - Test with MagicOnion
         var magicOnionResult = await manager.ConnectMultipleAsync(
-            1, "http://localhost:9999", "test-magiconion", ConnectionType.MagicOnion); // 使用されていないポート
+            1, "http://localhost:9999", cts.Token, "test-magiconion", ConnectionType.MagicOnion); // 使用されていないポート
         Assert.False(magicOnionResult); // Expected to fail without server
     }
 
@@ -197,6 +205,7 @@ public class ClientIntegrationTests : IDisposable
     public async Task MultiBattleClientManager_WithEmbeddedServer_ConnectsSuccessfully()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         using var serverManager = new TestServerManager();
         await serverManager.StartServerAsync();
 
@@ -214,7 +223,7 @@ public class ClientIntegrationTests : IDisposable
             // Act & Assert - Test with SignalR
             Console.WriteLine($"🔌 Attempting to connect SignalR clients to: {serverManager.ServerUrl}");
             var signalRResult = await manager.ConnectMultipleAsync(
-                1, serverManager.ServerUrl, "test-signalr", ConnectionType.SignalR);
+                1, serverManager.ServerUrl, cts.Token, "test-signalr", ConnectionType.SignalR);
 
             if (!signalRResult)
             {
@@ -235,7 +244,7 @@ public class ClientIntegrationTests : IDisposable
             // Act & Assert - Test with MagicOnion (may fail due to gRPC configuration)
             Console.WriteLine($"🔌 Attempting to connect MagicOnion clients to: {serverManager.ServerUrl}");
             var magicOnionResult = await manager.ConnectMultipleAsync(
-                1, serverManager.ServerUrl, "test-magiconion", ConnectionType.MagicOnion);
+                1, serverManager.ServerUrl, cts.Token, "test-magiconion", ConnectionType.MagicOnion);
 
             // MagicOnionの結果は確認するが、テストサーバーでgRPCが設定されていない場合は失敗も許容
             Console.WriteLine($"MagicOnion connection result: {magicOnionResult} for {serverManager.ServerUrl}");
@@ -273,9 +282,10 @@ public class ClientIntegrationTests : IDisposable
             ServerUrl = "https://localhost:5001",
             GroupName = "test-group"
         };
+        using var cts = new CancellationTokenSource();
 
         // Act
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
 
         // Assert
         Assert.NotNull(client);
@@ -290,6 +300,7 @@ public class ClientIntegrationTests : IDisposable
     public async Task SignalR_ConnectToExternalServer_WhenServerAvailable()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         const string serverUrl = "https://localhost:5001";
         var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
 
@@ -301,7 +312,7 @@ public class ClientIntegrationTests : IDisposable
             return;
         }
 
-        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory);
+        var client = BattleClientFactory.Create(ConnectionType.SignalR, _loggerFactory, cts.Token);
 
         try
         {
@@ -331,6 +342,7 @@ public class ClientIntegrationTests : IDisposable
         // Arrange
         const string serverUrl = "https://localhost:5001";
         const string groupName = "integration-test-group";
+        using var cts = new CancellationTokenSource();
 
         var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
 
@@ -347,8 +359,7 @@ public class ClientIntegrationTests : IDisposable
         try
         {
             // Act - 複数クライアントを接続
-            var connectResult = await manager.ConnectMultipleAsync(
-                2, serverUrl, groupName, ConnectionType.SignalR);
+            var connectResult = await manager.ConnectMultipleAsync(2, serverUrl, cts.Token, groupName, ConnectionType.SignalR);
 
             // サーバーに接続できた場合のテスト
             Assert.True(connectResult, "Should successfully connect multiple clients to running server");
@@ -374,6 +385,7 @@ public class ClientIntegrationTests : IDisposable
     public async Task BattleReplay_Integration_WithEmbeddedServer()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
         using var serverManager = new TestServerManager();
         await serverManager.StartServerAsync();
 
@@ -384,7 +396,7 @@ public class ClientIntegrationTests : IDisposable
         {
             // Act - 複数クライアントを内蔵サーバーに接続
             var connectResult = await manager.ConnectMultipleAsync(
-                2, serverManager.ServerUrl, groupName, ConnectionType.SignalR);
+                2, serverManager.ServerUrl, cts.Token, groupName, ConnectionType.SignalR);
 
             // Assert
             Assert.True(connectResult, "Should successfully connect multiple clients to embedded server");

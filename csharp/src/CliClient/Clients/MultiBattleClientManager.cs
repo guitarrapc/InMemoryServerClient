@@ -20,6 +20,7 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
     public async Task<bool> ConnectMultipleAsync(
         int clientCount,
         string serverUrl,
+        CancellationToken cancellationToken,
         string? groupName = null,
         ConnectionType connectionType = ConnectionType.SignalR)
     {
@@ -37,9 +38,16 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
         // Create clients and connect them to the specified group
         for (int i = 0; i < clientCount; i++)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("Ctrl+C requested. Stopping connect client to server, and cleaning up existing connections.");
+                await CleanupClientsAsync();
+                return false;
+            }
+
             try
             {
-                var client = BattleClientFactory.Create(connectionType, loggerFactory);
+                var client = BattleClientFactory.Create(connectionType, loggerFactory, cancellationToken);
 
                 _clients.Add(client);
 
@@ -78,11 +86,12 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
     public async Task<bool> ReproduceBattleAsync(
         string serverUrl,
         string seed,
-        ConnectionType connectionType = ConnectionType.SignalR)
+        ConnectionType connectionType = ConnectionType.SignalR,
+        CancellationToken cancellationToken = default)
     {
         // Fullfill group to start battle reproduction
         var groupName = $"battle-reproduce-{seed}";
-        return await ConnectMultipleAsync(SystemDefines.MaxConnectionsPerGroup, serverUrl, groupName, connectionType);
+        return await ConnectMultipleAsync(SystemDefines.MaxConnectionsPerGroup, serverUrl, cancellationToken, groupName, connectionType);
     }
 
     /// <summary>
@@ -121,28 +130,6 @@ public class MultiBattleClientManager(ILoggerFactory loggerFactory)
 
         await CleanupClientsAsync();
     }
-
-    /// <summary>
-    /// Wait for battle to start
-    /// </summary>
-    public async Task WaitForBattleStartAsync()
-    {
-        if (_clients.Count == 0)
-        {
-            _logger.LogWarning("No clients available for battle start waiting");
-            return;
-        }
-
-        _logger.LogInformation("Waiting for battle to start with {ClientCount} clients...", _clients.Count);
-
-        // Wait for the first battle completion (simplified implementation)
-        await WaitForBattleCompletionAsync();
-    }
-
-    /// <summary>
-    /// Get current client count
-    /// </summary>
-    public int ClientCount => _clients.Count;
 
     /// <summary>
     /// Get connected client count

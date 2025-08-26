@@ -39,11 +39,11 @@ public class MultiBattleClientManagerTests : IDisposable
     [InlineData(-5)]
     public async Task ConnectMultipleAsync_WithInvalidClientCount_ReturnsFalse(int clientCount)
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
         // Act
-        var result = await _manager.ConnectMultipleAsync(
-            clientCount,
-            "https://localhost:5001",
-            "test-group");
+        var result = await _manager.ConnectMultipleAsync(clientCount, "https://localhost:5001", cts.Token, "test-group");
 
         // Assert
         Assert.False(result);
@@ -60,9 +60,10 @@ public class MultiBattleClientManagerTests : IDisposable
         const int clientCount = 1;
         const string serverUrl = "https://localhost:5001";
         const string groupName = "test-group";
+        using var cts = new CancellationTokenSource();
 
         // Act & Assert (method should exist and not throw immediately)
-        var task = _manager.ConnectMultipleAsync(clientCount, serverUrl, groupName, ConnectionType.SignalR);
+        var task = _manager.ConnectMultipleAsync(clientCount, serverUrl, cts.Token, groupName, ConnectionType.SignalR);
 
         // Since we don't have a running server, we expect this to fail at connection
         // but the method should exist and process parameters correctly
@@ -76,9 +77,10 @@ public class MultiBattleClientManagerTests : IDisposable
         // Arrange
         const string serverUrl = "https://localhost:5001";
         const string seed = "12345";
+        using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await _manager.ReproduceBattleAsync(serverUrl, seed, ConnectionType.SignalR);
+        var result = await _manager.ReproduceBattleAsync(serverUrl, seed, ConnectionType.SignalR, cts.Token);
 
         // Assert
         Assert.False(result); // Expected to fail without running server
@@ -90,8 +92,11 @@ public class MultiBattleClientManagerTests : IDisposable
     [InlineData(null)]
     public async Task ReproduceBattleAsync_WithInvalidSeed_HasCorrectBehavior(string? seed)
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
         // Act
-        var result = await _manager.ReproduceBattleAsync("https://localhost:5001", seed!, ConnectionType.SignalR);
+        var result = await _manager.ReproduceBattleAsync("https://localhost:5001", seed!, ConnectionType.SignalR, cts.Token);
 
         // Assert
         Assert.False(result); // Expected to fail
@@ -116,8 +121,11 @@ public class MultiBattleClientManagerTests : IDisposable
     [InlineData(ConnectionType.MagicOnion)]
     public async Task ConnectMultipleAsync_WithDifferentConnectionTypes_AcceptsValidTypes(ConnectionType connectionType)
     {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
         // Act
-        var result = await _manager.ConnectMultipleAsync(1, "https://localhost:5001", "test", connectionType);
+        var result = await _manager.ConnectMultipleAsync(1, "https://localhost:5001", cts.Token, "test", connectionType);
 
         // Assert
         Assert.False(result); // Expected to fail without running server, but method should accept the parameter
@@ -142,12 +150,11 @@ public class MultiBattleClientManagerTests : IDisposable
         // This test verifies that the method processes different client counts
         // Without a running server, connections will fail, but parameter processing should work
 
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
         // Act
-        var result = await _manager.ConnectMultipleAsync(
-            clientCount,
-            "https://localhost:5001",
-            "test-group",
-            ConnectionType.SignalR);
+        var result = await _manager.ConnectMultipleAsync(clientCount, "https://localhost:5001", cts.Token, "test-group", ConnectionType.SignalR);
 
         // Assert
         Assert.False(result); // Expected to fail without running server
