@@ -1010,8 +1010,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Search for available GameLift game servers</summary>
     /// <param name="fleetId">-f, Fleet ID to search</param>
     /// <param name="location">-l, Location to search (optional)</param>
-    [Command("gamelift-search-servers")]
-    public async Task SearchGameLiftServersAsync(string? fleetId = null, string? location = null)
+    [Command("gamelift-list-servers")]
+    public async Task GameLiftSearchServersAsync(string? fleetId = null, string? location = null)
     {
         try
         {
@@ -1047,7 +1047,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="name">-n, Session name</param>
     /// <param name="maxPlayers">-m, Maximum players (default: 5)</param>
     [Command("gamelift-create-session")]
-    public async Task CreateGameLiftSessionAsync(string? fleetId = null, string? name = null, int maxPlayers = 5)
+    public async Task GameLiftCreateSessionAsync(string? fleetId = null, string? name = null, int maxPlayers = 5)
     {
         try
         {
@@ -1090,8 +1090,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Search for available GameLift game sessions</summary>
     /// <param name="fleetId">-f, Fleet ID to search</param>
     /// <param name="location">-l, Location to search (optional)</param>
-    [Command("gamelift-search-sessions")]
-    public async Task SearchGameLiftSessionsAsync(string? fleetId = null, string? location = null)
+    [Command("gamelift-list-sessions")]
+    public async Task GameLiftSearchSessionsAsync(string? fleetId = null, string? location = null)
     {
         try
         {
@@ -1132,11 +1132,12 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <summary>Connect to GameLift server and start battle</summary>
     /// <param name="fleetId">-f, Fleet ID (optional, uses config if not specified)</param>
     /// <param name="location">-l, Location (optional)</param>
+    /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("gamelift-connect-battle")]
-    public async Task ConnectGameLiftBattleAsync(string? fleetId = null, string? location = null, int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
+    public async Task GameLiftConnectMultipleAsync(string? fleetId = null, string? location = null, string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
         if (count <= 0 || count > 10)
         {
@@ -1153,8 +1154,8 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync();
             logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
 
-            // Extract group name from GameLift (if available)
-            var groupName = $"gamelift-battle-{DateTime.Now:yyyyMMdd-HHmmss}";
+            // Create group name from GameLift
+            var groupName = $"gamelift-{group}";
 
             logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
             logger.LogInformation("Group name: {GroupName}", groupName);

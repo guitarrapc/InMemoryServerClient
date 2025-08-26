@@ -137,6 +137,18 @@ dotnet run -- connect-battle -u https://localhost:5001 -g battle-group -t MagicO
 dotnet run -- connect-battle -u https://localhost:5001 -g battle-group -t MagicOnion -c 4
 ```
 
+#### GameLift
+
+```bash
+aws sso login --profile gamelift-profile
+
+# Connect single sessions for battle testing
+dotnet run -- gamelift-connect-battle -f FLEET_ID -g battle-group -t SignalR -c 1
+
+# Connect multiple sessions for battle testing
+dotnet run -- gamelift-connect-battle -f FLEET_ID -g battle-group -t MagicOnion -c 1
+```
+
 #### Interactive Mode Commands
 ```
 connect [url] [group]                - Connect to server
