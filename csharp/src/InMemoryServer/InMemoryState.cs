@@ -31,7 +31,8 @@ public class InMemoryState
     /// <summary>
     /// Total connection count
     /// </summary>
-    public int ConnectionCount { get; set; } = 0;
+    public int ConnectionCount => _connectionCount;
+    private int _connectionCount = 0;
 
     /// <summary>
     /// Get value by key
@@ -160,5 +161,15 @@ public class InMemoryState
     public int GetKeyCount()
     {
         return KeyValueStore.Count;
+    }
+
+    public int IncrementConnectionCount()
+    {
+        return Interlocked.Increment(ref _connectionCount);
+    }
+
+    public int DecrementConnectionCount()
+    {
+        return Interlocked.Decrement(ref _connectionCount);
     }
 }

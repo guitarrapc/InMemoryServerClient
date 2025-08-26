@@ -701,7 +701,7 @@ public class MagicOnionBattleHub(
         var connectionId = Context.ContextId.ToString();
         connectionManager.RegisterConnection(connectionId, ConnectionProtocol.MagicOnion);
 
-        state.ConnectionCount++;
+        state.IncrementConnectionCount();
         logger.LogDebug("MagicOnion client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
         return default;
     }
@@ -710,7 +710,6 @@ public class MagicOnionBattleHub(
     {
         var connectionId = Context.ContextId.ToString();
         logger.LogDebug("Client {ConnectionId} connecting via MagicOnion hub", connectionId);
-        state.ConnectionCount++;
 
         // Set up event handlers once (thread-safe)
         lock (_eventSetupLock)
@@ -746,7 +745,7 @@ public class MagicOnionBattleHub(
 
         if (connectionRemoved)
         {
-            state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);
+            state.DecrementConnectionCount();
 
             // Handle group leaving in background task to avoid blocking OnDisconnected
             _ = Task.Run(async () =>

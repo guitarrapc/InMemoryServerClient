@@ -762,7 +762,7 @@ public class SignalRBattleHub(
         var connectionId = Context.ConnectionId;
         connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
-        state.ConnectionCount++;
+        state.IncrementConnectionCount();
         logger.LogDebug("SignalR client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
 
         await base.OnConnectedAsync();
@@ -778,7 +778,7 @@ public class SignalRBattleHub(
 
         if (connectionRemoved)
         {
-            state.ConnectionCount = Math.Max(0, state.ConnectionCount - 1);
+            state.DecrementConnectionCount();
 
             // Handle GameLift Anywhere disconnection if applicable
             if (gameSessionManager != null)
