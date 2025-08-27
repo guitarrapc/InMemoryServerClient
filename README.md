@@ -107,10 +107,10 @@ To test a battle with multiple clients using a single command:
 cd csharp/src/CliClient
 
 # SignalR
-dotnet run -- connect-battle -u wss://localhost:5001 -g test-battle -t SignalR -c 5
+dotnet run -- connect-battle -u http://localhost:5000 -g test-battle -t SignalR -c 5
 
 # MagicOnion
-dotnet run -- connect-battle -u https://localhost:5001 -g test-battle -t MagicOnion -c 5
+dotnet run -- connect-battle -u http://localhost:5001 -g test-battle -t MagicOnion -c 5
 ```
 
 This will create 5 client connections in the same group to trigger an automatic battle.
@@ -121,32 +121,34 @@ SignalR:
 
 ```bash
 # Connect single sessions for battle testing
-dotnet run -- connect-battle -u wss://localhost:5001 -g battle-group -t SignalR -c 1
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -t SignalR -c 1
 
 # Connect multiple sessions for battle testing
-dotnet run -- connect-battle -u wss://localhost:5001 -g battle-group -t SignalR -c 4
+dotnet run -- connect-battle -u http://localhost:5000 -g battle-group -t SignalR -c 4
 ```
 
 MagicOnion:
 
 ```bash
 # Connect single sessions for battle testing
-dotnet run -- connect-battle -u https://localhost:5001 -g battle-group -t MagicOnion -c 1
+dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -t MagicOnion -c 1
 
 # Connect multiple sessions for battle testing
-dotnet run -- connect-battle -u https://localhost:5001 -g battle-group -t MagicOnion -c 4
+dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -t MagicOnion -c 4
 ```
 
 #### GameLift
 
 ```bash
 aws sso login --profile gamelift-profile
+set AWS_PROFILE=xxxxxxxxxxx
+set FLEET_ID=xxxxxxxxxxxxxxx
 
 # Connect single sessions for battle testing
 dotnet run -- gamelift-connect-battle -m Anywhere -f fleet-896db890-2e06-45af-a167-dc26dc4829bd -l custom-localhost -g battle-group -t SignalR -c 1
 
 # Connect multiple sessions for battle testing
-dotnet run -- gamelift-connect-battle -m Anywhere -f fleet-896db890-2e06-45af-a167-dc26dc4829bd -l custom-localhost -g battle-group -t MagicOnion -c 5
+dotnet run -- gamelift-connect-battle -m Anywhere -f fleet-896db890-2e06-45af-a167-dc26dc4829bd -l custom-localhost -g battle-group -t SignalR -c 4
 ```
 
 #### Interactive Mode Commands
@@ -190,8 +192,8 @@ Here's an example of a typical group session workflow:
 
 3. **Connect to the server and check available groups:**
    ```
-   > connect https://localhost:5001
-   Connected to server: https://localhost:5001
+   > connect http://localhost:5001
+   Connected to server: http://localhost:5001
 
    > groups
    Available groups:
@@ -259,7 +261,7 @@ Here's an example of a typical group session workflow:
 
 12. **For automation, use the connect-battle command to test with multiple clients:**
     ```bash
-    dotnet run -- connect-battle -u https://localhost:5001 -g test-battle -c 5
+    dotnet run -- connect-battle -u http://localhost:5001 -g test-battle -c 5
     ```
     This will create 5 client connections in the same group, trigger a battle, and display the replay automatically.
 
@@ -300,7 +302,7 @@ The server uses several techniques to optimize memory usage:
 
 You need GameLift Server SDK to run the server, which can be installed via local NuGet Package build via yourself.
 
-1. Download Server SDK: https://github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk
+1. Download Server SDK: http://github.com/amazon-gamelift/amazon-gamelift-servers-go-server-sdk
 2. Build NuPkg by `dotnet pack -c Release -o .artifacts -p:Version=5.3.0 -o .artifacts GameLiftServerSDK.sln`
 3. Place the artifact in the `csharp/LocalPackages` directory, and ensure the `NuGet.config` file points to this directory.
 4. Now you can restore sln.

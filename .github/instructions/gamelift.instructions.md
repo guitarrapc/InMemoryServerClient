@@ -71,7 +71,7 @@ InMemoryServerClientプロジェクトにAmazon GameLiftの統合を段階的に
       "FleetId": "",
       "ComputeName": "",
       "CustomLocation": "",
-      "WebSocketUrl": "wss://localhost:5001/battlehub"
+      "WebSocketUrl": "http://localhost:5000/battlehub"
     },
     "FleetIQ": {
       "GameServerGroupName": "",
@@ -88,37 +88,7 @@ InMemoryServerClientプロジェクトにAmazon GameLiftの統合を段階的に
     }
   },
   "Server": {
-    "Port": 5001,
     "AllowedOrigins": ["*"]
-  }
-}
-```
-
-### クライアント設定（appsettings.json）
-
-```json
-{
-  "GameLift": {
-    "Mode": "Direct", // "Direct" | "Anywhere" | "FleetIQ"
-    "Anywhere": {
-      "FleetId": "",
-      "CustomLocation": ""
-    },
-    "FleetIQ": {
-      "GameServerGroupName": ""
-    },
-    "AWS": {
-      "Region": "us-west-2",
-      "Profile": "",
-      "SsoSessionName": "",
-      "AccessKeyId": "",
-      "SecretAccessKey": "",
-      "SessionToken": ""
-    }
-  },
-  "Client": {
-    "DefaultServerUrl": "wss://localhost:5001/battlehub",
-    "ConnectionTimeout": 30000
   }
 }
 ```

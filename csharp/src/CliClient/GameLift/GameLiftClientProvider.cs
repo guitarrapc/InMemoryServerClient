@@ -173,7 +173,7 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
                 Location = location,
                 Status = c.ComputeStatus.Value,
                 DnsName = c.DnsName,
-                ConnectionEndpoint = CreateEndpoint(c.DnsName, 5001)
+                ConnectionEndpoint = CreateEndpoint(c.DnsName, Random.Shared.Next(5000, 5001))
             })
             .ToList();
 
@@ -195,7 +195,9 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
             throw new InvalidOperationException("Invalid IP address or port for GameLift Anywhere endpoint");
         }
 
-        var endpoint = $"{address}:{port}";
+        var scheme = port == 443 ? "https" : "http";
+
+        var endpoint = $"{scheme}://{address}:{port}";
         return endpoint;
     }
 

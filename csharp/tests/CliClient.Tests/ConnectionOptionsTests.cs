@@ -22,7 +22,7 @@ public class ConnectionOptionsTests
         // Arrange
         var options = new ConnectionOptions
         {
-            ServerUrl = "https://localhost:5001",
+            ServerUrl = "http://localhost:5000",
             GroupName = "test-group"
         };
 
@@ -30,13 +30,13 @@ public class ConnectionOptionsTests
         var toString = options.ToString();
 
         // Assert
-        Assert.Contains("https://localhost:5001", toString);
+        Assert.Contains("http://localhost:5000", toString);
         Assert.Contains("test-group", toString);
     }
 
     [Theory]
-    [InlineData("https://localhost:5001", "group1")]
-    [InlineData("https://example.com", "group2")]
+    [InlineData("http://localhost:5000", "group1")]
+    [InlineData("http://example.com", "group2")]
     [InlineData("http://127.0.0.1:8080", null)]
     public void ConnectionOptions_WithVariousValues_WorksCorrectly(string serverUrl, string? groupName)
     {

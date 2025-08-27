@@ -35,7 +35,7 @@ _logger.LogBattleInfo(svc => svc.FormatConfirmingConnection());
 ### 単一引数のメッセージ
 ```csharp
 // string引数
-_logger.LogBattleInfo(svc => svc.FormatConnecting("https://localhost:5001"));
+_logger.LogBattleInfo(svc => svc.FormatConnecting("http://localhost:5000"));
 _logger.LogBattleInfo(svc => svc.FormatActionLog("Player attacked Enemy"));
 
 // bool引数

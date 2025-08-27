@@ -60,14 +60,14 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                         break;
 
                     case "connect":
-                        var url = args.Length > 1 ? args[1] : "https://localhost:5001";
+                        var url = args.Length > 1 ? args[1] : "http://localhost:5000";
                         var group = args.Length > 2 ? args[2] : "battle-group";
                         var connectionType = Enum.Parse<ConnectionType>(args.Length > 3 ? args[3] : "SignalR");
                         await ConnectAsync(url, group, connectionType);
                         break;
 
                     case "connect-battle":
-                        var battleUrl = args.Length > 1 ? args[1] : "https://localhost:5001";
+                        var battleUrl = args.Length > 1 ? args[1] : "http://localhost:5000";
                         var battleGroup = args.Length > 2 ? args[2] : "battle-group";
                         var count = args.Length > 3 && int.TryParse(args[3], out var c) ? c : 5;
                         var battleConnectionType = Enum.Parse<ConnectionType>(args.Length > 4 ? args[4] : "SignalR");
@@ -205,11 +205,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name (optional)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
-    private async Task ConnectAsync(
-        string url = "https://localhost:5001",
-        string group = "battle-group",
-        ConnectionType connectionType = ConnectionType.SignalR,
-        CancellationToken cancellationToken = default)
+    private async Task ConnectAsync(string url = "http://localhost:5000", string group = "battle-group", ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -810,13 +806,13 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("connect-battle")]
-    public async Task ConnectMultipleAsync(string url = "https://localhost:5001", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
+    public async Task ConnectMultipleAsync(string url = "http://localhost:5000", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
         cancellationToken.Register(() => logger.LogInformation("Ctrl+C Pressed. Cancelling proceeding executions."));
 
-        if (count <= 0 || count > 10)
+        if (count <= 0 || count > 5)
         {
-            logger.LogError("接続数は1から10の間で指定してください");
+            logger.LogError("接続数は1から5の間で指定してください");
             Environment.ExitCode = 1;
             return;
         }
@@ -888,7 +884,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         string seed,
         int count = 5,
         string groupName = "test-group",
-        string serverUrl = "https://localhost:5001",
+        string serverUrl = "http://localhost:5000",
         ConnectionType connectionType = ConnectionType.SignalR,
         CancellationToken cancellationToken = default)
     {
@@ -1130,12 +1126,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
         // Resolve server endpoint through GameLift
         var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync(fleetId, location, cancellationToken);
-        var fullEndpoint = connectionType switch
-        {
-            ConnectionType.SignalR => $"wss://{endpoint}",
-            ConnectionType.MagicOnion => $"https://{endpoint}",
-            _ => throw new ArgumentException($"Unsupported connection type: {connectionType}")
-        };
         logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
 
         // Create group name from GameLift
@@ -1144,7 +1134,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
         logger.LogInformation("Group name: {GroupName}", groupName);
 
-        if (await multiClientManager.ConnectMultipleAsync(count, fullEndpoint, cancellationToken, groupName, connectionType))
+        if (await multiClientManager.ConnectMultipleAsync(count, endpoint, cancellationToken, groupName, connectionType))
         {
             logger.LogInformation("Successfully connected {Count} clients via GameLift", count);
             logger.LogInformation("Waiting for battle to complete...");
@@ -1163,7 +1153,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     {
         Console.WriteLine("""
         Available commands:
-          connect [url] [group]  - Connect to server (default: https://localhost:5001)
+          connect [url] [group]  - Connect to server (default: http://localhost:5000)
           connect-battle [url] [group] [count] [connectionType] - Connect multiple sessions (default: 5) to start a battle (use: SignalR or MagicOnion)
           disconnect             - Disconnect from server
           status                 - Show connection status

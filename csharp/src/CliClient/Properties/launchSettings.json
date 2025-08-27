@@ -2,26 +2,19 @@
   "profiles": {
     "CliClient - Http/1": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 1 -t SignalR"
+      "commandLineArgs": "connect-battle -u http://localhost:5000 -g battle-group -c 1 -t SignalR"
     },
     "CliClient - Http/1 (5)": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 5 -t SignalR"
+      "commandLineArgs": "connect-battle -u http://localhost:5000 -g battle-group -c 5 -t SignalR"
     },
     "CliClient - Http/2": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 1 -t MagicOnion"
+      "commandLineArgs": "connect-battle -u http://localhost:5001 -g battle-group -c 1 -t MagicOnion"
     },
     "CliClient - Http/2 (5)": {
       "commandName": "Project",
-      "commandLineArgs": "connect-battle -u https://localhost:5001 -g battle-group -c 5 -t MagicOnion"
-    },
-    "CliClient - Http/1 GameLift": {
-      "commandName": "Project",
-      "commandLineArgs": "gamelift-connect-battle -m Anywhere -f <FLEETID> -l custom-localhost -g battle-group -t SignalR -c 1",
-      "environmentVariables": {
-        "AWS_PROFILE": "PROFILE"
-      }
+      "commandLineArgs": "connect-battle -u http://localhost:5001 -g battle-group -c 5 -t MagicOnion"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker"

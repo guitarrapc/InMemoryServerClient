@@ -403,7 +403,7 @@ internal sealed class GameLiftAnywhereHostedService(
                     logger.LogDebug("Health check - Active GameSessions: {Active}/{Max}", stats.Active, o.Anywhere.MaxConcurrentGameSessions);
                     return true;
                 },
-                port: 5001, // HTTPS unified port for both SignalR (HTTP/1) and MagicOnion (HTTP/2)
+                port: Random.Shared.Next(5000, 5001),
                 logParameters: new LogParameters([])
             );
 

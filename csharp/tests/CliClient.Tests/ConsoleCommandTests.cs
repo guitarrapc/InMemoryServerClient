@@ -1,7 +1,4 @@
 ﻿using CliClient.Clients;
-using CliClient.GameLift;
-using NSubstitute;
-using Shared.Contracts;
 
 namespace CliClient.Tests;
 
@@ -15,23 +12,19 @@ public class ConsoleCommandTests : IDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly MultiBattleClientManager _multiClientManager;
     private readonly ILogger<ConsoleCommand> _logger;
-    private readonly IGameLiftClientProvider _gameLiftClientProvider;
-    private readonly ConsoleCommand _consoleCommand;
 
     public ConsoleCommandTests()
     {
         _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _multiClientManager = new MultiBattleClientManager(_loggerFactory);
         _logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        _gameLiftClientProvider = Substitute.For<IGameLiftClientProvider>();
-        _consoleCommand = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger, _gameLiftClientProvider);
     }
 
     [Fact]
     public void Constructor_WithValidParameters_CreatesInstance()
     {
         // Act
-        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger, _gameLiftClientProvider);
+        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger);
 
         // Assert
         Assert.NotNull(command);
@@ -42,7 +35,7 @@ public class ConsoleCommandTests : IDisposable
     {
         // Note: The actual implementation does not perform null checks in constructor
         // Null reference exceptions will be thrown during actual usage
-        var command = new ConsoleCommand(null!, _loggerFactory, _logger, _gameLiftClientProvider);
+        var command = new ConsoleCommand(null!, _loggerFactory, _logger);
         Assert.NotNull(command);
     }
 
@@ -50,7 +43,7 @@ public class ConsoleCommandTests : IDisposable
     public void Constructor_WithNullLoggerFactory_DoesNotThrowInConstructor()
     {
         // Note: The actual implementation does not perform null checks in constructor
-        var command = new ConsoleCommand(_multiClientManager, null!, _logger, _gameLiftClientProvider);
+        var command = new ConsoleCommand(_multiClientManager, null!, _logger);
         Assert.NotNull(command);
     }
 
@@ -58,7 +51,7 @@ public class ConsoleCommandTests : IDisposable
     public void Constructor_WithNullLogger_DoesNotThrowInConstructor()
     {
         // Note: The actual implementation does not perform null checks in constructor
-        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, null!, _gameLiftClientProvider);
+        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger);
         Assert.NotNull(command);
     }
 
@@ -66,7 +59,7 @@ public class ConsoleCommandTests : IDisposable
     public void Constructor_WithNullGameLiftClientProvider_DoesNotThrowInConstructor()
     {
         // Note: The actual implementation does not perform null checks in constructor
-        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger, null!);
+        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger);
         Assert.NotNull(command);
     }
 

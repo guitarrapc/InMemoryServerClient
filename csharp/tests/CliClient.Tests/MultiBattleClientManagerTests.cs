@@ -43,7 +43,7 @@ public class MultiBattleClientManagerTests : IDisposable
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await _manager.ConnectMultipleAsync(clientCount, "https://localhost:5001", cts.Token, "test-group");
+        var result = await _manager.ConnectMultipleAsync(clientCount, "http://localhost:5000", cts.Token, "test-group");
 
         // Assert
         Assert.False(result);
@@ -58,7 +58,7 @@ public class MultiBattleClientManagerTests : IDisposable
 
         // Arrange
         const int clientCount = 1;
-        const string serverUrl = "https://localhost:5001";
+        const string serverUrl = "http://localhost:5000";
         const string groupName = "test-group";
         using var cts = new CancellationTokenSource();
 
@@ -75,7 +75,7 @@ public class MultiBattleClientManagerTests : IDisposable
     public async Task ReproduceBattleAsync_WithValidParameters_HasCorrectSignature()
     {
         // Arrange
-        const string serverUrl = "https://localhost:5001";
+        const string serverUrl = "http://localhost:5000";
         const string seed = "12345";
         using var cts = new CancellationTokenSource();
 
@@ -96,7 +96,7 @@ public class MultiBattleClientManagerTests : IDisposable
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await _manager.ReproduceBattleAsync("https://localhost:5001", seed!, ConnectionType.SignalR, cts.Token);
+        var result = await _manager.ReproduceBattleAsync("http://localhost:5000", seed!, ConnectionType.SignalR, cts.Token);
 
         // Assert
         Assert.False(result); // Expected to fail
@@ -125,7 +125,7 @@ public class MultiBattleClientManagerTests : IDisposable
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await _manager.ConnectMultipleAsync(1, "https://localhost:5001", cts.Token, "test", connectionType);
+        var result = await _manager.ConnectMultipleAsync(1, "http://localhost:5000", cts.Token, "test", connectionType);
 
         // Assert
         Assert.False(result); // Expected to fail without running server, but method should accept the parameter
@@ -154,7 +154,7 @@ public class MultiBattleClientManagerTests : IDisposable
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await _manager.ConnectMultipleAsync(clientCount, "https://localhost:5001", cts.Token, "test-group", ConnectionType.SignalR);
+        var result = await _manager.ConnectMultipleAsync(clientCount, "http://localhost:5000", cts.Token, "test-group", ConnectionType.SignalR);
 
         // Assert
         Assert.False(result); // Expected to fail without running server

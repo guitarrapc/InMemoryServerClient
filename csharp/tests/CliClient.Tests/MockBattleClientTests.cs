@@ -1,7 +1,4 @@
 ﻿using CliClient.Clients;
-using CliClient.GameLift;
-using NSubstitute;
-using Shared.Contracts;
 
 namespace CliClient.Tests;
 
@@ -34,11 +31,11 @@ public class MockBattleClientTests
     {
         // Arrange
         var mockClient = Substitute.For<IBattleClient>();
-        mockClient.ConnectAsync("https://localhost:5001", "test-group").Returns(true);
+        mockClient.ConnectAsync("http://localhost:5000", "test-group").Returns(true);
         mockClient.IsConnected.Returns(true);
 
         // Act
-        var result = await mockClient.ConnectAsync("https://localhost:5001", "test-group");
+        var result = await mockClient.ConnectAsync("http://localhost:5000", "test-group");
 
         // Assert
         Assert.True(result);
@@ -155,8 +152,7 @@ public class MockBattleClientTests
 
         var manager = new MultiBattleClientManager(_loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var gameLiftClientProvider = Substitute.For<IGameLiftClientProvider>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger, gameLiftClientProvider);
+        var command = new ConsoleCommand(manager, _loggerFactory, logger);
 
         // Act & Assert - Verify mock setup
         var value = await mockClient.GetAsync("test-key");
@@ -172,11 +168,11 @@ public class MockBattleClientTests
 
         // Act
         _ = mockClient.IsConnected;
-        mockClient.ConnectAsync("https://localhost:5001", "test");
+        mockClient.ConnectAsync("http://localhost:5000", "test");
 
         // Assert - Verify calls were made
         _ = mockClient.Received(1).IsConnected;
-        mockClient.Received(1).ConnectAsync("https://localhost:5001", "test");
+        mockClient.Received(1).ConnectAsync("http://localhost:5000", "test");
     }
 
     [Fact]
@@ -189,7 +185,7 @@ public class MockBattleClientTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            mockClient.ConnectAsync("https://localhost:5001", "test"));
+            mockClient.ConnectAsync("http://localhost:5000", "test"));
     }
 
     [Theory]

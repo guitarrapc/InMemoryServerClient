@@ -56,10 +56,9 @@ public class ClientIntegrationTests : IDisposable
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var gameLiftClientProvider = Substitute.For<IGameLiftClientProvider>();
 
         // Act
-        var command = new ConsoleCommand(manager, _loggerFactory, logger, gameLiftClientProvider);
+        var command = new ConsoleCommand(manager, _loggerFactory, logger);
 
         // Assert
         Assert.NotNull(command);
@@ -262,8 +261,7 @@ public class ClientIntegrationTests : IDisposable
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var gameLiftClientProvider = Substitute.For<IGameLiftClientProvider>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger, gameLiftClientProvider);
+        var command = new ConsoleCommand(manager, _loggerFactory, logger);
 
         // Act & Assert - The command object should be created successfully
         Assert.NotNull(command);
@@ -279,7 +277,7 @@ public class ClientIntegrationTests : IDisposable
         // Arrange
         var options = new ConnectionOptions
         {
-            ServerUrl = "https://localhost:5001",
+            ServerUrl = "http://localhost:5000",
             GroupName = "test-group"
         };
         using var cts = new CancellationTokenSource();
@@ -289,7 +287,7 @@ public class ClientIntegrationTests : IDisposable
 
         // Assert
         Assert.NotNull(client);
-        Assert.Equal("https://localhost:5001", options.ServerUrl);
+        Assert.Equal("http://localhost:5000", options.ServerUrl);
         Assert.Equal("test-group", options.GroupName);
     }
 
@@ -301,7 +299,7 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         using var cts = new CancellationTokenSource();
-        const string serverUrl = "https://localhost:5001";
+        const string serverUrl = "http://localhost:5000";
         var isServerAvailable = await IntegrationTestHelpers.IsServerAvailableAsync(serverUrl);
 
         if (!isServerAvailable)
@@ -340,7 +338,7 @@ public class ClientIntegrationTests : IDisposable
     public async Task BattleReplay_Integration_WithExternalServer()
     {
         // Arrange
-        const string serverUrl = "https://localhost:5001";
+        const string serverUrl = "http://localhost:5000";
         const string groupName = "integration-test-group";
         using var cts = new CancellationTokenSource();
 

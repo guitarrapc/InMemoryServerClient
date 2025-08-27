@@ -24,11 +24,6 @@ public class GameLiftOptions
     /// AWS configuration
     /// </summary>
     public AWSOptions AWS { get; set; } = new();
-
-    /// <summary>
-    /// Client-specific configuration
-    /// </summary>
-    public ClientOptions Client { get; set; } = new();
 }
 
 /// <summary>
@@ -180,24 +175,8 @@ public class AWSOptions
     /// </summary>
     public string SecretAccessKey { get; set; } = string.Empty;
 
-/// <summary>
-/// AWS Session Token (for STS token usage)
-/// </summary>
-public string SessionToken { get; set; } = string.Empty;
-}
-
-/// <summary>
-/// Client-specific configuration options
-/// </summary>
-public class ClientOptions
-{
     /// <summary>
-    /// Default server URL for direct connections
+    /// AWS Session Token (for STS token usage)
     /// </summary>
-    public string DefaultServerUrl { get; set; } = "wss://localhost:5001/battlehub";
-
-    /// <summary>
-    /// Connection timeout in milliseconds
-    /// </summary>
-    public int ConnectionTimeout { get; set; } = 30000;
+    public string SessionToken { get; set; } = string.Empty;
 }
