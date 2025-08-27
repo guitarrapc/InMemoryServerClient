@@ -1,4 +1,4 @@
-using Shared.GameLift;
+﻿using Shared.GameLift;
 
 namespace Shared.Contracts;
 
@@ -11,8 +11,10 @@ public interface IGameLiftClientProvider
     /// Resolve server endpoint for connection
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="location">Location to search</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Server endpoint URL</returns>
-    Task<string> ResolveServerEndpointAsync(CancellationToken cancellationToken = default);
+    Task<string> ResolveServerEndpointAsync(string fleetId, string location, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Search for available game servers
@@ -27,9 +29,10 @@ public interface IGameLiftClientProvider
     /// Create a new game session
     /// </summary>
     /// <param name="request">Game session creation request</param>
+    /// <param name="location">Location to search</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Game session creation response</returns>
-    Task<CreateGameSessionResponse> CreateGameSessionAsync(CreateGameSessionRequest request, CancellationToken cancellationToken = default);
+    Task<CreateGameSessionResponse> CreateGameSessionAsync(Shared.GameLift.CreateGameSessionRequest request, string location, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Search for existing game sessions

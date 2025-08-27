@@ -8,7 +8,7 @@ public class GameLiftOptions
     /// <summary>
     /// GameLift operation mode
     /// </summary>
-    public GameLiftMode Mode { get; set; } = GameLiftMode.Direct;
+    public GameLiftMode Mode { get; set; } = GameLiftMode.None;
 
     /// <summary>
     /// GameLift Anywhere specific configuration
@@ -37,10 +37,9 @@ public class GameLiftOptions
 public enum GameLiftMode
 {
     /// <summary>
-    /// Direct connection without GameLift
+    /// Not a GameLift
     /// </summary>
-    Direct,
-
+    None,
     /// <summary>
     /// GameLift Fleet Anywhere
     /// </summary>

@@ -60,7 +60,7 @@ public class GameSessionInfo
     public string Status { get; init; } = string.Empty;
     public int CurrentPlayerCount { get; init; }
     public int MaxPlayers { get; init; }
-    public string? IpAddress { get; init; }
+    public string? Address { get; init; }
     public int Port { get; init; }
     public string? GameSessionData { get; init; }
     public DateTime CreationTime { get; init; }
@@ -80,13 +80,13 @@ public class GameServerInfo
     public string FleetId { get; init; } = string.Empty;
     public string Location { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
-    public string? IpAddress { get; init; }
+    public string? DnsName { get; init; }
     public string ConnectionEndpoint { get; init; } = string.Empty;
 
     /// <summary>
     /// Empty game server info
     /// </summary>
-    public static readonly GameServerInfo Empty = new();
+    public static GameServerInfo Empty { get; } = new();
 }
 
 /// <summary>
@@ -102,13 +102,13 @@ public class CreateGameSessionRequest
     /// <summary>
     /// Default request for this game (5 players, auto-battle)
     /// </summary>
-    public static CreateGameSessionRequest ForAutoBattle(string fleetId, string creatorId = "auto-client") =>
+    public static CreateGameSessionRequest ForAutoBattle(string fleetId, string creatorId) =>
         new()
         {
             FleetId = fleetId,
             Name = $"AutoBattle-{creatorId}-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
             MaxPlayers = 5,
-            GameSessionData = "auto-battle"
+            GameSessionData = "auto-battle",
         };
 }
 
@@ -118,20 +118,20 @@ public class CreateGameSessionRequest
 public class CreateGameSessionResponse
 {
     public GameSessionInfo GameSession { get; init; } = GameSessionInfo.Empty;
-    public bool Success { get; init; }
+    public bool IsSuccess { get; init; }
     public string ErrorMessage { get; init; } = string.Empty;
 
     /// <summary>
     /// Failed response
     /// </summary>
     public static CreateGameSessionResponse Failed(string errorMessage) =>
-        new() { Success = false, ErrorMessage = errorMessage };
+        new() { IsSuccess = false, ErrorMessage = errorMessage };
 
     /// <summary>
     /// Successful response
     /// </summary>
-    public static CreateGameSessionResponse CreateSuccessful(GameSessionInfo gameSession) =>
-        new() { GameSession = gameSession, Success = true };
+    public static CreateGameSessionResponse Success(GameSessionInfo gameSession) =>
+        new() { GameSession = gameSession, IsSuccess = true };
 }
 
 /// <summary>

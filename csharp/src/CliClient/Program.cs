@@ -1,10 +1,8 @@
 ﻿using CliClient;
 using CliClient.Clients;
-using CliClient.GameLift;
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Shared.GameLift;
 
 // Create ConsoleApp with dependency injection
 var app = ConsoleApp.Create()
@@ -26,12 +24,6 @@ var app = ConsoleApp.Create()
     })
     .ConfigureServices((configuration, services) =>
     {
-        // Configure GameLift options
-        services.Configure<GameLiftOptions>(configuration.GetSection("GameLift"));
-
-        // Configure GameLift client services
-        services.ConfigureGameLiftClientServices();
-
         services.AddSingleton<MultiBattleClientManager>();
     });
 

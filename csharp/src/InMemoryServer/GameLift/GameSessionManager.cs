@@ -1,6 +1,5 @@
 ﻿using Aws.GameLift.Server.Model;
 using BattleLogic.Battle;
-using InMemoryServer.Services;
 using Microsoft.Extensions.Options;
 using Shared.GameLift;
 using Shared.Models;
@@ -52,11 +51,7 @@ public sealed class GameSessionManager(
         var activeCount = _activeSessions.Values.Count(s => !s.IsCompleted);
         var canAccept = activeCount < o.Anywhere.MaxConcurrentGameSessions;
 
-        logger.LogDebug(
-            "GameSession capacity check: {ActiveSessions}/{MaxSessions}, CanAccept: {CanAccept}",
-            activeCount,
-            o.Anywhere.MaxConcurrentGameSessions,
-            canAccept);
+        logger.LogDebug("GameSession capacity check: {ActiveSessions}/{MaxSessions}, CanAccept: {CanAccept}", activeCount, o.Anywhere.MaxConcurrentGameSessions, canAccept);
 
         return canAccept;
     }
@@ -73,11 +68,7 @@ public sealed class GameSessionManager(
             // Check capacity before starting
             if (!CanAcceptNewGameSession())
             {
-                logger.LogWarning(
-                    "Cannot accept GameSession {GameSessionId}: Server at capacity ({Active}/{Max})",
-                    gameSession.GameSessionId,
-                    _activeSessions.Values.Count(s => !s.IsCompleted),
-                    o.Anywhere.MaxConcurrentGameSessions);
+                logger.LogWarning("Cannot accept GameSession {GameSessionId}: Server at capacity ({Active}/{Max})", gameSession.GameSessionId, _activeSessions.Values.Count(s => !s.IsCompleted), o.Anywhere.MaxConcurrentGameSessions);
                 return false;
             }
 
@@ -91,17 +82,12 @@ public sealed class GameSessionManager(
             {
                 GameSessionId = gameSession.GameSessionId,
                 GroupId = groupId,
-                RequiredPlayers = 5
+                RequiredPlayers = 5,
             };
 
             _activeSessions[gameSession.GameSessionId] = sessionInfo;
 
-            logger.LogInformation(
-                "GameSession {GameSessionId} prepared and waiting for {RequiredPlayers} players to connect. Active sessions: {ActiveCount}/{MaxCount}",
-                gameSession.GameSessionId,
-                sessionInfo.RequiredPlayers,
-                _activeSessions.Values.Count(s => !s.IsCompleted),
-                o.Anywhere.MaxConcurrentGameSessions);
+            logger.LogInformation("GameSession {GameSessionId} prepared and waiting for {RequiredPlayers} players to connect. Active sessions: {ActiveCount}/{MaxCount}", gameSession.GameSessionId, sessionInfo.RequiredPlayers, _activeSessions.Values.Count(s => !s.IsCompleted), o.Anywhere.MaxConcurrentGameSessions);
 
             return true;
         }
@@ -131,8 +117,7 @@ public sealed class GameSessionManager(
 
         if (connected)
         {
-            logger.LogDebug("GameLift Anywhere: Notified GameSessionManager about client {ConnectionId} connection to GameSession {GameSessionId}",
-                connectionId, gameSessionId);
+            logger.LogDebug("GameLift Anywhere: Notified GameSessionManager about client {ConnectionId} connection to GameSession {GameSessionId}", connectionId, gameSessionId);
         }
 
         return true;
@@ -155,8 +140,7 @@ public sealed class GameSessionManager(
         var gameSessionId = ExtractGameSessionIdFromGroup(groupId);
         await OnPlayerDisconnectedAsync(gameSessionId, connectionId);
 
-        logger.LogDebug("GameLift Anywhere: Notified GameSessionManager about client {ConnectionId} disconnection from GameSession {GameSessionId}",
-            connectionId, gameSessionId);
+        logger.LogDebug("GameLift Anywhere: Notified GameSessionManager about client {ConnectionId} disconnection from GameSession {GameSessionId}", connectionId, gameSessionId);
 
         return true;
     }
@@ -220,8 +204,7 @@ public sealed class GameSessionManager(
         // Check if we have enough players to start the battle
         if (sessionInfo.CanStartBattle)
         {
-            logger.LogInformation("GameSession {GameSessionId} has enough players ({Count}/{Required}). Starting battle...",
-                gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
+            logger.LogInformation("GameSession {GameSessionId} has enough players ({Count}/{Required}). Starting battle...", gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
 
             await StartBattleForGameSessionAsync(sessionInfo);
         }
@@ -276,7 +259,7 @@ public sealed class GameSessionManager(
                 ConnectionCount = sessionInfo.ConnectedClients.Count,
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddHours(2),
-                ClientIds = new List<string>(sessionInfo.ConnectedClients)
+                ClientIds = new List<string>(sessionInfo.ConnectedClients),
             };
 
             sessionInfo.GroupInfo = groupInfo;

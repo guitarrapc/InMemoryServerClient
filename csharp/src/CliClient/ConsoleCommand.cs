@@ -1,4 +1,5 @@
 ﻿using CliClient.Clients;
+using CliClient.GameLift;
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Shared.Contracts;
@@ -21,7 +22,7 @@ internal readonly record struct ConnectionOptions
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger, IGameLiftClientProvider gameLiftClientProvider)
+public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
 {
     private IBattleClient? _client;
 
@@ -1008,18 +1009,16 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     }
 
     /// <summary>Search for available GameLift game servers</summary>
+    /// <param name="mode">-m, GameLift Mode to use</param>
     /// <param name="fleetId">-f, Fleet ID to search</param>
     /// <param name="location">-l, Location to search (optional)</param>
     [Command("gamelift-list-servers")]
-    public async Task GameLiftSearchServersAsync(string? fleetId = null, string? location = null)
+    public async Task GameLiftSearchServersAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost")
     {
         try
         {
-            fleetId ??= "default-fleet";
-            location ??= "us-west-2";
-
             logger.LogInformation("Searching for GameLift servers in fleet: {FleetId}, location: {Location}", fleetId, location);
-
+            var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
             var servers = await gameLiftClientProvider.SearchGameServersAsync(fleetId, location);
 
             if (servers.Count == 0)
@@ -1031,8 +1030,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             logger.LogInformation("Found {Count} game servers:", servers.Count);
             foreach (var server in servers)
             {
-                logger.LogInformation("  Server: {ServerId}, Status: {Status}, Endpoint: {Endpoint}",
-                    server.ServerId, server.Status, server.ConnectionEndpoint);
+                logger.LogInformation("  Server: {ServerId}, Status: {Status}, Endpoint: {Endpoint}", server.ServerId, server.Status, server.ConnectionEndpoint);
             }
         }
         catch (Exception ex)
@@ -1043,140 +1041,120 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     }
 
     /// <summary>Create a new GameLift game session</summary>
+    /// <param name="mode">-m, GameLift Mode to use</param>
     /// <param name="fleetId">-f, Fleet ID</param>
+    /// <param name="location">-l, Location to search (optional)</param>
     /// <param name="name">-n, Session name</param>
-    /// <param name="maxPlayers">-m, Maximum players (default: 5)</param>
+    /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     [Command("gamelift-create-session")]
-    public async Task GameLiftCreateSessionAsync(string? fleetId = null, string? name = null, int maxPlayers = 5)
+    public async Task GameLiftCreateSessionAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost", string? name = null, int count = 5)
     {
-        try
+        name ??= $"battle-session-{DateTime.Now:yyyyMMdd-HHmmss}";
+        var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
+
+        logger.LogInformation("Creating GameLift session: {Name} in fleet: {FleetId}", name, fleetId);
+        var response = await gameLiftClientProvider.CreateGameSessionAsync(new CreateGameSessionRequest
         {
-            fleetId ??= "default-fleet";
-            name ??= $"battle-session-{DateTime.Now:yyyyMMdd-HHmmss}";
+            FleetId = fleetId,
+            Name = name,
+            MaxPlayers = count,
+            GameSessionData = "auto-battle"
+        }, location);
 
-            logger.LogInformation("Creating GameLift session: {Name} in fleet: {FleetId}", name, fleetId);
-
-            var request = new CreateGameSessionRequest
-            {
-                FleetId = fleetId,
-                Name = name,
-                MaxPlayers = maxPlayers,
-                GameSessionData = "auto-battle"
-            };
-
-            var response = await gameLiftClientProvider.CreateGameSessionAsync(request);
-
-            if (response.Success)
-            {
-                logger.LogInformation("GameSession created successfully:");
-                logger.LogInformation("  GameSessionId: {GameSessionId}", response.GameSession.GameSessionId);
-                logger.LogInformation("  FleetId: {FleetId}", response.GameSession.FleetId);
-                logger.LogInformation("  Status: {Status}", response.GameSession.Status);
-                logger.LogInformation("  Players: {Current}/{Max}", response.GameSession.CurrentPlayerCount, response.GameSession.MaxPlayers);
-            }
-            else
-            {
-                logger.LogError("Failed to create GameSession: {Error}", response.ErrorMessage);
-                Environment.ExitCode = 1;
-            }
+        if (response.IsSuccess)
+        {
+            logger.LogInformation("GameSession created successfully:");
+            logger.LogInformation("  GameSessionId: {GameSessionId}", response.GameSession.GameSessionId);
+            logger.LogInformation("  FleetId: {FleetId}", response.GameSession.FleetId);
+            logger.LogInformation("  Status: {Status}", response.GameSession.Status);
+            logger.LogInformation("  Players: {Current}/{Max}", response.GameSession.CurrentPlayerCount, response.GameSession.MaxPlayers);
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogError(ex, "Failed to create GameLift session");
+            logger.LogError("Failed to create GameSession: {Error}", response.ErrorMessage);
             Environment.ExitCode = 1;
         }
     }
 
     /// <summary>Search for available GameLift game sessions</summary>
+    /// <param name="mode">-m, GameLift Mode to use</param>
     /// <param name="fleetId">-f, Fleet ID to search</param>
     /// <param name="location">-l, Location to search (optional)</param>
     [Command("gamelift-list-sessions")]
-    public async Task GameLiftSearchSessionsAsync(string? fleetId = null, string? location = null)
+    public async Task GameLiftSearchSessionsAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost")
     {
-        try
+        var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
+
+        logger.LogInformation("Searching for GameLift sessions in fleet: {FleetId}", fleetId);
+        var sessions = await gameLiftClientProvider.SearchGameSessionsAsync(fleetId, location);
+
+        if (sessions.Count == 0)
         {
-            fleetId ??= "default-fleet";
-
-            logger.LogInformation("Searching for GameLift sessions in fleet: {FleetId}", fleetId);
-            if (!string.IsNullOrEmpty(location))
-            {
-                logger.LogInformation("Location filter: {Location}", location);
-            }
-
-            var sessions = await gameLiftClientProvider.SearchGameSessionsAsync(fleetId, location);
-
-            if (sessions.Count == 0)
-            {
-                logger.LogInformation("No active game sessions found");
-                return;
-            }
-
-            logger.LogInformation("Found {Count} active game sessions:", sessions.Count);
-            foreach (var session in sessions)
-            {
-                logger.LogInformation("  SessionId: {SessionId}", session.GameSessionId);
-                logger.LogInformation("  Name: {Name}", session.Name);
-                logger.LogInformation("  Status: {Status}", session.Status);
-                logger.LogInformation("  Players: {Current}/{Max}", session.CurrentPlayerCount, session.MaxPlayers);
-                logger.LogInformation("  Created: {CreationTime}", session.CreationTime);
-                logger.LogInformation("  ---");
-            }
+            logger.LogInformation("No active game sessions found");
+            return;
         }
-        catch (Exception ex)
+
+        logger.LogInformation("Found {Count} active game sessions:", sessions.Count);
+        foreach (var session in sessions)
         {
-            logger.LogError(ex, "Failed to search GameLift sessions");
-            Environment.ExitCode = 1;
+            logger.LogInformation("  SessionId: {SessionId}", session.GameSessionId);
+            logger.LogInformation("  Name: {Name}", session.Name);
+            logger.LogInformation("  Status: {Status}", session.Status);
+            logger.LogInformation("  Players: {Current}/{Max}", session.CurrentPlayerCount, session.MaxPlayers);
+            logger.LogInformation("  Created: {CreationTime}", session.CreationTime);
+            logger.LogInformation("  ---");
         }
     }
 
     /// <summary>Connect to GameLift server and start battle</summary>
-    /// <param name="fleetId">-f, Fleet ID (optional, uses config if not specified)</param>
-    /// <param name="location">-l, Location (optional)</param>
+    /// <param name="mode">-m, GameLift Mode to use</param>
+    /// <param name="fleetId">-f, Fleet ID</param>
+    /// <param name="location">-l, Location to search (optional)</param>
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("gamelift-connect-battle")]
-    public async Task GameLiftConnectMultipleAsync(string? fleetId = null, string? location = null, string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
+    public async Task GameLiftConnectMultipleAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
-        if (count <= 0 || count > 10)
+        if (count <= 0 || count > 5)
         {
-            logger.LogError("接続数は1から10の間で指定してください");
+            logger.LogError("接続数は1から5の間で指定してください");
             Environment.ExitCode = 1;
             return;
         }
 
-        try
+        var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
+
+        logger.LogInformation("Connecting to GameLift server for battle...");
+
+        // Resolve server endpoint through GameLift
+        var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync(fleetId, location, cancellationToken);
+        var fullEndpoint = connectionType switch
         {
-            logger.LogInformation("Connecting to GameLift server for battle...");
+            ConnectionType.SignalR => $"wss://{endpoint}",
+            ConnectionType.MagicOnion => $"https://{endpoint}",
+            _ => throw new ArgumentException($"Unsupported connection type: {connectionType}")
+        };
+        logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
 
-            // Resolve server endpoint through GameLift
-            var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync();
-            logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
+        // Create group name from GameLift
+        var groupName = $"gamelift-{group}";
 
-            // Create group name from GameLift
-            var groupName = $"gamelift-{group}";
+        logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
+        logger.LogInformation("Group name: {GroupName}", groupName);
 
-            logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
-            logger.LogInformation("Group name: {GroupName}", groupName);
+        if (await multiClientManager.ConnectMultipleAsync(count, fullEndpoint, cancellationToken, groupName, connectionType))
+        {
+            logger.LogInformation("Successfully connected {Count} clients via GameLift", count);
+            logger.LogInformation("Waiting for battle to complete...");
 
-            if (await multiClientManager.ConnectMultipleAsync(count, endpoint, cancellationToken, groupName, connectionType))
-            {
-                logger.LogInformation("Successfully connected {Count} clients via GameLift", count);
-                logger.LogInformation("Waiting for battle to complete...");
-
-                await multiClientManager.WaitForBattleCompletionAsync();
-                logger.LogInformation("GameLift battle completed successfully!");
-            }
-            else
-            {
-                logger.LogError("Failed to connect clients to GameLift server");
-                Environment.ExitCode = 1;
-            }
+            await multiClientManager.WaitForBattleCompletionAsync();
+            logger.LogInformation("GameLift battle completed successfully!");
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogError(ex, "Failed to connect to GameLift battle");
+            logger.LogError("Failed to connect clients to GameLift server");
             Environment.ExitCode = 1;
         }
     }

@@ -1,7 +1,6 @@
 ﻿using Amazon.GameLift;
 using Amazon.GameLift.Model;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Shared.Contracts;
 using Shared.GameLift;
 
@@ -13,295 +12,195 @@ namespace CliClient.GameLift;
 internal class GameLiftClientProvider : IGameLiftClientProvider
 {
     private readonly ILogger<GameLiftClientProvider> _logger;
-    private readonly GameLiftOptions _options;
-    private IAmazonGameLift? _gameLiftClient;
+    private readonly GameLiftMode _mode;
+    private readonly IAmazonGameLift _gameLiftClient;
 
-    public GameLiftClientProvider(
-        ILogger<GameLiftClientProvider> logger,
-        IOptions<GameLiftOptions> options)
+    public GameLiftClientProvider(GameLiftMode mode, ILoggerFactory loggerFactory)
     {
-        _logger = logger;
-        _options = options.Value;
-    }
-
-    /// <summary>
-    /// Get or create GameLift client if needed
-    /// </summary>
-    private IAmazonGameLift? GetGameLiftClient()
-    {
-        // Return null for Direct mode
-        if (_options.Mode == GameLiftMode.Direct)
-        {
-            return null;
-        }
-
-        // Create client if not already created
-        if (_gameLiftClient == null)
-        {
-            _gameLiftClient = CreateGameLiftClient();
-        }
-
-        return _gameLiftClient;
+        if (mode == GameLiftMode.None)
+            throw new NotSupportedException($"Not supported exception. GameLift Mode {mode} means, it won't use GameLift Client.");
+        _logger = loggerFactory.CreateLogger<GameLiftClientProvider>();
+        _mode = mode;
+        _gameLiftClient = CreateGameLiftClient();
     }
 
     /// <summary>
     /// Create GameLift client based on configuration
     /// </summary>
-    private IAmazonGameLift? CreateGameLiftClient()
+    private IAmazonGameLift CreateGameLiftClient()
     {
-        try
+        var region = Environment.GetEnvironmentVariable("AWS_REGION");
+        var accessKeyId = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+        var secretAccessKey = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+        var sessionToken = Environment.GetEnvironmentVariable("AWS_SESSION_TOKEN");
+
+        var config = new AmazonGameLiftConfig();
+
+        if (!string.IsNullOrEmpty(region))
         {
-            var config = new AmazonGameLiftConfig();
+            config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region);
+        }
 
-            if (!string.IsNullOrEmpty(_options.AWS.Region))
+        // Use explicit credentials if provided (not recommended for production)
+        if (!string.IsNullOrEmpty(accessKeyId) && !string.IsNullOrEmpty(secretAccessKey))
+        {
+            Amazon.Runtime.AWSCredentials credentials;
+            if (!string.IsNullOrEmpty(sessionToken))
             {
-                config.RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(_options.AWS.Region);
-            }
-
-            // Use explicit credentials if provided (not recommended for production)
-            if (!string.IsNullOrEmpty(_options.AWS.AccessKeyId) && !string.IsNullOrEmpty(_options.AWS.SecretAccessKey))
-            {
-                Amazon.Runtime.AWSCredentials credentials;
-                if (!string.IsNullOrEmpty(_options.AWS.SessionToken))
-                {
-                    credentials = new Amazon.Runtime.SessionAWSCredentials(_options.AWS.AccessKeyId, _options.AWS.SecretAccessKey, _options.AWS.SessionToken);
-                }
-                else
-                {
-                    credentials = new Amazon.Runtime.BasicAWSCredentials(_options.AWS.AccessKeyId, _options.AWS.SecretAccessKey);
-                }
-
-                _logger.LogDebug("Creating GameLift client with explicit credentials");
-                return new AmazonGameLiftClient(credentials, config);
+                credentials = new Amazon.Runtime.SessionAWSCredentials(accessKeyId, secretAccessKey, sessionToken);
             }
             else
             {
-                // Use default credential chain (IAM role, environment variables, AWS Profile, etc.)
-                _logger.LogDebug("Creating GameLift client with default credential chain");
-                return new AmazonGameLiftClient(config);
+                credentials = new Amazon.Runtime.BasicAWSCredentials(accessKeyId, secretAccessKey);
             }
+
+            _logger.LogDebug("Creating GameLift client with explicit credentials");
+            return new AmazonGameLiftClient(credentials, config);
         }
-        catch (Exception ex)
+        else
         {
-            _logger.LogWarning(ex, "Failed to create GameLift client. GameLift functionality will be unavailable.");
-            return null;
+            // Use default credential chain (IAM role, environment variables, AWS Profile, etc.)
+            _logger.LogDebug("Creating GameLift client with default credential chain");
+            return new AmazonGameLiftClient(config);
         }
     }
 
-    public async Task<string> ResolveServerEndpointAsync(CancellationToken cancellationToken = default)
+    public async Task<string> ResolveServerEndpointAsync(string fleetId, string location, CancellationToken cancellationToken = default)
     {
-        if (_options.Mode == GameLiftMode.Direct)
+        return _mode switch
         {
-            var directEndpoint = _options.Client?.DefaultServerUrl ?? "wss://localhost:5001/battlehub";
-            _logger.LogInformation("Using direct connection endpoint: {Endpoint}", directEndpoint);
-            return directEndpoint;
-        }
-
-        if (_options.Mode == GameLiftMode.Anywhere)
-        {
-            return await ResolveAnywhereEndpointAsync(cancellationToken);
-        }
-
-        if (_options.Mode == GameLiftMode.FleetIQ)
-        {
-            throw new NotImplementedException("GameLift FleetIQ client support will be implemented in Phase 2");
-        }
-
-        throw new ArgumentOutOfRangeException(nameof(_options.Mode), _options.Mode, "Unknown GameLift mode");
+            GameLiftMode.Anywhere => await ResolveAnywhereEndpointAsync(fleetId, location, cancellationToken),
+            GameLiftMode.FleetIQ => throw new NotImplementedException("GameLift FleetIQ client support will be implemented in Phase 2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(_mode), _mode, "Unknown GameLift mode"),
+        };
     }
 
     public async Task<List<GameServerInfo>> SearchGameServersAsync(string fleetId, string location, CancellationToken cancellationToken = default)
     {
-        if (_options.Mode == GameLiftMode.Direct)
+        return _mode switch
         {
-            _logger.LogDebug("Direct mode - game server search not applicable");
-            return [];
-        }
-
-        if (_options.Mode == GameLiftMode.Anywhere)
-        {
-            return await SearchAnywhereGameServersAsync(fleetId, location, cancellationToken);
-        }
-
-        if (_options.Mode == GameLiftMode.FleetIQ)
-        {
-            throw new NotImplementedException("GameLift FleetIQ game server search will be implemented in Phase 2");
-        }
-
-        throw new ArgumentOutOfRangeException(nameof(_options.Mode), _options.Mode, "Unknown GameLift mode");
+            GameLiftMode.Anywhere => await SearchAnywhereGameServersAsync(fleetId, location, cancellationToken),
+            GameLiftMode.FleetIQ => throw new NotImplementedException("GameLift FleetIQ game server search will be implemented in Phase 2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(_mode), _mode, "Unknown GameLift mode"),
+        };
     }
 
-    public async Task<Shared.GameLift.CreateGameSessionResponse> CreateGameSessionAsync(Shared.GameLift.CreateGameSessionRequest request, CancellationToken cancellationToken = default)
+    public async Task<Shared.GameLift.CreateGameSessionResponse> CreateGameSessionAsync(Shared.GameLift.CreateGameSessionRequest request, string location, CancellationToken cancellationToken = default)
     {
-        if (_options.Mode == GameLiftMode.Direct)
+        return _mode switch
         {
-            _logger.LogDebug("Direct mode - GameSession creation not applicable");
-            return Shared.GameLift.CreateGameSessionResponse.Failed("Direct mode does not support GameSession creation");
-        }
-
-        if (_options.Mode == GameLiftMode.Anywhere)
-        {
-            return await CreateAnywhereGameSessionAsync(request, cancellationToken);
-        }
-
-        if (_options.Mode == GameLiftMode.FleetIQ)
-        {
-            throw new NotImplementedException("GameLift FleetIQ GameSession creation will be implemented in Phase 2");
-        }
-
-        throw new ArgumentOutOfRangeException(nameof(_options.Mode), _options.Mode, "Unknown GameLift mode");
+            GameLiftMode.Anywhere => await CreateAnywhereGameSessionAsync(request, location, cancellationToken),
+            GameLiftMode.FleetIQ => throw new NotImplementedException("GameLift FleetIQ GameSession creation will be implemented in Phase 2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(_mode), _mode, "Unknown GameLift mode"),
+        };
     }
 
     public async Task<List<GameSessionInfo>> SearchGameSessionsAsync(string fleetId, string? location = null, CancellationToken cancellationToken = default)
     {
-        if (_options.Mode == GameLiftMode.Direct)
+        return _mode switch
         {
-            _logger.LogDebug("Direct mode - GameSession search not applicable");
-            return [];
-        }
-
-        if (_options.Mode == GameLiftMode.Anywhere)
-        {
-            return await SearchAnywhereGameSessionsAsync(fleetId, location, cancellationToken);
-        }
-
-        if (_options.Mode == GameLiftMode.FleetIQ)
-        {
-            throw new NotImplementedException("GameLift FleetIQ GameSession search will be implemented in Phase 2");
-        }
-
-        throw new ArgumentOutOfRangeException(nameof(_options.Mode), _options.Mode, "Unknown GameLift mode");
+            GameLiftMode.Anywhere => await SearchAnywhereGameSessionsAsync(fleetId, location, cancellationToken),
+            GameLiftMode.FleetIQ => throw new NotImplementedException("GameLift FleetIQ GameSession search will be implemented in Phase 2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(_mode), _mode, "Unknown GameLift mode"),
+        };
     }
 
     public async Task<PlayerSessionInfo> CreatePlayerSessionAsync(string gameSessionId, string playerId, CancellationToken cancellationToken = default)
     {
-        if (_options.Mode == GameLiftMode.Direct)
+        return _mode switch
         {
-            _logger.LogDebug("Direct mode - PlayerSession creation not applicable");
-            return PlayerSessionInfo.Empty;
-        }
-
-        if (_options.Mode == GameLiftMode.Anywhere)
-        {
-            return await CreateAnywherePlayerSessionAsync(gameSessionId, playerId, cancellationToken);
-        }
-
-        if (_options.Mode == GameLiftMode.FleetIQ)
-        {
-            throw new NotImplementedException("GameLift FleetIQ PlayerSession creation will be implemented in Phase 2");
-        }
-
-        throw new ArgumentOutOfRangeException(nameof(_options.Mode), _options.Mode, "Unknown GameLift mode");
+            GameLiftMode.Anywhere => await CreateAnywherePlayerSessionAsync(gameSessionId, playerId, cancellationToken),
+            GameLiftMode.FleetIQ => throw new NotImplementedException("GameLift FleetIQ PlayerSession creation will be implemented in Phase 2"),
+            _ => throw new ArgumentOutOfRangeException(nameof(_mode), _mode, "Unknown GameLift mode"),
+        };
     }
 
-    private async Task<string> ResolveAnywhereEndpointAsync(CancellationToken cancellationToken)
+    private async Task<string> ResolveAnywhereEndpointAsync(string fleetId, string location, CancellationToken cancellationToken)
     {
-        try
+        // Try to find an active game session first
+        var gameSessions = await SearchAnywhereGameSessionsAsync(fleetId, location, cancellationToken);
+
+        // Select any active session
+        if (gameSessions.Count > 0)
         {
-            var gameLiftClient = GetGameLiftClient();
-            if (gameLiftClient == null)
-            {
-                _logger.LogWarning("GameLift client is not available for Anywhere mode, falling back to direct endpoint");
-                return _options.Client?.DefaultServerUrl ?? "wss://localhost:5001/battlehub";
-            }
+            var activeSession = gameSessions.First();
+            _logger.LogInformation("Found active GameSession: {GameSessionId}, using existing session", activeSession.GameSessionId);
 
-            _logger.LogInformation("Resolving GameLift Anywhere server endpoint for fleet: {FleetId}", _options.Anywhere.FleetId);
-
-            // Try to find an active game session first
-            var gameSessions = await SearchAnywhereGameSessionsAsync(_options.Anywhere.FleetId, _options.Anywhere.CustomLocation, cancellationToken);
-
-            if (gameSessions.Count > 0)
-            {
-                var activeSession = gameSessions.First();
-                _logger.LogInformation("Found active GameSession: {GameSessionId}, using existing session", activeSession.GameSessionId);
-
-                // For GameLift Anywhere, we connect to the server's WebSocket endpoint
-                var endpoint = _options.Client?.DefaultServerUrl ?? "wss://localhost:5001/battlehub";
-                _logger.LogInformation("Using GameLift Anywhere endpoint for existing session: {Endpoint}", endpoint);
-                return endpoint;
-            }
-
+            // For GameLift Anywhere, we connect to the server's WebSocket endpoint
+            var endpoint = CreateEndpoint(activeSession.Address, activeSession.Port);
+            _logger.LogInformation("Using GameLift Anywhere endpoint for existing session: {Endpoint}", endpoint);
+            return endpoint;
+        }
+        else
+        {
             // No active sessions found, create a new one
             _logger.LogInformation("No active GameSessions found, creating new session");
-            var createRequest = Shared.GameLift.CreateGameSessionRequest.ForAutoBattle(_options.Anywhere.FleetId, "auto-client");
-            var createResponse = await CreateAnywhereGameSessionAsync(createRequest, cancellationToken);
+            var createRequest = Shared.GameLift.CreateGameSessionRequest.ForAutoBattle(fleetId, "auto-client");
+            var createResponse = await CreateAnywhereGameSessionAsync(createRequest, location, cancellationToken);
 
-            if (!createResponse.Success)
+            if (!createResponse.IsSuccess)
             {
-                _logger.LogWarning("Failed to create GameSession: {Error}", createResponse.ErrorMessage);
                 throw new InvalidOperationException($"Failed to create GameSession: {createResponse.ErrorMessage}");
             }
 
-            _logger.LogInformation("Created new GameSession: {GameSessionId}", createResponse.GameSession.GameSessionId);
+            var session = createResponse.GameSession;
+            _logger.LogInformation("Created new GameSession: {GameSessionId}", session.GameSessionId);
 
-            // Return the server endpoint
-            var newEndpoint = _options.Client?.DefaultServerUrl ?? "wss://localhost:5001/battlehub";
-            _logger.LogInformation("Using GameLift Anywhere endpoint for new session: {Endpoint}", newEndpoint);
-            return newEndpoint;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to resolve GameLift Anywhere endpoint");
-
-            // Fallback to default endpoint
-            var fallbackEndpoint = _options.Client?.DefaultServerUrl ?? "wss://localhost:5001/battlehub";
-            _logger.LogWarning("Using fallback endpoint: {Endpoint}", fallbackEndpoint);
-            return fallbackEndpoint;
+            var endpoint = CreateEndpoint(session.Address, session.Port);
+            _logger.LogInformation("Using GameLift Anywhere endpoint for new session: {Endpoint}", endpoint);
+            return endpoint;
         }
     }
 
     private async Task<List<GameServerInfo>> SearchAnywhereGameServersAsync(string fleetId, string location, CancellationToken cancellationToken)
     {
-        var gameLiftClient = GetGameLiftClient();
-        if (gameLiftClient == null)
-        {
-            _logger.LogWarning("GameLift client is not available for Anywhere mode");
-            return [];
-        }
+        _logger.LogDebug("Searching for game servers in fleet: {FleetId}, location: {Location}", fleetId, location);
 
-        try
+        var request = new ListComputeRequest
         {
-            _logger.LogDebug("Searching for game servers in fleet: {FleetId}, location: {Location}", fleetId, location);
+            FleetId = fleetId,
+            Location = location
+        };
 
-            var request = new ListComputeRequest
+        var response = await _gameLiftClient.ListComputeAsync(request, cancellationToken);
+
+        var gameServers = response.ComputeList
+            .Where(c => c.ComputeStatus == Amazon.GameLift.ComputeStatus.ACTIVE)
+            .Select(c => new GameServerInfo
             {
+                ServerId = c.ComputeArn ?? string.Empty,
                 FleetId = fleetId,
-                Location = location
-            };
+                Location = location,
+                Status = c.ComputeStatus.Value,
+                DnsName = c.DnsName,
+                ConnectionEndpoint = CreateEndpoint(c.DnsName, 5001)
+            })
+            .ToList();
 
-            var response = await gameLiftClient.ListComputeAsync(request, cancellationToken);
-
-            var gameServers = response.ComputeList
-                .Where(c => c.ComputeStatus == Amazon.GameLift.ComputeStatus.ACTIVE)
-                .Select(c => new GameServerInfo
-                {
-                    ServerId = c.ComputeArn ?? string.Empty,
-                    FleetId = fleetId,
-                    Location = location,
-                    Status = c.ComputeStatus.Value,
-                    IpAddress = c.IpAddress,
-                    ConnectionEndpoint = _options.Client?.DefaultServerUrl ?? "wss://localhost:5001/battlehub"
-                })
-                .ToList();
-
-            _logger.LogInformation("Found {Count} active game servers", gameServers.Count);
-            return gameServers;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to search GameLift Anywhere game servers");
-            return [];
-        }
+        _logger.LogInformation("Found {Count} active game servers", gameServers.Count);
+        return gameServers;
     }
 
-    private async Task<Shared.GameLift.CreateGameSessionResponse> CreateAnywhereGameSessionAsync(Shared.GameLift.CreateGameSessionRequest request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Return endpoint without schema
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="port"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
+    private static string CreateEndpoint(string? address, int port)
     {
-        var gameLiftClient = GetGameLiftClient();
-        if (gameLiftClient == null)
+        if (string.IsNullOrEmpty(address) || port == 0)
         {
-            return Shared.GameLift.CreateGameSessionResponse.Failed("GameLift client is not available");
+            throw new InvalidOperationException("Invalid IP address or port for GameLift Anywhere endpoint");
         }
 
+        var endpoint = $"{address}:{port}";
+        return endpoint;
+    }
+
+    private async Task<Shared.GameLift.CreateGameSessionResponse> CreateAnywhereGameSessionAsync(Shared.GameLift.CreateGameSessionRequest request, string location, CancellationToken cancellationToken)
+    {
         try
         {
             _logger.LogInformation("Creating GameSession for fleet: {FleetId}, name: {Name}", request.FleetId, request.Name);
@@ -311,17 +210,16 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
                 FleetId = request.FleetId,
                 MaximumPlayerSessionCount = request.MaxPlayers,
                 Name = request.Name,
-                Location = _options.Anywhere.CustomLocation
+                Location = location
             };
-
             if (!string.IsNullOrEmpty(request.GameSessionData))
             {
                 createRequest.GameSessionData = request.GameSessionData;
             }
 
-            var response = await gameLiftClient.CreateGameSessionAsync(createRequest, cancellationToken);
+            var response = await _gameLiftClient.CreateGameSessionAsync(createRequest, cancellationToken);
 
-            if (response.GameSession != null)
+            if (response.HttpStatusCode == System.Net.HttpStatusCode.OK && response.GameSession != null)
             {
                 var gameSession = new GameSessionInfo
                 {
@@ -331,14 +229,14 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
                     Status = response.GameSession.Status.Value,
                     CurrentPlayerCount = response.GameSession.CurrentPlayerSessionCount ?? 0,
                     MaxPlayers = response.GameSession.MaximumPlayerSessionCount ?? 5,
-                    IpAddress = response.GameSession.IpAddress,
+                    Address = response.GameSession.DnsName ?? response.GameSession.IpAddress,
                     Port = response.GameSession.Port ?? 0,
                     GameSessionData = response.GameSession.GameSessionData,
                     CreationTime = response.GameSession.CreationTime ?? DateTime.UtcNow
                 };
 
                 _logger.LogInformation("Created GameSession successfully: {GameSessionId}", gameSession.GameSessionId);
-                return Shared.GameLift.CreateGameSessionResponse.CreateSuccessful(gameSession);
+                return Shared.GameLift.CreateGameSessionResponse.Success(gameSession);
             }
 
             _logger.LogWarning("GameSession creation returned null response");
@@ -353,69 +251,45 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
 
     private async Task<List<GameSessionInfo>> SearchAnywhereGameSessionsAsync(string fleetId, string? location, CancellationToken cancellationToken)
     {
-        var gameLiftClient = GetGameLiftClient();
-        if (gameLiftClient == null)
+        _logger.LogDebug("Searching for GameSessions in fleet: {FleetId}, location: {Location}", fleetId, location ?? "any");
+
+        var request = new SearchGameSessionsRequest
         {
-            _logger.LogWarning("GameLift client is not available");
-            return [];
+            FleetId = fleetId,
+            FilterExpression = "hasAvailablePlayerSessions=true"
+        };
+
+        if (!string.IsNullOrEmpty(location))
+        {
+            request.Location = location;
         }
 
-        try
+        var response = await _gameLiftClient.SearchGameSessionsAsync(request, cancellationToken);
+
+        if (response.GameSessions?.Count > 0)
         {
-            _logger.LogDebug("Searching for GameSessions in fleet: {FleetId}, location: {Location}", fleetId, location ?? "any");
-
-            var request = new SearchGameSessionsRequest
+            var gameSessions = response.GameSessions.Select(session => new GameSessionInfo
             {
-                FleetId = fleetId,
-                FilterExpression = "hasAvailablePlayerSessions=true"
-            };
+                GameSessionId = session.GameSessionId,
+                FleetId = session.FleetId,
+                Name = session.Name ?? string.Empty,
+                Status = session.Status.Value,
+                CurrentPlayerCount = session.CurrentPlayerSessionCount ?? 0,
+                MaxPlayers = session.MaximumPlayerSessionCount ?? 5,
+                Address = session.IpAddress,
+                Port = session.Port ?? 0,
+                GameSessionData = session.GameSessionData,
+                CreationTime = session.CreationTime ?? DateTime.UtcNow
+            }).ToList();
 
-            if (!string.IsNullOrEmpty(location))
-            {
-                request.Location = location;
-            }
-
-            var response = await gameLiftClient.SearchGameSessionsAsync(request, cancellationToken);
-
-            if (response.GameSessions?.Count > 0)
-            {
-                var gameSessions = response.GameSessions.Select(session => new GameSessionInfo
-                {
-                    GameSessionId = session.GameSessionId,
-                    FleetId = session.FleetId,
-                    Name = session.Name ?? string.Empty,
-                    Status = session.Status.Value,
-                    CurrentPlayerCount = session.CurrentPlayerSessionCount ?? 0,
-                    MaxPlayers = session.MaximumPlayerSessionCount ?? 5,
-                    IpAddress = session.IpAddress,
-                    Port = session.Port ?? 0,
-                    GameSessionData = session.GameSessionData,
-                    CreationTime = session.CreationTime ?? DateTime.UtcNow
-                }).ToList();
-
-                _logger.LogInformation("Found {Count} GameSessions in fleet {FleetId}", gameSessions.Count, fleetId);
-                return gameSessions;
-            }
-
-            _logger.LogInformation("No active GameSessions found in fleet {FleetId}", fleetId);
-            return [];
+            return gameSessions;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to search GameSessions in fleet {FleetId}", fleetId);
-            return [];
-        }
+
+        return [];
     }
 
     private async Task<PlayerSessionInfo> CreateAnywherePlayerSessionAsync(string gameSessionId, string playerId, CancellationToken cancellationToken)
     {
-        var gameLiftClient = GetGameLiftClient();
-        if (gameLiftClient == null)
-        {
-            _logger.LogWarning("GameLift client is not available");
-            return PlayerSessionInfo.Empty;
-        }
-
         try
         {
             _logger.LogInformation("Creating PlayerSession for game: {GameSessionId}, player: {PlayerId}", gameSessionId, playerId);
@@ -426,7 +300,7 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
                 PlayerId = playerId
             };
 
-            var response = await gameLiftClient.CreatePlayerSessionAsync(request, cancellationToken);
+            var response = await _gameLiftClient.CreatePlayerSessionAsync(request, cancellationToken);
 
             if (response.PlayerSession != null)
             {

@@ -550,9 +550,6 @@ internal sealed class GameLiftAnywhereHostedService(
             {
                 logger.LogInformation("Successfully notified GameLift of process ending");
             }
-
-            // Add small delay to ensure the message is sent
-            await Task.Delay(1000);
         }
         catch (Exception ex)
         {
