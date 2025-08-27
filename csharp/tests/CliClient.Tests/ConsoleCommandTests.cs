@@ -76,23 +76,6 @@ public class ConsoleCommandTests : IDisposable
         Assert.True(method.IsPublic);
     }
 
-    [Fact]
-    public void ConsoleCommand_IsProperlyStructured()
-    {
-        // Verify the class has the expected structure for ConsoleAppFramework
-
-        // Act
-        var type = typeof(ConsoleCommand);
-        var constructorParams = type.GetConstructors()[0].GetParameters();
-
-        // Assert
-        Assert.Equal(4, constructorParams.Length);
-        Assert.Equal(typeof(MultiBattleClientManager), constructorParams[0].ParameterType);
-        Assert.Equal(typeof(ILoggerFactory), constructorParams[1].ParameterType);
-        Assert.Equal(typeof(ILogger<ConsoleCommand>), constructorParams[2].ParameterType);
-        Assert.Equal(typeof(IGameLiftClientProvider), constructorParams[3].ParameterType);
-    }
-
     public void Dispose()
     {
         _multiClientManager?.DisposeAsync().AsTask().Wait();

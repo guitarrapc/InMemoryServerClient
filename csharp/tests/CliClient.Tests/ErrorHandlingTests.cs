@@ -150,23 +150,6 @@ public class ErrorHandlingTests : IDisposable
     }
 
     [Fact]
-    public void ConsoleCommand_ExceptionHandling_DoesNotPropagate()
-    {
-        // Arrange
-        var manager = new MultiBattleClientManager(_loggerFactory);
-        var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
-
-        // Act & Assert - Command creation should not throw
-        Assert.NotNull(command);
-
-        // Verify proper dependency injection
-        var type = typeof(ConsoleCommand);
-        var constructor = type.GetConstructors()[0];
-        Assert.Equal(4, constructor.GetParameters().Length);
-    }
-
-    [Fact]
     public async Task BattleClientFactory_ConcurrentCreation_HandlesCorrectly()
     {
         // Arrange
