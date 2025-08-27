@@ -1,4 +1,5 @@
-﻿using Aws.GameLift.Server.Model;
+﻿using Amazon.GameLift;
+using Aws.GameLift.Server.Model;
 using BattleLogic.Battle;
 using Microsoft.Extensions.Options;
 using Shared.GameLift;
@@ -13,7 +14,8 @@ namespace InMemoryServer.GameLift;
 public sealed class GameSessionManager(
     ILogger<GameSessionManager> logger,
     IServiceProvider serviceProvider,
-    IOptions<GameLiftOptions> options)
+    IOptions<GameLiftOptions> options,
+    IAmazonGameLift gameLiftClient)
 {
     private readonly ConcurrentDictionary<string, GameSessionInfo> _activeSessions = new();
     private readonly ConcurrentDictionary<string, string> _groupNameToGameSessionId = new();
@@ -25,7 +27,7 @@ public sealed class GameSessionManager(
     {
         public required string GameSessionId { get; init; }
         public required string GroupId { get; init; }
-        public string? GroupName { get; set; } // User-friendly group name
+        public string? GroupName { get; set; }
         public Guid? BattleId { get; set; }
         public BattleState? BattleState { get; set; }
         public GroupInfo GroupInfo { get; set; } = null!;
@@ -35,13 +37,23 @@ public sealed class GameSessionManager(
         public bool IsBattleStarted { get; set; } = false;
         public bool IsCompleted { get; set; } = false;
         public bool IsTerminating { get; set; } = false;
-        public List<string> ConnectedClients { get; init; } = new();
+        public List<string> ConnectedClients { get; init; } = []; // TODO: Thread safety?
         public int RequiredPlayers { get; init; } = 5;
+
+        private readonly Lock _lock = new();
 
         /// <summary>
         /// Check if enough players have joined to start the battle
         /// </summary>
         public bool CanStartBattle => ConnectedClients.Count >= RequiredPlayers && !IsBattleStarted && !IsCompleted;
+
+        public void RemoveConnectedClient(string clientId)
+        {
+            lock (_lock)
+            {
+                ConnectedClients.Remove(clientId);
+            }
+        }
     }
 
     /// <summary>
@@ -202,16 +214,27 @@ public sealed class GameSessionManager(
     {
         if (string.IsNullOrEmpty(groupName))
         {
+            logger.LogDebug("TryResolveGameLiftGroupId: GroupName is null or empty");
             return null;
+        }
+
+        logger.LogDebug("TryResolveGameLiftGroupId: Looking for group name '{GroupName}' in mapping. Total mappings: {MappingCount}",
+            groupName, _groupNameToGameSessionId.Count);
+
+        // Log all current mappings for debugging
+        foreach (var mapping in _groupNameToGameSessionId)
+        {
+            logger.LogDebug("Available mapping: {GroupName} -> {GameSessionId}", mapping.Key, mapping.Value);
         }
 
         // Try to find a GameSession with this group name
         if (_groupNameToGameSessionId.TryGetValue(groupName, out var gameSessionId))
         {
-            logger.LogDebug("Resolved GroupName {GroupName} to GameSessionId: {GameSessionId}", groupName, gameSessionId);
+            logger.LogDebug("Successfully resolved GroupName {GroupName} to GameSessionId: {GameSessionId}", groupName, gameSessionId);
             return gameSessionId;
         }
 
+        logger.LogDebug("Could not resolve GroupName {GroupName} - no matching GameSession found", groupName);
         return null;
     }
 
@@ -236,10 +259,63 @@ public sealed class GameSessionManager(
             }
         }
 
-        // If no suitable existing session, we would need to create one
-        // However, GameSession creation is typically handled by GameLift service
-        logger.LogWarning("No suitable GameSession found for GroupName: {GroupName}. GameSession creation should be handled by GameLift service", groupName);
-        return null;
+        // Create new GameSession on-demand
+        logger.LogInformation("Creating new GameSession on-demand for GroupName: {GroupName}", groupName);
+        return await CreateGameSessionOnDemandAsync(groupName);
+    }
+
+    /// <summary>
+    /// Create a new GameSession on-demand for client requests
+    /// </summary>
+    /// <param name="groupName">The group name to create GameSession for</param>
+    /// <returns>The GroupId for the created GameSession, null if creation failed</returns>
+    public async Task<string?> CreateGameSessionOnDemandAsync(string groupName)
+    {
+        try
+        {
+            // Check capacity
+            if (!CanAcceptNewGameSession())
+            {
+                logger.LogWarning("Cannot create GameSession for GroupName {GroupName}: Server at capacity", groupName);
+                return null;
+            }
+
+            var o = options.Value;
+
+            // Create GameSession request
+            var request = CreateGameSessionRequest.ForAutoBattle(o.Anywhere.FleetId, groupName);
+
+            logger.LogInformation("Creating GameSession for GroupName: {GroupName} on Fleet: {FleetId}", groupName, request.FleetId);
+
+            // Call GameLift API to create GameSession
+            var response = await gameLiftClient.CreateGameSessionAsync(new Amazon.GameLift.Model.CreateGameSessionRequest
+            {
+                FleetId = request.FleetId,
+                MaximumPlayerSessionCount = request.MaxPlayers,
+                Name = request.Name,
+                GameSessionData = request.GameSessionData,
+                Location = o.Anywhere.CustomLocation // Required for GameLift Anywhere
+            });
+
+            if (response.GameSession != null)
+            {
+                logger.LogInformation("Successfully created GameSession {GameSessionId} for GroupName: {GroupName}",
+                    response.GameSession.GameSessionId, groupName);
+
+                // Return the group ID that will be created when OnStartGameSession is called
+                return $"gamelift-{response.GameSession.GameSessionId}";
+            }
+            else
+            {
+                logger.LogError("Failed to create GameSession for GroupName: {GroupName} - No GameSession in response", groupName);
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating GameSession for GroupName: {GroupName}", groupName);
+            return null;
+        }
     }
 
     /// <summary>
@@ -285,8 +361,7 @@ public sealed class GameSessionManager(
         // Add player to the session
         sessionInfo.ConnectedClients.Add(playerId);
 
-        logger.LogInformation("Player {PlayerId} connected to GameSession {GameSessionId} ({Count}/{Required})",
-            playerId, gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
+        logger.LogInformation("Player {PlayerId} connected to GameSession {GameSessionId} ({Count}/{Required})", playerId, gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
 
         // Check if we have enough players to start the battle
         if (sessionInfo.CanStartBattle)
@@ -310,15 +385,62 @@ public sealed class GameSessionManager(
             return;
         }
 
-        sessionInfo.ConnectedClients.Remove(playerId);
+        sessionInfo.RemoveConnectedClient(playerId);
 
         logger.LogInformation("Player {PlayerId} disconnected from GameSession {GameSessionId} ({Count}/{Required})",
             playerId, gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
 
+        // Check if all players have disconnected
+        if (sessionInfo.ConnectedClients.Count == 0)
+        {
+            logger.LogInformation("All players have disconnected from GameSession {GameSessionId}. Terminating GameSession...", gameSessionId);
+
+            // Mark as completed regardless of battle state since no players remain
+            sessionInfo.IsCompleted = true;
+            sessionInfo.CompletionTime = DateTime.UtcNow;
+
+            // If battle hasn't started yet, terminate immediately
+            if (!sessionInfo.IsBattleStarted)
+            {
+                logger.LogInformation("GameSession {GameSessionId} terminated before battle start due to no players", gameSessionId);
+                await TerminateGameSessionAsync(gameSessionId);
+                return;
+            }
+
+            // If battle has started, clean up battle memory immediately since no clients are connected
+            CleanupBattleMemory(sessionInfo);
+
+            // Schedule immediate GameSession termination
+            _ = Task.Run(async () => await TerminateGameSessionAsync(gameSessionId));
+        }
+
         // If battle hasn't started yet and we don't have enough players, continue waiting
         // If battle has started, let it continue (players are simulated)
+    }
 
-        await Task.CompletedTask;
+    /// <summary>
+    /// Handle player disconnection from any GameSession they might be connected to
+    /// </summary>
+    public async Task<bool> OnPlayerDisconnectedFromAnySessionAsync(string playerId)
+    {
+        var disconnectedFromAnySession = false;
+
+        // Check all active sessions to see if this player is connected
+        var sessionsToCheck = _activeSessions.Values.ToList();
+
+        foreach (var sessionInfo in sessionsToCheck)
+        {
+            if (sessionInfo.ConnectedClients.Contains(playerId))
+            {
+                logger.LogDebug("Found player {PlayerId} in GameSession {GameSessionId}, disconnecting...",
+                    playerId, sessionInfo.GameSessionId);
+
+                await OnPlayerDisconnectedAsync(sessionInfo.GameSessionId, playerId);
+                disconnectedFromAnySession = true;
+            }
+        }
+
+        return disconnectedFromAnySession;
     }
 
     /// <summary>
@@ -451,8 +573,7 @@ public sealed class GameSessionManager(
                 logger.LogInformation("Terminating GameSession: {GameSessionId}", gameSessionId);
 
                 // Remove group name mapping
-                if (!string.IsNullOrEmpty(sessionInfo.GroupName) &&
-                    _groupNameToGameSessionId.TryRemove(sessionInfo.GroupName, out _))
+                if (!string.IsNullOrEmpty(sessionInfo.GroupName) && _groupNameToGameSessionId.TryRemove(sessionInfo.GroupName, out _))
                 {
                     logger.LogDebug("Removed GroupName mapping for: {GroupName}", sessionInfo.GroupName);
                 }
@@ -463,15 +584,20 @@ public sealed class GameSessionManager(
                     CleanupBattleMemory(sessionInfo);
                 }
 
-                // Notify GameLift of session termination
-                Aws.GameLift.Server.GameLiftServerAPI.ProcessEnding();
+                // For GameLift, we must explicitly terminate the GameSession in the GameLift service
+                // GameLift Anywhere: GameSessionの自然な終了処理
+                // GameLiftサービスが自動的にGameSessionのステータスを管理するため、
+                // サーバー側からTerminateGameSessionAsyncを呼ぶ必要はない
+                //
+                // 重要：サーバー側の責任は以下のみ
+                // 1. ローカルリソースのクリーンナップ
+                // 2. プロセス終了時のProcessEnding()呼び出し（別の場所で実装済み）
 
+                logger.LogInformation("GameSession {GameSessionId} completed locally. GameLift service will automatically update session status.", gameSessionId);
+
+                // Continue with local cleanup even if GameLift notification fails
                 var activeSessions = _activeSessions.Values.Count(s => !s.IsCompleted);
-                logger.LogInformation(
-                    "GameSession {GameSessionId} terminated. Battle {BattleId} cleanup completed. Active sessions: {ActiveCount}",
-                    gameSessionId,
-                    sessionInfo.BattleId ?? Guid.Empty,
-                    activeSessions);
+                logger.LogInformation("GameSession {GameSessionId} terminated. Battle {BattleId} cleanup completed. Active sessions: {ActiveCount}", gameSessionId, sessionInfo.BattleId ?? Guid.Empty, activeSessions);
             }
             else
             {
@@ -484,11 +610,9 @@ public sealed class GameSessionManager(
         }
 
         await Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Get information about an active GameSession
-    /// </summary>
+    }    /// <summary>
+         /// Get information about an active GameSession
+         /// </summary>
     public GameSessionInfo? GetGameSessionInfo(string gameSessionId)
     {
         return _activeSessions.TryGetValue(gameSessionId, out var info) ? info : null;
@@ -507,7 +631,7 @@ public sealed class GameSessionManager(
     /// </summary>
     public (int Active, int Completed, int Total) GetGameSessionStats()
     {
-        var sessions = _activeSessions.Values.ToList();
+        var sessions = GetActiveGameSessions();
         var active = sessions.Count(s => !s.IsCompleted);
         var completed = sessions.Count(s => s.IsCompleted);
         var total = sessions.Count;

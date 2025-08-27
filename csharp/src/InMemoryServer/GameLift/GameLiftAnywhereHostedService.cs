@@ -513,8 +513,7 @@ internal sealed class GameLiftAnywhereHostedService(
                     var stats = gameSessionManager.GetGameSessionStats();
                     if (stats.Total > 0)
                     {
-                        logger.LogDebug("GameSession stats - Active: {Active}, Completed: {Completed}, Total: {Total}",
-                            stats.Active, stats.Completed, stats.Total);
+                        logger.LogDebug("GameSession stats - Active: {Active}, Completed: {Completed}, Total: {Total}", stats.Active, stats.Completed, stats.Total);
                     }
                 }
             }

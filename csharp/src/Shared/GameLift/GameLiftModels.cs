@@ -102,14 +102,13 @@ public class CreateGameSessionRequest
     /// <summary>
     /// Default request for this game (5 players, auto-battle)
     /// </summary>
-    public static CreateGameSessionRequest ForAutoBattle(string fleetId, string creatorId) =>
-        new()
-        {
-            FleetId = fleetId,
-            Name = $"AutoBattle-{creatorId}-{DateTime.UtcNow:yyyyMMdd-HHmmss}",
-            MaxPlayers = 5,
-            GameSessionData = "auto-battle",
-        };
+    public static CreateGameSessionRequest ForAutoBattle(string fleetId, string groupName) => new()
+    {
+        FleetId = fleetId,
+        Name = groupName, // Use groupName directly as GameSession name for consistent mapping
+        MaxPlayers = 5,
+        GameSessionData = groupName,
+    };
 }
 
 /// <summary>

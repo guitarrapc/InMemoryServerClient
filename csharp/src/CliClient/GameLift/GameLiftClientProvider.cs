@@ -65,11 +65,11 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
         }
     }
 
-    public async Task<string> ResolveServerEndpointAsync(string fleetId, string location, CancellationToken cancellationToken = default)
+    public async Task<string> ResolveServerEndpointAsync(string fleetId, string location, string groupName, CancellationToken cancellationToken = default)
     {
         return _mode switch
         {
-            GameLiftMode.Anywhere => await ResolveAnywhereEndpointAsync(fleetId, location, cancellationToken),
+            GameLiftMode.Anywhere => await ResolveAnywhereEndpointAsync(fleetId, location, groupName, cancellationToken),
             GameLiftMode.FleetIQ => throw new NotImplementedException("GameLift FleetIQ client support will be implemented in Phase 2"),
             _ => throw new ArgumentOutOfRangeException(nameof(_mode), _mode, "Unknown GameLift mode"),
         };
@@ -117,6 +117,11 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
 
     private async Task<string> ResolveAnywhereEndpointAsync(string fleetId, string location, CancellationToken cancellationToken)
     {
+        return await ResolveAnywhereEndpointAsync(fleetId, location, "auto-client", cancellationToken);
+    }
+
+    private async Task<string> ResolveAnywhereEndpointAsync(string fleetId, string location, string groupName, CancellationToken cancellationToken)
+    {
         // Try to find an active game session first
         var gameSessions = await SearchAnywhereGameSessionsAsync(fleetId, location, cancellationToken);
 
@@ -134,8 +139,8 @@ internal class GameLiftClientProvider : IGameLiftClientProvider
         else
         {
             // No active sessions found, create a new one
-            _logger.LogInformation("No active GameSessions found, creating new session");
-            var createRequest = Shared.GameLift.CreateGameSessionRequest.ForAutoBattle(fleetId, "auto-client");
+            _logger.LogInformation("No active GameSessions found, creating new session with group name: {GroupName}", groupName);
+            var createRequest = Shared.GameLift.CreateGameSessionRequest.ForAutoBattle(fleetId, groupName);
             var createResponse = await CreateAnywhereGameSessionAsync(createRequest, location, cancellationToken);
 
             if (!createResponse.IsSuccess)

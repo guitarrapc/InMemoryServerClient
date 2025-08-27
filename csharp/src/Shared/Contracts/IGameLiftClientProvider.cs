@@ -14,7 +14,7 @@ public interface IGameLiftClientProvider
     /// <param name="location">Location to search</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Server endpoint URL</returns>
-    Task<string> ResolveServerEndpointAsync(string fleetId, string location, CancellationToken cancellationToken = default);
+    Task<string> ResolveServerEndpointAsync(string fleetId, string location, string groupName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Search for available game servers

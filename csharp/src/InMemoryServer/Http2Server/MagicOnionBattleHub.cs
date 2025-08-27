@@ -8,7 +8,6 @@ using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Models;
-using InMemoryServer.GameLift;
 using MessagePack;
 using BattleLogic.Models;
 
@@ -199,8 +198,8 @@ public class MagicOnionBattleHub(
         // Check if this group name is associated with a GameLift GameSession
         if (!string.IsNullOrEmpty(groupName) && gameSessionManager != null)
         {
-            // Try to resolve the group name to a GameLift GroupId
-            var resolvedGroupId = gameSessionManager.TryResolveGameLiftGroupId(groupName);
+            // Try to find or create a GameSession for the group name
+            var resolvedGroupId = await gameSessionManager.FindOrCreateGameSessionForGroupAsync(groupName);
             if (!string.IsNullOrEmpty(resolvedGroupId))
             {
                 return await JoinGameLiftGameSessionAsync(connectionId, groupName, resolvedGroupId);

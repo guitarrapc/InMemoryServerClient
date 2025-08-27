@@ -5,9 +5,10 @@ using Shared.Models;
 using Shared.Constants;
 using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
+using BattleLogic.Models;
+using InMemoryServer.GameLift;
 using InMemoryServer.Services;
 using InMemoryServer.Models;
-using BattleLogic.Models;
 
 namespace InMemoryServer.Http1Server;
 
@@ -155,18 +156,36 @@ public class SignalRBattleHub(
     {
         var connectionId = Context.ConnectionId;
 
+        logger.LogInformation("SignalR Client {ConnectionId} attempting to join group with name: {GroupName}", connectionId, groupName ?? "null");
+
         // Check if this group name is associated with a GameLift GameSession
         if (!string.IsNullOrEmpty(groupName) && gameSessionManager != null)
         {
-            // Try to resolve the group name to a GameLift GroupId
-            var resolvedGroupId = gameSessionManager.TryResolveGameLiftGroupId(groupName);
+            logger.LogDebug("Checking if group name {GroupName} is associated with GameLift GameSession", groupName);
+
+            // Try to find or create a GameSession for the group name
+            var resolvedGroupId = await gameSessionManager.FindOrCreateGameSessionForGroupAsync(groupName);
+
+            logger.LogDebug("GameLift group resolution result for {GroupName}: {ResolvedGroupId}", groupName, resolvedGroupId ?? "null");
+
             if (!string.IsNullOrEmpty(resolvedGroupId))
             {
+                logger.LogInformation("Resolved group name {GroupName} to GameLift GroupId {ResolvedGroupId}. Proceeding with GameLift join.", groupName, resolvedGroupId);
                 return await JoinGameLiftGameSessionAsync(connectionId, groupName, resolvedGroupId);
             }
+            else
+            {
+                logger.LogInformation("Could not resolve or create GameSession for GroupName {GroupName}. Proceeding with regular group join.", groupName);
+            }
+        }
+        else
+        {
+            logger.LogDebug("Skipping GameLift resolution - GroupName: {GroupName}, GameSessionManager: {HasGameSessionManager}",
+                groupName ?? "null", gameSessionManager != null);
         }
 
         // Regular group joining for Direct mode
+        logger.LogDebug("Proceeding with regular group join for connection {ConnectionId}", connectionId);
         return await JoinRegularGroupAsync(connectionId, groupName);
     }
 
@@ -178,8 +197,8 @@ public class SignalRBattleHub(
         logger.LogInformation("SignalR Client {ConnectionId} attempting to join GameLift GameSession group: {GroupName} with GameSessionId: {GameSessionId}",
             connectionId, groupName, gameSessionId);
 
-        // Use GameSessionManager to handle GameLift Anywhere connection
-        var success = await gameSessionManager!.TryHandlePlayerConnectionAsync(gameSessionId, connectionId);
+        // Use GameSessionManager to handle GameLift Anywhere connection directly
+        var success = await gameSessionManager!.OnPlayerConnectedAsync(gameSessionId, connectionId);
         if (!success)
         {
             logger.LogWarning("Failed to add connection {ConnectionId} to GameLift GameSession {GameSessionId}", connectionId, gameSessionId);
@@ -785,24 +804,37 @@ public class SignalRBattleHub(
         var connectionId = Context.ConnectionId;
         var connectionRemoved = connectionManager.UnregisterConnection(connectionId);
 
+        // Log disconnection details for debugging
+        if (exception != null)
+        {
+            logger.LogWarning("SignalR client {ConnectionId} disconnected with exception: {ExceptionType}: {Message}",
+                connectionId, exception.GetType().Name, exception.Message);
+        }
+        else
+        {
+            logger.LogInformation("SignalR client {ConnectionId} disconnected gracefully", connectionId);
+        }
+
         if (connectionRemoved)
         {
             state.DecrementConnectionCount();
 
-            // Handle GameLift Anywhere disconnection if applicable
+            // Handle GameLift Anywhere disconnection first (before leaving group)
             if (gameSessionManager != null)
             {
-                var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
-                if (!string.IsNullOrEmpty(groupId))
-                {
-                    await gameSessionManager.TryHandlePlayerDisconnectionAsync(groupId, connectionId);
-                }
+                // Check all SignalR groups this connection belongs to
+                await ProcessGameLiftDisconnectionAsync(connectionId);
             }
 
-            // Leave group if in one and notify other members
+            // Get group ID before leaving group for regular group processing
+            var groupId = await groupManager.GetGroupIdForConnectionAsync(connectionId);
+            logger.LogDebug("OnDisconnectedAsync: Retrieved groupId '{GroupId}' for connection {ConnectionId}", groupId, connectionId);            // Leave group if in one and notify other members
             var (leftGroup, newCount) = await groupManager.LeaveGroupAsync(connectionId);
             if (leftGroup != null)
             {
+                logger.LogInformation("Client {ConnectionId} left group {GroupName} (ID: {GroupId}). Remaining members: {Count}",
+                    connectionId, leftGroup.Name, leftGroup.GroupId, newCount);
+
                 // Notify remaining group members that this client left
                 var memberLeftData = new MemberLeftData
                 {
@@ -818,9 +850,40 @@ public class SignalRBattleHub(
                 logger.LogDebug("Notified {Count} remaining clients about member leaving group {GroupName}", remainingClients.Count(), leftGroup.Name);
             }
 
-            logger.LogDebug("SignalR client {ConnectionId} disconnected. Total connections: {Count}", connectionId, state.ConnectionCount);
+            logger.LogInformation("SignalR client {ConnectionId} fully processed disconnection. Total connections: {Count}", connectionId, state.ConnectionCount);
+        }
+        else
+        {
+            logger.LogWarning("SignalR client {ConnectionId} disconnected but was not found in connection manager", connectionId);
         }
 
         await base.OnDisconnectedAsync(exception);
+    }
+
+    /// <summary>
+    /// Process GameLift disconnection for a client across all GameSessions
+    /// </summary>
+    private async Task ProcessGameLiftDisconnectionAsync(string connectionId)
+    {
+        try
+        {
+            logger.LogDebug("ProcessGameLiftDisconnectionAsync: Processing GameLift disconnection for client {ConnectionId}", connectionId);
+
+            // Get all active GameSessions and check if this client is connected
+            var disconnected = await gameSessionManager!.OnPlayerDisconnectedFromAnySessionAsync(connectionId);
+
+            if (disconnected)
+            {
+                logger.LogInformation("Successfully processed GameLift disconnection for client {ConnectionId}", connectionId);
+            }
+            else
+            {
+                logger.LogDebug("Client {ConnectionId} was not connected to any GameLift GameSession", connectionId);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error processing GameLift disconnection for client {ConnectionId}", connectionId);
+        }
     }
 }

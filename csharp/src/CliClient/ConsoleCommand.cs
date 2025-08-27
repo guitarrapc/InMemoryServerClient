@@ -1054,7 +1054,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             FleetId = fleetId,
             Name = name,
             MaxPlayers = count,
-            GameSessionData = "auto-battle"
+            GameSessionData = name,
         }, location);
 
         if (response.IsSuccess)
@@ -1124,12 +1124,12 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
         logger.LogInformation("Connecting to GameLift server for battle...");
 
-        // Resolve server endpoint through GameLift
-        var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync(fleetId, location, cancellationToken);
-        logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
-
-        // Create group name from GameLift
+        // Create group name from GameLift (this will be used for connection)
         var groupName = $"gamelift-{group}";
+
+        // Resolve server endpoint through GameLift (this will create GameSession with the matching name)
+        var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync(fleetId, location, groupName, cancellationToken);
+        logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
 
         logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
         logger.LogInformation("Group name: {GroupName}", groupName);
