@@ -16,6 +16,7 @@ public sealed class GameSessionManager(
     IOptions<GameLiftOptions> options)
 {
     private readonly ConcurrentDictionary<string, GameSessionInfo> _activeSessions = new();
+    private readonly ConcurrentDictionary<string, string> _groupNameToGameSessionId = new();
 
     /// <summary>
     /// Information about an active GameSession and its associated battle
@@ -24,6 +25,7 @@ public sealed class GameSessionManager(
     {
         public required string GameSessionId { get; init; }
         public required string GroupId { get; init; }
+        public string? GroupName { get; set; } // User-friendly group name
         public Guid? BattleId { get; set; }
         public BattleState? BattleState { get; set; }
         public GroupInfo GroupInfo { get; set; } = null!;
@@ -72,7 +74,10 @@ public sealed class GameSessionManager(
                 return false;
             }
 
-            logger.LogInformation("Preparing GameSession for players: {GameSessionId}", gameSession.GameSessionId);
+            // Extract group name from GameSession properties
+            var groupName = ExtractGroupNameFromGameSession(gameSession);
+
+            logger.LogInformation("Preparing GameSession for players: {GameSessionId} with GroupName: {GroupName}", gameSession.GameSessionId, groupName ?? "N/A");
 
             // Create a group for this GameSession (initially empty, waiting for real clients)
             var groupId = $"gamelift-{gameSession.GameSessionId}";
@@ -82,10 +87,18 @@ public sealed class GameSessionManager(
             {
                 GameSessionId = gameSession.GameSessionId,
                 GroupId = groupId,
+                GroupName = groupName,
                 RequiredPlayers = 5,
             };
 
             _activeSessions[gameSession.GameSessionId] = sessionInfo;
+
+            // Register group name mapping if provided
+            if (!string.IsNullOrEmpty(groupName))
+            {
+                _groupNameToGameSessionId[groupName] = gameSession.GameSessionId;
+                logger.LogInformation("Registered GroupName mapping: {GroupName} -> {GameSessionId}", groupName, gameSession.GameSessionId);
+            }
 
             logger.LogInformation("GameSession {GameSessionId} prepared and waiting for {RequiredPlayers} players to connect. Active sessions: {ActiveCount}/{MaxCount}", gameSession.GameSessionId, sessionInfo.RequiredPlayers, _activeSessions.Values.Count(s => !s.IsCompleted), o.Anywhere.MaxConcurrentGameSessions);
 
@@ -96,6 +109,31 @@ public sealed class GameSessionManager(
             logger.LogError(ex, "Failed to prepare GameSession: {GameSessionId}", gameSession.GameSessionId);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Extract group name from GameSession properties
+    /// </summary>
+    private string? ExtractGroupNameFromGameSession(GameSession gameSession)
+    {
+        // Use GameSession.Name as the group name (user-friendly name)
+        if (!string.IsNullOrEmpty(gameSession.Name))
+        {
+            logger.LogDebug("Using GameSession.Name as GroupName: {GroupName}", gameSession.Name);
+            return gameSession.Name;
+        }
+
+        // Fallback to GameSessionData if Name is not available
+        if (!string.IsNullOrEmpty(gameSession.GameSessionData))
+        {
+            logger.LogDebug("Using GameSession.GameSessionData as GroupName: {GroupName}", gameSession.GameSessionData);
+            return gameSession.GameSessionData;
+        }
+
+        // Generate a default group name based on GameSessionId
+        var defaultGroupName = $"battle-{gameSession.GameSessionId.Substring(0, 8)}";
+        logger.LogDebug("Generated default GroupName: {GroupName}", defaultGroupName);
+        return defaultGroupName;
     }
 
     /// <summary>
@@ -153,6 +191,55 @@ public sealed class GameSessionManager(
     public static bool IsGameLiftAnywhereGroup(string? groupId)
     {
         return !string.IsNullOrEmpty(groupId) && groupId.StartsWith("gamelift-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Resolve a group name to a GameLift GroupId if applicable
+    /// </summary>
+    /// <param name="groupName">The group name provided by the client</param>
+    /// <returns>The resolved GroupId if this is a GameLift Anywhere group, otherwise null</returns>
+    public string? TryResolveGameLiftGroupId(string? groupName)
+    {
+        if (string.IsNullOrEmpty(groupName))
+        {
+            return null;
+        }
+
+        // Try to find a GameSession with this group name
+        if (_groupNameToGameSessionId.TryGetValue(groupName, out var gameSessionId))
+        {
+            logger.LogDebug("Resolved GroupName {GroupName} to GameSessionId: {GameSessionId}", groupName, gameSessionId);
+            return gameSessionId;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Find or create a GameSession for the given group name
+    /// </summary>
+    /// <param name="groupName">The group name requested by the client</param>
+    /// <returns>The GroupId if a suitable GameSession exists or was created, null otherwise</returns>
+    public async Task<string?> FindOrCreateGameSessionForGroupAsync(string groupName)
+    {
+        // First, try to resolve existing GameSession
+        var existingGroupId = TryResolveGameLiftGroupId(groupName);
+        if (!string.IsNullOrEmpty(existingGroupId))
+        {
+            var gameSessionId = ExtractGameSessionIdFromGroup(existingGroupId);
+            if (_activeSessions.TryGetValue(gameSessionId, out var sessionInfo) &&
+                !sessionInfo.IsCompleted &&
+                sessionInfo.ConnectedClients.Count < sessionInfo.RequiredPlayers)
+            {
+                logger.LogInformation("Found existing GameSession {GameSessionId} for GroupName: {GroupName}", gameSessionId, groupName);
+                return existingGroupId;
+            }
+        }
+
+        // If no suitable existing session, we would need to create one
+        // However, GameSession creation is typically handled by GameLift service
+        logger.LogWarning("No suitable GameSession found for GroupName: {GroupName}. GameSession creation should be handled by GameLift service", groupName);
+        return null;
     }
 
     /// <summary>
@@ -363,6 +450,13 @@ public sealed class GameSessionManager(
                 sessionInfo.IsTerminating = true;
                 logger.LogInformation("Terminating GameSession: {GameSessionId}", gameSessionId);
 
+                // Remove group name mapping
+                if (!string.IsNullOrEmpty(sessionInfo.GroupName) &&
+                    _groupNameToGameSessionId.TryRemove(sessionInfo.GroupName, out _))
+                {
+                    logger.LogDebug("Removed GroupName mapping for: {GroupName}", sessionInfo.GroupName);
+                }
+
                 // Final cleanup if not already done
                 if (!sessionInfo.IsCompleted)
                 {
@@ -422,6 +516,26 @@ public sealed class GameSessionManager(
     }
 
     /// <summary>
+    /// Get all registered group name mappings
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GetGroupNameMappings()
+    {
+        return _groupNameToGameSessionId.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    /// <summary>
+    /// Find GameSession by group name
+    /// </summary>
+    public GameSessionInfo? FindGameSessionByGroupName(string groupName)
+    {
+        if (_groupNameToGameSessionId.TryGetValue(groupName, out var gameSessionId))
+        {
+            return GetGameSessionInfo(gameSessionId);
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Cleanup completed GameSessions that have been idle too long
     /// </summary>
     public async Task CleanupIdleGameSessionsAsync()
@@ -452,6 +566,10 @@ public sealed class GameSessionManager(
         {
             await TerminateGameSessionAsync(sessionId);
         }
+
+        // Clear all mappings
+        _groupNameToGameSessionId.Clear();
+        logger.LogDebug("Cleared all GroupName mappings");
     }
 }
 

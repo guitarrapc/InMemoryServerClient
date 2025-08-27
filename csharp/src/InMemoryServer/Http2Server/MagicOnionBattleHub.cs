@@ -196,10 +196,15 @@ public class MagicOnionBattleHub(
     {
         var connectionId = Context.ContextId.ToString();
 
-        // Check if this is a GameLift GameSession group
-        if (GameSessionManager.IsGameLiftAnywhereGroup(groupName) && gameSessionManager != null)
+        // Check if this group name is associated with a GameLift GameSession
+        if (!string.IsNullOrEmpty(groupName) && gameSessionManager != null)
         {
-            return await JoinGameLiftGameSessionAsync(connectionId, groupName!);
+            // Try to resolve the group name to a GameLift GroupId
+            var resolvedGroupId = gameSessionManager.TryResolveGameLiftGroupId(groupName);
+            if (!string.IsNullOrEmpty(resolvedGroupId))
+            {
+                return await JoinGameLiftGameSessionAsync(connectionId, groupName, resolvedGroupId);
+            }
         }
 
         // Regular group joining for Direct mode
@@ -209,23 +214,27 @@ public class MagicOnionBattleHub(
     /// <summary>
     /// Join a GameLift GameSession
     /// </summary>
-    private async Task<string> JoinGameLiftGameSessionAsync(string connectionId, string groupName)
+    private async Task<string> JoinGameLiftGameSessionAsync(string connectionId, string groupName, string gameSessionId)
     {
-        logger.LogInformation("MagicOnion client {ConnectionId} attempting to join GameLift GameSession group: {GroupName}", connectionId, groupName);
+        logger.LogInformation("MagicOnion client {ConnectionId} attempting to join GameLift GameSession group: {GroupName} with GameSessionId: {GameSessionId}",
+            connectionId, groupName, gameSessionId);
 
         // Use GameSessionManager to handle GameLift Anywhere connection
-        var success = await gameSessionManager!.TryHandlePlayerConnectionAsync(groupName, connectionId);
+        var success = await gameSessionManager!.TryHandlePlayerConnectionAsync(gameSessionId, connectionId);
         if (!success)
         {
-            logger.LogWarning("Failed to connect MagicOnion client {ConnectionId} to GameLift group: {GroupName}", connectionId, groupName);
-            throw new InvalidOperationException($"Cannot join GameLift group {groupName}");
+            logger.LogWarning("Failed to add connection {ConnectionId} to GameLift GameSession {GameSessionId}", connectionId, gameSessionId);
+            throw new InvalidOperationException($"Could not join GameLift GameSession '{gameSessionId}'. The session might be full or unavailable.");
         }
 
-        // Add to MagicOnion group for communication
-        magicOnionGroupService.AddClientToGroup(groupName, Context.ContextId, Client);
+        var groupId = $"gamelift-{gameSessionId}";
 
-        logger.LogInformation("MagicOnion client {ConnectionId} successfully joined GameLift group: {GroupName}", connectionId, groupName);
-        return groupName;
+        // Add to MagicOnion group
+        await Group.AddAsync(groupId);
+        logger.LogInformation("MagicOnion client {ConnectionId} successfully joined GameLift GameSession {GameSessionId} as group {GroupId}",
+            connectionId, gameSessionId, groupId);
+
+        return groupId;
     }
 
     /// <summary>
