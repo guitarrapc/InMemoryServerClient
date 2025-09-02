@@ -1,4 +1,5 @@
 ﻿using CliClient.Clients;
+using CliClient.Services;
 using Shared.BattleLogic.Models;
 
 namespace CliClient.Tests;
@@ -123,8 +124,9 @@ public class MockBattleClientTests
         mockClient.GetAsync("test-key").Returns("mock-value");
 
         var manager = new MultiBattleClientManager(_loggerFactory);
+        var serviceDiscoveryProvider = new ServiceDiscoveryClientProvider(_loggerFactory.CreateLogger<ServiceDiscoveryClientProvider>(), _loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
+        var command = new ConsoleCommand(manager, serviceDiscoveryProvider, _loggerFactory, logger);
 
         // Act & Assert - Verify mock setup
         var value = await mockClient.GetAsync("test-key");

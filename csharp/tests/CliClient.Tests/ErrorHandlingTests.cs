@@ -1,4 +1,5 @@
 ﻿using CliClient.Clients;
+using CliClient.Services;
 
 namespace CliClient.Tests;
 
@@ -151,8 +152,9 @@ public class ErrorHandlingTests : IDisposable
     {
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
+        var serviceDiscoveryProvider = new ServiceDiscoveryClientProvider(_loggerFactory.CreateLogger<ServiceDiscoveryClientProvider>(), _loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
+        var command = new ConsoleCommand(manager, serviceDiscoveryProvider, _loggerFactory, logger);
 
         // Act & Assert - Command creation should not throw
         Assert.NotNull(command);
@@ -160,7 +162,7 @@ public class ErrorHandlingTests : IDisposable
         // Verify proper dependency injection
         var type = typeof(ConsoleCommand);
         var constructor = type.GetConstructors()[0];
-        Assert.Equal(3, constructor.GetParameters().Length);
+        Assert.Equal(4, constructor.GetParameters().Length);
     }
 
     [Fact]

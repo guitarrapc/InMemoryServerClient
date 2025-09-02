@@ -1,5 +1,6 @@
 ﻿using CliClient;
 using CliClient.Clients;
+using CliClient.Services;
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,7 @@ var app = ConsoleApp.Create()
     .ConfigureServices((context, services) =>
     {
         services.AddSingleton<MultiBattleClientManager>();
+        services.AddSingleton<ServiceDiscoveryClientProvider>();
     });
 
 // Add commands

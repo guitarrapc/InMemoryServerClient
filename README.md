@@ -137,6 +137,16 @@ dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -t MagicOn
 dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -t MagicOnion -c 4
 ```
 
+Service Discovery
+
+```bash
+# Connect single sessions for battle testing
+dotnet run -- sd-battle -u http://localhost:5010 -g battle-group -t SignalR -c 1
+
+# Connect multiple sessions for battle testing
+dotnet run -- sd-battle -u http://localhost:5010 -g battle-group -t SignalR -c 4
+```
+
 #### Interactive Mode Commands
 ```
 connect [url] [group]                - Connect to server

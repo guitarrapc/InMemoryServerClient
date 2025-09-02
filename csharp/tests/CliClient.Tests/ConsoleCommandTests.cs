@@ -1,4 +1,5 @@
 ﻿using CliClient.Clients;
+using CliClient.Services;
 
 namespace CliClient.Tests;
 
@@ -11,6 +12,7 @@ public class ConsoleCommandTests : IDisposable
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly MultiBattleClientManager _multiClientManager;
+    private readonly ServiceDiscoveryClientProvider _serviceDiscoveryProvider;
     private readonly ILogger<ConsoleCommand> _logger;
     private readonly ConsoleCommand _consoleCommand;
 
@@ -18,15 +20,16 @@ public class ConsoleCommandTests : IDisposable
     {
         _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _multiClientManager = new MultiBattleClientManager(_loggerFactory);
+        _serviceDiscoveryProvider = new ServiceDiscoveryClientProvider(_loggerFactory.CreateLogger<ServiceDiscoveryClientProvider>(), _loggerFactory);
         _logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        _consoleCommand = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger);
+        _consoleCommand = new ConsoleCommand(_multiClientManager, _serviceDiscoveryProvider, _loggerFactory, _logger);
     }
 
     [Fact]
     public void Constructor_WithValidParameters_CreatesInstance()
     {
         // Act
-        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, _logger);
+        var command = new ConsoleCommand(_multiClientManager, _serviceDiscoveryProvider, _loggerFactory, _logger);
 
         // Assert
         Assert.NotNull(command);
@@ -37,7 +40,15 @@ public class ConsoleCommandTests : IDisposable
     {
         // Note: The actual implementation does not perform null checks in constructor
         // Null reference exceptions will be thrown during actual usage
-        var command = new ConsoleCommand(null!, _loggerFactory, _logger);
+        var command = new ConsoleCommand(null!, _serviceDiscoveryProvider, _loggerFactory, _logger);
+        Assert.NotNull(command);
+    }
+
+    [Fact]
+    public void Constructor_WithNullServiceDiscoveryProvider_DoesNotThrowInConstructor()
+    {
+        // Note: The actual implementation does not perform null checks in constructor
+        var command = new ConsoleCommand(_multiClientManager, null!, _loggerFactory, _logger);
         Assert.NotNull(command);
     }
 
@@ -45,7 +56,7 @@ public class ConsoleCommandTests : IDisposable
     public void Constructor_WithNullLoggerFactory_DoesNotThrowInConstructor()
     {
         // Note: The actual implementation does not perform null checks in constructor
-        var command = new ConsoleCommand(_multiClientManager, null!, _logger);
+        var command = new ConsoleCommand(_multiClientManager, _serviceDiscoveryProvider, null!, _logger);
         Assert.NotNull(command);
     }
 
@@ -53,7 +64,7 @@ public class ConsoleCommandTests : IDisposable
     public void Constructor_WithNullLogger_DoesNotThrowInConstructor()
     {
         // Note: The actual implementation does not perform null checks in constructor
-        var command = new ConsoleCommand(_multiClientManager, _loggerFactory, null!);
+        var command = new ConsoleCommand(_multiClientManager, _serviceDiscoveryProvider, _loggerFactory, null!);
         Assert.NotNull(command);
     }
 

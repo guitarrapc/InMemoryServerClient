@@ -1,4 +1,5 @@
 ﻿using CliClient.Clients;
+using CliClient.Services;
 
 namespace CliClient.Tests;
 
@@ -51,10 +52,11 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
+        var serviceDiscoveryProvider = new ServiceDiscoveryClientProvider(_loggerFactory.CreateLogger<ServiceDiscoveryClientProvider>(), _loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
 
         // Act
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
+        var command = new ConsoleCommand(manager, serviceDiscoveryProvider, _loggerFactory, logger);
 
         // Assert
         Assert.NotNull(command);
@@ -248,8 +250,9 @@ public class ClientIntegrationTests : IDisposable
     {
         // Arrange
         var manager = new MultiBattleClientManager(_loggerFactory);
+        var serviceDiscoveryProvider = new ServiceDiscoveryClientProvider(_loggerFactory.CreateLogger<ServiceDiscoveryClientProvider>(), _loggerFactory);
         var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
+        var command = new ConsoleCommand(manager, serviceDiscoveryProvider, _loggerFactory, logger);
 
         // Act & Assert - The command object should be created successfully
         Assert.NotNull(command);

@@ -1,7 +1,9 @@
 ﻿using CliClient.Clients;
+using CliClient.Services;
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
 using Shared.Models;
+using Shared.ServiceDiscovery.Models;
 
 namespace CliClient;
 
@@ -19,7 +21,7 @@ internal readonly record struct ConnectionOptions
 /// Public Method will be automatically registered as commands.
 /// ListFooAsync will be registered as list-foo command.
 /// </summary>
-public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
+public class ConsoleCommand(MultiBattleClientManager multiClientManager, ServiceDiscoveryClientProvider serviceDiscoveryProvider, ILoggerFactory loggerFactory, ILogger<ConsoleCommand> logger)
 {
     private IBattleClient? _client;
 
@@ -134,6 +136,48 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                         }
                         var message = string.Join(' ', args.Skip(1));
                         await BroadcastAsync(message);
+                        break;
+
+                    case "sd-connect":
+                        var sdUrl = args.Length > 1 ? args[1] : "http://localhost:5010";
+                        await ServiceDiscoveryConnectAsync(sdUrl);
+                        break;
+
+                    case "sd-create-session":
+                        if (args.Length < 2)
+                        {
+                            logger.LogInformation("Usage: sd-create-session <group_name> [max_players] [connection_type]");
+                            break;
+                        }
+                        var sdGroupName = args[1];
+                        var sdMaxPlayers = args.Length > 2 && int.TryParse(args[2], out var mp) ? mp : 5;
+                        var sdConnectionType = args.Length > 3 && Enum.TryParse<ConnectionType>(args[3], out var ct) ? ct : ConnectionType.SignalR;
+                        await ServiceDiscoveryCreateSessionAsync(sdGroupName, sdMaxPlayers, sdConnectionType);
+                        break;
+
+                    case "sd-list-sessions":
+                        await ServiceDiscoveryListSessionsAsync();
+                        break;
+
+                    case "sd-get-session":
+                        if (args.Length < 2)
+                        {
+                            logger.LogInformation("Usage: sd-get-session <session_id>");
+                            break;
+                        }
+                        await ServiceDiscoveryGetSessionAsync(args[1]);
+                        break;
+
+                    case "sd-battle":
+                        if (args.Length < 2)
+                        {
+                            logger.LogInformation("Usage: sd-battle <group_name> [count] [connection_type]");
+                            break;
+                        }
+                        var sdBattleGroupName = args[1];
+                        var sdBattleCount = args.Length > 2 && int.TryParse(args[2], out var bc) ? bc : 5;
+                        var sdBattleConnectionType = args.Length > 3 && Enum.TryParse<ConnectionType>(args[3], out var bct) ? bct : ConnectionType.SignalR;
+                        await ServiceDiscoveryBattleAsync(sdBattleGroupName, sdBattleCount, sdBattleConnectionType);
                         break;
 
                     case "battle-status":
@@ -905,6 +949,11 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
           broadcast <message>    - Broadcast message to current group
           groups                 - List available groups
           mygroup                - Show current group information
+          sd-connect [url]       - Connect to ServiceDiscovery server (default: http://localhost:5010)
+          sd-create-session <group_name> [max_players] [connection_type] - Create session via ServiceDiscovery
+          sd-list-sessions       - List active sessions
+          sd-get-session <id>    - Get session information
+          sd-battle <group_name> [count] [connection_type] - Start battle via ServiceDiscovery (default: 5 connections)
           battle-status          - Show battle status
           battle-replay <id>     - Play battle replay at 5fps speed
           battle-reproduce <battleId> <seedValue> [count] [groupName] [serverUrl] - Reproduce battle with specific battle ID and seed value
@@ -912,5 +961,306 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
           exit, quit             - Exit the program
           help                   - Show this help
         """);
+    }
+
+    // ServiceDiscovery related methods
+
+    /// <summary>Connect to ServiceDiscovery server</summary>
+    /// <param name="serviceDiscoveryUrl">ServiceDiscovery server URL</param>
+    private async Task ServiceDiscoveryConnectAsync(string serviceDiscoveryUrl)
+    {
+        try
+        {
+            logger.LogInformation("Connecting to ServiceDiscovery server at {Url}", serviceDiscoveryUrl);
+            await serviceDiscoveryProvider.InitializeAsync(serviceDiscoveryUrl);
+            logger.LogInformation("Successfully connected to ServiceDiscovery server");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to connect to ServiceDiscovery server");
+        }
+    }
+
+    /// <summary>Create or find session via ServiceDiscovery</summary>
+    /// <param name="groupName">Group name</param>
+    /// <param name="maxPlayers">Maximum players per session</param>
+    /// <param name="connectionType">Connection type</param>
+    private async Task ServiceDiscoveryCreateSessionAsync(string groupName, int maxPlayers, ConnectionType connectionType)
+    {
+        try
+        {
+            logger.LogInformation("Creating session for group {GroupName} with {MaxPlayers} players using {ConnectionType}",
+                groupName, maxPlayers, connectionType);
+
+            var (client, session) = await serviceDiscoveryProvider.CreateSessionAndConnectAsync(groupName, connectionType, maxPlayers);
+
+            logger.LogInformation("Successfully created session and connected:");
+            logger.LogInformation("  Session ID: {SessionId}", session.SessionId);
+            logger.LogInformation("  Group Name: {GroupName}", session.GroupName);
+            logger.LogInformation("  Server ID: {ServerId}", session.AssignedServerId);
+            logger.LogInformation("  Current/Max Players: {Current}/{Max}", session.CurrentPlayers, session.MaxPlayers);
+            logger.LogInformation("  Status: {Status}", session.Status);
+
+            // Clean up connection (for demo purposes)
+            await client.DisposeAsync();
+            logger.LogInformation("Connection cleaned up");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create session and connect");
+        }
+    }
+
+    /// <summary>List all active sessions via ServiceDiscovery</summary>
+    private async Task ServiceDiscoveryListSessionsAsync()
+    {
+        try
+        {
+            var sessions = await serviceDiscoveryProvider.ListActiveSessionsAsync();
+
+            if (sessions.Count == 0)
+            {
+                logger.LogInformation("No active sessions found");
+                return;
+            }
+
+            logger.LogInformation("Active Sessions ({Count} total):", sessions.Count);
+            logger.LogInformation("┌────────────────────────────────────────┬─────────────────┬─────────────┬──────────┬─────────┐");
+            logger.LogInformation("│ Session ID                             │ Group Name      │ Server ID   │ Players  │ Status  │");
+            logger.LogInformation("├────────────────────────────────────────┼─────────────────┼─────────────┼──────────┼─────────┤");
+
+            foreach (var session in sessions)
+            {
+                logger.LogInformation("│ {SessionId,-38} │ {GroupName,-15} │ {ServerId,-11} │ {Players,-8} │ {Status,-7} │",
+                    session.SessionId, session.GroupName, session.AssignedServerId,
+                    $"{session.CurrentPlayers}/{session.MaxPlayers}", session.Status);
+            }
+            logger.LogInformation("└────────────────────────────────────────┴─────────────────┴─────────────┴──────────┴─────────┘");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list active sessions");
+        }
+    }
+
+    /// <summary>Get session information via ServiceDiscovery</summary>
+    /// <param name="sessionId">Session ID</param>
+    private async Task ServiceDiscoveryGetSessionAsync(string sessionId)
+    {
+        try
+        {
+            var session = await serviceDiscoveryProvider.GetSessionInfoAsync(sessionId);
+
+            if (session is null)
+            {
+                logger.LogInformation("Session {SessionId} not found", sessionId);
+                return;
+            }
+
+            logger.LogInformation("Session Information:");
+            logger.LogInformation("  Session ID: {SessionId}", session.Value.SessionId);
+            logger.LogInformation("  Group Name: {GroupName}", session.Value.GroupName);
+            logger.LogInformation("  Server ID: {ServerId}", session.Value.AssignedServerId);
+            logger.LogInformation("  Players: {Current}/{Max}", session.Value.CurrentPlayers, session.Value.MaxPlayers);
+            logger.LogInformation("  Status: {Status}", session.Value.Status);
+            logger.LogInformation("  Mode: {Mode}", session.Value.Mode);
+            logger.LogInformation("  Created At: {CreatedAt}", session.Value.CreatedAt);
+            if (session.Value.CompletedAt.HasValue)
+            {
+                logger.LogInformation("  Completed At: {CompletedAt}", session.Value.CompletedAt.Value);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get session information for {SessionId}", sessionId);
+        }
+    }
+
+    /// <summary>Start batch battle via ServiceDiscovery</summary>
+    /// <param name="groupName">Group name</param>
+    /// <param name="count">Number of connections</param>
+    /// <param name="connectionType">Connection type</param>
+    private async Task ServiceDiscoveryBattleAsync(string groupName, int count, ConnectionType connectionType)
+    {
+        var connections = new List<IBattleClient>();
+        try
+        {
+            logger.LogInformation("Starting batch battle via ServiceDiscovery for group {GroupName} with {Count} connections using {ConnectionType}",
+                groupName, count, connectionType);
+
+            var results = await serviceDiscoveryProvider.CreateMultipleSessionsAndConnectAsync(groupName, count, connectionType);
+
+            logger.LogInformation("Successfully created {Successful}/{Total} connections", results.Count, count);
+
+            foreach (var (client, session) in results)
+            {
+                connections.Add(client);
+                logger.LogInformation("Connected to session {SessionId} on server {ServerId}",
+                    session.SessionId, session.AssignedServerId);
+            }
+
+            if (connections.Count == 0)
+            {
+                logger.LogError("No connections established");
+                return;
+            }
+
+            logger.LogInformation("Battle should start automatically when server has 5 connections");
+            logger.LogInformation("Waiting for battle completion... (Press any key to disconnect all connections)");
+
+            // Wait for user input to disconnect
+            Console.ReadKey();
+
+            logger.LogInformation("Disconnecting all connections...");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to start batch battle");
+        }
+        finally
+        {
+            // Clean up all connections
+            foreach (var connection in connections)
+            {
+                try
+                {
+                    await connection.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning("Error cleaning up connection: {Message}", ex.Message);
+                }
+            }
+        }
+    }
+
+    /// <summary>Create session via ServiceDiscovery and connect to battle server</summary>
+    /// <param name="groupName">Group name for the session</param>
+    /// <param name="serviceDiscoveryUrl">ServiceDiscovery server URL</param>
+    /// <param name="maxPlayers">Maximum players per session</param>
+    /// <param name="connectionType">Connection type (SignalR or MagicOnion)</param>
+    [Command("create-session")]
+    public async Task CreateSessionAsync(
+        [Argument] string groupName,
+        string serviceDiscoveryUrl = "http://localhost:5010",
+        int maxPlayers = 5,
+        ConnectionType connectionType = ConnectionType.SignalR)
+    {
+        try
+        {
+            logger.LogInformation("ServiceDiscovery Session Creation");
+            logger.LogInformation("================================");
+            logger.LogInformation("Group Name: {GroupName}", groupName);
+            logger.LogInformation("ServiceDiscovery URL: {Url}", serviceDiscoveryUrl);
+            logger.LogInformation("Max Players: {MaxPlayers}", maxPlayers);
+            logger.LogInformation("Connection Type: {ConnectionType}", connectionType);
+
+            // Initialize ServiceDiscovery connection
+            await serviceDiscoveryProvider.InitializeAsync(serviceDiscoveryUrl);
+
+            // Create session and connect to battle server
+            var (client, session) = await serviceDiscoveryProvider.CreateSessionAndConnectAsync(groupName, connectionType, maxPlayers);
+
+            logger.LogInformation("Session created successfully:");
+            logger.LogInformation("  Session ID: {SessionId}", session.SessionId);
+            logger.LogInformation("  Server ID: {ServerId}", session.AssignedServerId);
+            logger.LogInformation("  Status: {Status}", session.Status);
+
+            // Clean up
+            await client.DisposeAsync();
+            logger.LogInformation("Connection cleaned up");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to create session via ServiceDiscovery");
+            Environment.ExitCode = 1;
+        }
+    }
+
+    /// <summary>Start multiple session battle via ServiceDiscovery</summary>
+    /// <param name="url">-u, ServiceDiscovery server URL</param>
+    /// <param name="group">-g, Group name for the battle</param>
+    /// <param name="count">-c, Number of connections to create</param>
+    /// <param name="connectionType">-t, Connection type (SignalR or MagicOnion)</param>
+    [Command("sd-battle")]
+    public async Task ServiceDiscoveryBattleCommandAsync(
+        string url = "http://localhost:5010",
+        string group = "battle-group",
+        int count = 5,
+        ConnectionType connectionType = ConnectionType.SignalR)
+    {
+        var connections = new List<IBattleClient>();
+        try
+        {
+            logger.LogInformation("ServiceDiscovery Batch Battle");
+            logger.LogInformation("============================");
+            logger.LogInformation("Group Name: {group}", group);
+            logger.LogInformation("Connection Count: {Count}", count);
+            logger.LogInformation("ServiceDiscovery URL: {Url}", url);
+            logger.LogInformation("Connection Type: {ConnectionType}", connectionType);
+
+            // Initialize ServiceDiscovery connection
+            await serviceDiscoveryProvider.InitializeAsync(url);
+
+            // Create multiple sessions and connect to battle servers
+            var results = await serviceDiscoveryProvider.CreateMultipleSessionsAndConnectAsync(group, count, connectionType);
+
+            logger.LogInformation("Successfully created {Successful}/{Total} connections", results.Count, count);
+
+            if (results.Count == 0)
+            {
+                logger.LogError("No connections established");
+                Environment.ExitCode = 1;
+                return;
+            }
+
+            foreach (var (client, session) in results)
+            {
+                connections.Add(client);
+                logger.LogInformation("Connected to session {SessionId} on server {ServerId}",
+                    session.SessionId, session.AssignedServerId);
+            }
+
+            logger.LogInformation("Battle should start automatically when server has 5 connections");
+            logger.LogInformation("Monitoring battle progress... (Press Ctrl+C to exit)");
+
+            // Keep connections alive until interrupted
+            var cts = new CancellationTokenSource();
+            Console.CancelKeyPress += (_, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+            };
+
+            try
+            {
+                await Task.Delay(Timeout.Infinite, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation("Shutting down...");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to start ServiceDiscovery batch battle");
+            Environment.ExitCode = 1;
+        }
+        finally
+        {
+            // Clean up all connections
+            logger.LogInformation("Disconnecting all connections...");
+            foreach (var connection in connections)
+            {
+                try
+                {
+                    await connection.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning("Error cleaning up connection: {Message}", ex.Message);
+                }
+            }
+        }
     }
 }
