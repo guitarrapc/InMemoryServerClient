@@ -861,6 +861,88 @@ public class SignalRBattleHub(
     }
 
     /// <summary>
+    /// Create or find a GameSession via server-side GameLift operations
+    /// </summary>
+    public async Task<Shared.GameLift.GameSessionCreationResponse> CreateGameSessionAsync(Shared.GameLift.GameSessionCreationRequest request)
+    {
+        var connectionId = Context.ConnectionId;
+        logger.LogInformation("Client {ConnectionId} requesting GameSession creation for: {Name}", connectionId, request.Name);
+
+        if (gameSessionManager == null)
+        {
+            logger.LogWarning("GameSession creation requested but GameLift is not configured");
+            return Shared.GameLift.GameSessionCreationResponse.Failed("GameLift is not configured on this server");
+        }
+
+        try
+        {
+            // Server-side GameSession creation with configured Fleet/Location
+            var gameSession = await gameSessionManager.CreateOrFindGameSessionAsync(request.Name);
+
+            if (gameSession == null)
+            {
+                logger.LogWarning("Failed to create or find GameSession for name: {Name}", request.Name);
+                return Shared.GameLift.GameSessionCreationResponse.Failed($"Could not create GameSession for '{request.Name}'");
+            }
+
+            // Determine if this is a new session or existing one
+            var isNewSession = gameSession.CreationTime > DateTime.UtcNow.AddMinutes(-1); // Consider sessions created within the last minute as "new"
+
+            // Create connection endpoint - this should point back to this server
+            var connectionEndpoint = gameSessionManager.GetServerConnectionEndpoint();
+
+            logger.LogInformation("GameSession creation successful for client {ConnectionId}: {GameSessionId} (New: {IsNew})",
+                connectionId, gameSession.GameSessionId, isNewSession);
+
+            return Shared.GameLift.GameSessionCreationResponse.Success(gameSession, connectionEndpoint, isNewSession);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating GameSession for client {ConnectionId}, name: {Name}", connectionId, request.Name);
+            return Shared.GameLift.GameSessionCreationResponse.Failed($"GameSession creation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Create a PlayerSession via server-side GameLift operations
+    /// </summary>
+    public async Task<Shared.GameLift.PlayerSessionCreationResponse> CreatePlayerSessionAsync(Shared.GameLift.PlayerSessionCreationRequest request)
+    {
+        var connectionId = Context.ConnectionId;
+        logger.LogInformation("Client {ConnectionId} requesting PlayerSession creation for GameSession: {GameSessionId}, Player: {PlayerId}",
+            connectionId, request.GameSessionId, request.PlayerId);
+
+        if (gameSessionManager == null)
+        {
+            logger.LogWarning("PlayerSession creation requested but GameLift is not configured");
+            return Shared.GameLift.PlayerSessionCreationResponse.Failed("GameLift is not configured on this server");
+        }
+
+        try
+        {
+            var playerSession = await gameSessionManager.CreatePlayerSessionAsync(request.GameSessionId, request.PlayerId);
+
+            if (playerSession == null || string.IsNullOrEmpty(playerSession.PlayerSessionId))
+            {
+                logger.LogWarning("Failed to create PlayerSession for GameSession: {GameSessionId}, Player: {PlayerId}",
+                    request.GameSessionId, request.PlayerId);
+                return Shared.GameLift.PlayerSessionCreationResponse.Failed($"Could not create PlayerSession for player '{request.PlayerId}'");
+            }
+
+            logger.LogInformation("PlayerSession creation successful for client {ConnectionId}: {PlayerSessionId}",
+                connectionId, playerSession.PlayerSessionId);
+
+            return Shared.GameLift.PlayerSessionCreationResponse.Success(playerSession);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating PlayerSession for client {ConnectionId}, GameSession: {GameSessionId}, Player: {PlayerId}",
+                connectionId, request.GameSessionId, request.PlayerId);
+            return Shared.GameLift.PlayerSessionCreationResponse.Failed($"PlayerSession creation failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Process GameLift disconnection for a client across all GameSessions
     /// </summary>
     private async Task ProcessGameLiftDisconnectionAsync(string connectionId)

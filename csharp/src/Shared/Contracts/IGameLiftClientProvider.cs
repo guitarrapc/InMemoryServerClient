@@ -8,16 +8,6 @@ namespace Shared.Contracts;
 public interface IGameLiftClientProvider
 {
     /// <summary>
-    /// Resolve server endpoint for connection by requesting GameSession creation from server
-    /// </summary>
-    /// <param name="fleetId">Fleet ID</param>
-    /// <param name="location">Location to search</param>
-    /// <param name="groupName">Group name for the session</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Server endpoint URL</returns>
-    Task<string> ResolveServerEndpointAsync(string fleetId, string location, string groupName, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Request GameSession creation from server via SignalR
     /// </summary>
     /// <param name="request">GameSession creation request</param>

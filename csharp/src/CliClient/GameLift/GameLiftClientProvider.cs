@@ -49,36 +49,14 @@ internal class GameLiftClientProvider : IGameLiftClientProvider, IAsyncDisposabl
         _logger.LogInformation("SignalR connection established");
     }
 
-    public async Task<string> ResolveServerEndpointAsync(string fleetId, string location, string groupName, CancellationToken cancellationToken = default)
-    {
-        await EnsureConnectionAsync(cancellationToken);
-
-        var clientId = Guid.NewGuid().ToString("N")[..8]; // Short client ID for tracking
-        var request = GameSessionCreationRequest.ForAutoBattle(fleetId, location, groupName, clientId);
-
-        _logger.LogInformation("Requesting GameSession creation for group: {GroupName}, fleet: {FleetId}", groupName, fleetId);
-
-        var response = await RequestGameSessionCreationAsync(request, cancellationToken);
-
-        if (!response.IsSuccess)
-        {
-            throw new InvalidOperationException($"Failed to resolve server endpoint: {response.ErrorMessage}");
-        }
-
-        _logger.LogInformation("Resolved server endpoint: {Endpoint} (GameSession: {GameSessionId})",
-            response.ConnectionEndpoint, response.GameSession.GameSessionId);
-
-        return response.ConnectionEndpoint;
-    }
-
     public async Task<GameSessionCreationResponse> RequestGameSessionCreationAsync(GameSessionCreationRequest request, CancellationToken cancellationToken = default)
     {
         await EnsureConnectionAsync(cancellationToken);
 
         try
         {
-            _logger.LogDebug("Invoking server-side GameSession creation for fleet: {FleetId}, location: {Location}",
-                request.FleetId, request.Location);
+            _logger.LogDebug("Invoking server-side GameSession creation for name: {Name}",
+                request.Name);
 
             var response = await _hubConnection!.InvokeAsync<GameSessionCreationResponse>(
                 "CreateGameSessionAsync", request, cancellationToken);

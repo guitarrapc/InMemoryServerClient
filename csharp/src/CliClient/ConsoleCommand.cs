@@ -1006,15 +1006,13 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
 
     /// <summary>Connect to GameLift server and start battle</summary>
     /// <param name="mode">-m, GameLift Mode to use</param>
-    /// <param name="serverUrl">-s, Server URL (e.g., http://localhost:5000)</param>
-    /// <param name="fleetId">-f, Fleet ID</param>
-    /// <param name="location">-l, Location to search (optional)</param>
+    /// <param name="url">-u, Server URL</param>
     /// <param name="group">-g, Group name</param>
     /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("gamelift-connect-battle")]
-    public async Task GameLiftConnectMultipleAsync(GameLiftMode mode, string serverUrl, string fleetId, string location = "custom-localhost", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
+    public async Task GameLiftConnectMultipleAsync(GameLiftMode mode, string url, string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
         if (count <= 0 || count > 5)
         {
@@ -1023,16 +1021,35 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        await using var gameLiftClientProvider = new GameLiftClientProvider(mode, serverUrl, loggerFactory);
+        await using var gameLiftClientProvider = new GameLiftClientProvider(mode, url, loggerFactory);
 
         logger.LogInformation("Connecting to GameLift server for battle...");
 
         // Create group name from GameLift (this will be used for connection)
         var groupName = $"gamelift-{group}";
 
-        // Resolve server endpoint through GameLift (this will create GameSession with the matching name)
-        var endpoint = await gameLiftClientProvider.ResolveServerEndpointAsync(fleetId, location, groupName, cancellationToken);
-        logger.LogInformation("Resolved GameLift endpoint: {Endpoint}", endpoint);
+        // Request server-side GameSession creation (server will handle Fleet/Location configuration)
+        var clientId = Guid.NewGuid().ToString("N")[..8];
+        var request = new GameSessionCreationRequest
+        {
+            Name = groupName,
+            MaxPlayers = count,
+            GameSessionData = groupName,
+            ClientId = clientId,
+            // FleetId and Location will be determined server-side from configuration
+        };
+
+        var response = await gameLiftClientProvider.RequestGameSessionCreationAsync(request, cancellationToken);
+        if (!response.IsSuccess)
+        {
+            logger.LogError("Failed to create GameSession via server: {ErrorMessage}", response.ErrorMessage);
+            Environment.ExitCode = 1;
+            return;
+        }
+
+        var endpoint = response.ConnectionEndpoint;
+        logger.LogInformation("Resolved GameLift endpoint: {Endpoint} (GameSession: {GameSessionId})",
+            endpoint, response.GameSession.GameSessionId);
 
         logger.LogInformation("Connecting {Count} sessions to GameLift server", count);
         logger.LogInformation("Group name: {GroupName}", groupName);
@@ -1077,7 +1094,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
           gamelift-search-servers [fleetId] [location] - Search for available GameLift game servers
           gamelift-create-session [fleetId] [name] [maxPlayers] - Create a new GameLift game session
           gamelift-search-sessions [fleetId] [location] - Search for active GameLift game sessions
-          gamelift-connect-battle [fleetId] [location] [count] [connectionType] - Connect to GameLift server and start battle
+          gamelift-connect-battle [serverUrl] [group] [count] [connectionType] - Connect to GameLift server and start battle
           exit, quit             - Exit the program
           help                   - Show this help
         """);

@@ -140,15 +140,11 @@ dotnet run -- connect-battle -u http://localhost:5001 -g battle-group -t MagicOn
 #### GameLift
 
 ```bash
-aws sso login --profile gamelift-profile
-set AWS_PROFILE=xxxxxxxxxxx
-set FLEET_ID=xxxxxxxxxxxxxxx
-
 # Connect single sessions for battle testing
-dotnet run -- gamelift-connect-battle -m Anywhere -f fleet-896db890-2e06-45af-a167-dc26dc4829bd -l custom-localhost -g battle-group -t SignalR -c 1
+dotnet run -- gamelift-connect-battle -u http://localhost:5000 -m Anywhere -g battle-group -t SignalR -c 1
 
 # Connect multiple sessions for battle testing
-dotnet run -- gamelift-connect-battle -m Anywhere -f fleet-896db890-2e06-45af-a167-dc26dc4829bd -l custom-localhost -g battle-group -t SignalR -c 4
+dotnet run -- gamelift-connect-battle -u http://localhost:5000 -m Anywhere -g battle-group -t SignalR -c 4
 ```
 
 #### Interactive Mode Commands

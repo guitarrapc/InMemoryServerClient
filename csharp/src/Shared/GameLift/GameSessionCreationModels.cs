@@ -6,16 +6,6 @@ namespace Shared.GameLift;
 public class GameSessionCreationRequest
 {
     /// <summary>
-    /// Fleet ID to create the session in
-    /// </summary>
-    public string FleetId { get; init; } = string.Empty;
-
-    /// <summary>
-    /// Location/region for the GameSession
-    /// </summary>
-    public string Location { get; init; } = string.Empty;
-
-    /// <summary>
     /// Name for the GameSession (typically group name)
     /// </summary>
     public string Name { get; init; } = string.Empty;
@@ -38,10 +28,8 @@ public class GameSessionCreationRequest
     /// <summary>
     /// Create request for auto-battle session
     /// </summary>
-    public static GameSessionCreationRequest ForAutoBattle(string fleetId, string location, string groupName, string clientId) => new()
+    public static GameSessionCreationRequest ForAutoBattle(string groupName, string clientId) => new()
     {
-        FleetId = fleetId,
-        Location = location,
         Name = groupName,
         MaxPlayers = 5,
         GameSessionData = groupName,

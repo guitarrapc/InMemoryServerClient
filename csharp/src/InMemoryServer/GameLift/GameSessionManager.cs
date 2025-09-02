@@ -744,6 +744,175 @@ public sealed class GameSessionManager(
 
         return converted;
     }
+
+    /// <summary>
+    /// Create or find a GameSession for the specified group name (server-side API)
+    /// </summary>
+    /// <param name="groupName">Group name to create or find GameSession for</param>
+    /// <returns>GameSession information if successful, null otherwise</returns>
+    public async Task<Shared.GameLift.GameSessionInfo?> CreateOrFindGameSessionAsync(string groupName)
+    {
+        logger.LogInformation("Creating or finding GameSession for group: {GroupName}", groupName);
+
+        try
+        {
+            // First, check if we already have a GameSession for this group name
+            if (_groupNameToGameSessionId.TryGetValue(groupName, out var existingGameSessionId) &&
+                _activeSessions.TryGetValue(existingGameSessionId, out var existingSession) &&
+                !existingSession.IsCompleted &&
+                !existingSession.IsTerminating)
+            {
+                logger.LogInformation("Found existing GameSession for group {GroupName}: {GameSessionId}", groupName, existingGameSessionId);
+
+                return new Shared.GameLift.GameSessionInfo
+                {
+                    GameSessionId = existingSession.GameSessionId,
+                    FleetId = options.Value.Anywhere.FleetId,
+                    Name = groupName,
+                    Status = existingSession.IsActivated ? Shared.GameLift.GameSessionStatus.Active : Shared.GameLift.GameSessionStatus.Activating,
+                    CurrentPlayerCount = existingSession.ConnectedClients.Count,
+                    MaxPlayers = existingSession.RequiredPlayers,
+                    Address = "localhost", // This server
+                    Port = GetServerPort(),
+                    GameSessionData = groupName,
+                    CreationTime = existingSession.StartTime
+                };
+            }
+
+            // Create new GameSession via AWS GameLift API
+            logger.LogInformation("Creating new GameSession for group: {GroupName}", groupName);
+
+            var createRequest = new Amazon.GameLift.Model.CreateGameSessionRequest
+            {
+                FleetId = options.Value.Anywhere.FleetId,
+                MaximumPlayerSessionCount = 5,
+                Name = groupName,
+                Location = options.Value.Anywhere.CustomLocation,
+                GameSessionData = groupName
+            };
+
+            var response = await gameLiftClient.CreateGameSessionAsync(createRequest);
+
+            if (response.HttpStatusCode == System.Net.HttpStatusCode.OK && response.GameSession != null)
+            {
+                var gameSession = response.GameSession;
+                logger.LogInformation("Successfully created GameSession: {GameSessionId} for group: {GroupName}", gameSession.GameSessionId, groupName);
+
+                // Register the new session in our tracking
+                var sessionInfo = new GameSessionInfo
+                {
+                    GameSessionId = gameSession.GameSessionId,
+                    GroupId = $"gamelift-{gameSession.GameSessionId}",
+                    GroupName = groupName,
+                    RequiredPlayers = gameSession.MaximumPlayerSessionCount ?? 5,
+                };
+
+                _activeSessions[gameSession.GameSessionId] = sessionInfo;
+                _groupNameToGameSessionId[groupName] = gameSession.GameSessionId;
+
+                return new Shared.GameLift.GameSessionInfo
+                {
+                    GameSessionId = gameSession.GameSessionId,
+                    FleetId = gameSession.FleetId,
+                    Name = gameSession.Name ?? groupName,
+                    Status = gameSession.Status?.Value ?? Shared.GameLift.GameSessionStatus.Activating,
+                    CurrentPlayerCount = gameSession.CurrentPlayerSessionCount ?? 0,
+                    MaxPlayers = gameSession.MaximumPlayerSessionCount ?? 5,
+                    Address = gameSession.DnsName ?? gameSession.IpAddress ?? "localhost",
+                    Port = gameSession.Port ?? GetServerPort(),
+                    GameSessionData = gameSession.GameSessionData,
+                    CreationTime = gameSession.CreationTime ?? DateTime.UtcNow
+                };
+            }
+            else
+            {
+                logger.LogWarning("Failed to create GameSession for group {GroupName}: HTTP {StatusCode}", groupName, response.HttpStatusCode);
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating or finding GameSession for group: {GroupName}", groupName);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Create a PlayerSession via AWS GameLift API
+    /// </summary>
+    /// <param name="gameSessionId">GameSession ID to join</param>
+    /// <param name="playerId">Player ID</param>
+    /// <returns>PlayerSession information if successful, null otherwise</returns>
+    public async Task<Shared.GameLift.PlayerSessionInfo?> CreatePlayerSessionAsync(string gameSessionId, string playerId)
+    {
+        logger.LogInformation("Creating PlayerSession for GameSession: {GameSessionId}, Player: {PlayerId}", gameSessionId, playerId);
+
+        try
+        {
+            var createRequest = new Amazon.GameLift.Model.CreatePlayerSessionRequest
+            {
+                GameSessionId = gameSessionId,
+                PlayerId = playerId
+            };
+
+            var response = await gameLiftClient.CreatePlayerSessionAsync(createRequest);
+
+            if (response.PlayerSession != null)
+            {
+                var playerSession = response.PlayerSession;
+                logger.LogInformation("Successfully created PlayerSession: {PlayerSessionId} for Player: {PlayerId}", playerSession.PlayerSessionId, playerId);
+
+                return new Shared.GameLift.PlayerSessionInfo
+                {
+                    PlayerSessionId = playerSession.PlayerSessionId,
+                    PlayerId = playerSession.PlayerId,
+                    GameSessionId = playerSession.GameSessionId,
+                    Status = playerSession.Status?.Value ?? Shared.GameLift.PlayerSessionStatus.Reserved,
+                    CreationTime = playerSession.CreationTime ?? DateTime.UtcNow,
+                    IpAddress = playerSession.IpAddress,
+                    Port = playerSession.Port ?? 0
+                };
+            }
+            else
+            {
+                logger.LogWarning("Failed to create PlayerSession for GameSession {GameSessionId}, Player: {PlayerId}", gameSessionId, playerId);
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating PlayerSession for GameSession: {GameSessionId}, Player: {PlayerId}", gameSessionId, playerId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Get the connection endpoint for this server
+    /// </summary>
+    /// <returns>Server connection endpoint</returns>
+    public string GetServerConnectionEndpoint()
+    {
+        var port = GetServerPort();
+        var scheme = port == 443 ? "https" : "http";
+        return $"{scheme}://localhost:{port}";
+    }
+
+    /// <summary>
+    /// Get the server port from configuration or default
+    /// </summary>
+    /// <returns>Server port number</returns>
+    private int GetServerPort()
+    {
+        // Try to get port from environment or configuration
+        if (int.TryParse(Environment.GetEnvironmentVariable("PORT"), out var envPort))
+            return envPort;
+
+        if (int.TryParse(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")?.Split(':').LastOrDefault()?.TrimEnd('/'), out var aspnetPort))
+            return aspnetPort;
+
+        // Default port for development
+        return 5000;
+    }
 }
 
 /// <summary>
