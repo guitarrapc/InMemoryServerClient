@@ -1,4 +1,5 @@
 ﻿using Amazon.GameLift;
+using Aws.GameLift.Server;
 using Aws.GameLift.Server.Model;
 using BattleLogic.Battle;
 using Microsoft.Extensions.Options;
@@ -37,6 +38,7 @@ public sealed class GameSessionManager(
         public bool IsBattleStarted { get; set; } = false;
         public bool IsCompleted { get; set; } = false;
         public bool IsTerminating { get; set; } = false;
+        public bool IsActivated { get; set; } = false;
         public List<string> ConnectedClients { get; init; } = []; // TODO: Thread safety?
         public int RequiredPlayers { get; init; } = 5;
 
@@ -361,6 +363,24 @@ public sealed class GameSessionManager(
         // Add player to the session
         sessionInfo.ConnectedClients.Add(playerId);
 
+        // Activate GameSession on first player connection
+        if (!sessionInfo.IsActivated)
+        {
+            try
+            {
+                logger.LogInformation("First player connecting to GameSession {GameSessionId}, activating session", gameSessionId);
+                GameLiftServerAPI.ActivateGameSession();
+                sessionInfo.IsActivated = true;
+                logger.LogInformation("GameSession {GameSessionId} activated successfully", gameSessionId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to activate GameSession {GameSessionId}", gameSessionId);
+                sessionInfo.ConnectedClients.Remove(playerId);
+                return false;
+            }
+        }
+
         logger.LogInformation("Player {PlayerId} connected to GameSession {GameSessionId} ({Count}/{Required})", playerId, gameSessionId, sessionInfo.ConnectedClients.Count, sessionInfo.RequiredPlayers);
 
         // Check if we have enough players to start the battle
@@ -584,18 +604,17 @@ public sealed class GameSessionManager(
                     CleanupBattleMemory(sessionInfo);
                 }
 
-                // For GameLift, we must explicitly terminate the GameSession in the GameLift service
-                // GameLift Anywhere: GameSessionの自然な終了処理
-                // GameLiftサービスが自動的にGameSessionのステータスを管理するため、
-                // サーバー側からTerminateGameSessionAsyncを呼ぶ必要はない
-                //
-                // 重要：サーバー側の責任は以下のみ
-                // 1. ローカルリソースのクリーンナップ
-                // 2. プロセス終了時のProcessEnding()呼び出し（別の場所で実装済み）
+                // For GameLift Anywhere, clean up local player tracking
+                if (sessionInfo.ConnectedClients.Count > 0)
+                {
+                    logger.LogInformation("Clearing {PlayerCount} remaining player connections from GameSession {GameSessionId}",
+                        sessionInfo.ConnectedClients.Count, gameSessionId);
+                    sessionInfo.ConnectedClients.Clear();
+                }
 
-                logger.LogInformation("GameSession {GameSessionId} completed locally. GameLift service will automatically update session status.", gameSessionId);
+                logger.LogInformation("GameSession {GameSessionId} resources cleaned up locally.", gameSessionId);
 
-                // Continue with local cleanup even if GameLift notification fails
+                // Continue with local cleanup
                 var activeSessions = _activeSessions.Values.Count(s => !s.IsCompleted);
                 logger.LogInformation("GameSession {GameSessionId} terminated. Battle {BattleId} cleanup completed. Active sessions: {ActiveCount}", gameSessionId, sessionInfo.BattleId ?? Guid.Empty, activeSessions);
             }
@@ -694,6 +713,36 @@ public sealed class GameSessionManager(
         // Clear all mappings
         _groupNameToGameSessionId.Clear();
         logger.LogDebug("Cleared all GroupName mappings");
+    }
+
+    /// <summary>
+    /// Convert a connection ID to GameLift-compatible Player Session ID format
+    /// GameLift requires PlayerSessionId to match pattern: ^[a-zA-Z0-9.-]+$
+    /// </summary>
+    /// <param name="connectionId">Original connection ID (may contain underscores or other invalid characters)</param>
+    /// <returns>GameLift-compatible Player Session ID</returns>
+    private static string ConvertToGameLiftPlayerId(string connectionId)
+    {
+        // Replace underscores and other invalid characters with hyphens
+        // Keep only alphanumeric characters, dots, and hyphens
+        var converted = System.Text.RegularExpressions.Regex.Replace(connectionId, "[^a-zA-Z0-9.-]", "-");
+
+        // Ensure the result is not empty and doesn't start/end with invalid characters
+        if (string.IsNullOrEmpty(converted))
+        {
+            converted = "player-session";
+        }
+
+        // Remove leading/trailing hyphens or dots if any
+        converted = converted.Trim('-', '.');
+
+        // Ensure minimum length and add prefix if needed
+        if (converted.Length < 3)
+        {
+            converted = $"player-{converted}";
+        }
+
+        return converted;
     }
 }
 

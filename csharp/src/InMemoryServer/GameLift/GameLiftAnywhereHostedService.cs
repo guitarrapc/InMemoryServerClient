@@ -484,8 +484,8 @@ internal sealed class GameLiftAnywhereHostedService(
                     return;
                 }
 
-                logger.LogInformation("Battle started successfully for GameSession: {GameSessionId}", gameSession.GameSessionId);
-                GameLiftServerAPI.ActivateGameSession();
+                logger.LogInformation("GameSession prepared successfully for GameSession: {GameSessionId}", gameSession.GameSessionId);
+                // Note: ActivateGameSession will be called when the first player connects
             }
             catch (Exception ex)
             {
