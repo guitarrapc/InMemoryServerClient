@@ -53,7 +53,7 @@ public class Program
         var app = builder.Build();
 
         // Configure the SignalR endpoint (HTTP/1)
-        app.MapHub<SignalRBattleHub>(SystemDefines.HubRoute);
+        app.MapHub<SignalRBattleHub>(SystemDefines.BattleHubRoute);
 
         // Configure MagicOnion endpoint (HTTP/2)
         app.MapMagicOnionService();
@@ -66,9 +66,7 @@ public class Program
 
         // Start the server
         Console.WriteLine($"InMemory Server starting...");
-        Console.WriteLine($"HTTP/1 (SignalR) available on port {SystemDefines.DefaultServerPort}");
-        Console.WriteLine($"HTTP/2 (MagicOnion) available on port {SystemDefines.DefaultHttp2ServerPort}");
-        Console.WriteLine($"SignalR Hub available at {SystemDefines.HubRoute}");
+        Console.WriteLine($"SignalR Hub available at {SystemDefines.BattleHubRoute}");
 
         // Configure the app to listen on the specified ports (Kestrel configuration from appsettings.json will be used)
         // Note: URLs are configured in appsettings.json

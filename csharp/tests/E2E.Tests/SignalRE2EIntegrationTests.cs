@@ -36,7 +36,7 @@ public class SignalRE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
         var connection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -63,7 +63,7 @@ public class SignalRE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
         var connection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -94,14 +94,14 @@ public class SignalRE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
         var connection1 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
             .Build();
 
         var connection2 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -160,7 +160,7 @@ public class SignalRE2EIntegrationTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             var connection = new HubConnectionBuilder()
-                .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+                .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
                 {
                     options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
                 })
@@ -270,7 +270,7 @@ public class SignalRE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
         var connection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -298,14 +298,14 @@ public class SignalRE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
         var connection1 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
             .Build();
 
         var connection2 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -361,7 +361,7 @@ public class SignalRE2EIntegrationTests : IDisposable
 
         // Use HubConnection directly with the test factory instead of SignalRBattleClient
         var connection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -406,14 +406,14 @@ public class SignalRE2EIntegrationTests : IDisposable
         // Arrange
         var factory = CreateFactory();
         var connection1 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
             .Build();
 
         var connection2 = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })

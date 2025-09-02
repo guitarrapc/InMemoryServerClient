@@ -1,3 +1,5 @@
+﻿using Shared.Constants;
+
 namespace ServiceDiscoveryServer.Models.Server;
 
 /// <summary>
@@ -9,7 +11,7 @@ public readonly record struct BattleServerConnectionInfo
     public required string Address { get; init; }
     public int SignalRPort { get; init; }
     public int MagicOnionPort { get; init; }
-    public string SignalRHubPath { get; init; } = "/battlehub";
+    public string SignalRHubPath { get; init; } = SystemDefines.BattleHubRoute;
     public ConnectionType SupportedTypes { get; init; }
 
     public BattleServerConnectionInfo()
@@ -29,7 +31,7 @@ public readonly record struct BattleServerRegistration
     public int SignalRPort { get; init; }
     public int MagicOnionPort { get; init; }
     public int MaxConcurrentSessions { get; init; } = 3;
-    public IReadOnlyList<string> SupportedModes { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> SupportedModes { get; init; } = [];
     public IReadOnlyDictionary<string, object> Metadata { get; init; } = new Dictionary<string, object>();
 
     public BattleServerRegistration()

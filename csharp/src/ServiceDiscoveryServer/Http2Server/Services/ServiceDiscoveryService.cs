@@ -1,4 +1,4 @@
-using MagicOnion;
+﻿using MagicOnion;
 using MagicOnion.Server;
 
 namespace ServiceDiscoveryServer.Http2Server.Services;
@@ -6,21 +6,9 @@ namespace ServiceDiscoveryServer.Http2Server.Services;
 /// <summary>
 /// ServiceDiscovery MagicOnion Service
 /// </summary>
-public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryService>, IServiceDiscoveryService
+public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> logger, ISessionManager sessionManager, IBattleServerRegistry serverRegistry) : ServiceBase<IServiceDiscoveryService>, IServiceDiscoveryService
 {
-    private readonly ILogger<ServiceDiscoveryService> _logger;
-    private readonly ISessionManager _sessionManager;
-    private readonly IBattleServerRegistry _serverRegistry;
-
-    public ServiceDiscoveryService(
-        ILogger<ServiceDiscoveryService> logger,
-        ISessionManager sessionManager,
-        IBattleServerRegistry serverRegistry)
-    {
-        _logger = logger;
-        _sessionManager = sessionManager;
-        _serverRegistry = serverRegistry;
-    }
+    private readonly ILogger<ServiceDiscoveryService> _logger = logger;
 
     public async UnaryResult<SessionCreationResponse> CreateOrFindSessionAsync(SessionCreationRequest request)
     {
@@ -28,7 +16,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
         {
             _logger.LogInformation("CreateOrFindSession request for group {GroupName} via MagicOnion", request.GroupName);
 
-            var response = await _sessionManager.CreateOrFindSessionAsync(request);
+            var response = await sessionManager.CreateOrFindSessionAsync(request);
 
             _logger.LogInformation("CreateOrFindSession response: {IsSuccess} for group {GroupName}",
                 response.IsSuccess, request.GroupName);
@@ -50,7 +38,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
     {
         try
         {
-            return await _sessionManager.GetSessionInfoAsync(sessionId);
+            return await sessionManager.GetSessionInfoAsync(sessionId);
         }
         catch (Exception ex)
         {
@@ -63,12 +51,12 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
     {
         try
         {
-            return await _sessionManager.ListActiveSessionsAsync();
+            return await sessionManager.ListActiveSessionsAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in ListActiveSessionsAsync");
-            return Array.Empty<SessionInfo>();
+            return [];
         }
     }
 
@@ -77,7 +65,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
         try
         {
             _logger.LogInformation("Terminating session {SessionId} via MagicOnion", sessionId);
-            return await _sessionManager.TerminateSessionAsync(sessionId);
+            return await sessionManager.TerminateSessionAsync(sessionId);
         }
         catch (Exception ex)
         {
@@ -90,12 +78,12 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
     {
         try
         {
-            return await _serverRegistry.ListAvailableServersAsync();
+            return await serverRegistry.ListAvailableServersAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in ListAvailableServersAsync");
-            return Array.Empty<BattleServerInfo>();
+            return [];
         }
     }
 
@@ -103,7 +91,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
     {
         try
         {
-            return await _serverRegistry.GetAssignedServerAsync(sessionId);
+            return await serverRegistry.GetAssignedServerAsync(sessionId);
         }
         catch (Exception ex)
         {
@@ -117,7 +105,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
         try
         {
             _logger.LogInformation("Registering BattleServer {ServerId} via MagicOnion", registration.ServerId);
-            return await _serverRegistry.RegisterServerAsync(registration);
+            return await serverRegistry.RegisterServerAsync(registration);
         }
         catch (Exception ex)
         {
@@ -130,7 +118,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
     {
         try
         {
-            return await _serverRegistry.UpdateServerStatusAsync(serverId, status);
+            return await serverRegistry.UpdateServerStatusAsync(serverId, status);
         }
         catch (Exception ex)
         {
@@ -144,7 +132,7 @@ public sealed class ServiceDiscoveryService : ServiceBase<IServiceDiscoveryServi
         try
         {
             _logger.LogInformation("Unregistering BattleServer {ServerId} via MagicOnion", serverId);
-            return await _serverRegistry.UnregisterServerAsync(serverId);
+            return await serverRegistry.UnregisterServerAsync(serverId);
         }
         catch (Exception ex)
         {

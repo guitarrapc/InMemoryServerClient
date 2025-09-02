@@ -151,7 +151,7 @@ public class InMemoryState
                 return watchers.ToList();
             }
         }
-        return Enumerable.Empty<string>();
+        return [];
     }
 
     /// <summary>

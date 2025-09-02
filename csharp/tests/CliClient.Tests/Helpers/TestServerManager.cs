@@ -80,7 +80,7 @@ public class TestServerManager : IDisposable
                     app.UseRouting();
                     app.UseEndpoints(endpoints =>
                     {
-                        endpoints.MapHub<SignalRBattleHub>(Shared.Constants.SystemDefines.HubRoute);
+                        endpoints.MapHub<SignalRBattleHub>(Shared.Constants.SystemDefines.BattleHubRoute);
                         endpoints.MapMagicOnionService();
                         endpoints.MapGet("/health", () => "Healthy");
                     });

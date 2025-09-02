@@ -1,4 +1,4 @@
-using ServiceDiscoveryServer.Http1Server.Extensions;
+﻿using ServiceDiscoveryServer.Http1Server.Extensions;
 using ServiceDiscoveryServer.Http2Server.Extensions;
 using ServiceDiscoveryServer.Services.GameLift;
 
@@ -35,7 +35,6 @@ public static class ServiceCollectionExtensions
 
         // HTTP/1 services (SignalR)
         services.AddServiceDiscoverySignalR(serviceDiscoveryOptions);
-        services.AddServiceDiscoveryCors(serviceDiscoveryOptions.Server.AllowedOrigins);
 
         // HTTP/2 services (MagicOnion)
         services.AddServiceDiscoveryMagicOnion(serviceDiscoveryOptions);

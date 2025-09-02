@@ -1,4 +1,4 @@
-namespace ServiceDiscoveryServer.Configuration;
+﻿namespace ServiceDiscoveryServer.Configuration;
 
 /// <summary>
 /// ServiceDiscovery server configuration options
@@ -7,21 +7,9 @@ public class ServiceDiscoveryOptions
 {
     public const string SectionName = "ServiceDiscovery";
 
-    public ServerOptions Server { get; set; } = new();
     public SessionOptions Session { get; set; } = new();
     public BattleServerOptions BattleServer { get; set; } = new();
     public GameLiftOptions GameLift { get; set; } = new();
-}
-
-/// <summary>
-/// Server configuration options
-/// </summary>
-public class ServerOptions
-{
-    public int SignalRPort { get; set; } = 5010;
-    public int MagicOnionPort { get; set; } = 5011;
-    public int HealthCheckPort { get; set; } = 5012;
-    public string[] AllowedOrigins { get; set; } = ["*"];
 }
 
 /// <summary>

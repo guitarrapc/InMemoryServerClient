@@ -67,7 +67,7 @@ internal class SignalRBattleClient : IBattleClient
             _logger.LogInformation("Connecting to server: {ServerUrl}", serverUrl);
 
             _connection = new HubConnectionBuilder()
-                .WithUrl(_serverUrl + SystemDefines.HubRoute)
+                .WithUrl(_serverUrl + SystemDefines.BattleHubRoute)
                 .WithAutomaticReconnect()
                 .Build();
 

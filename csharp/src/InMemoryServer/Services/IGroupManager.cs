@@ -58,7 +58,7 @@ public class GroupManagerAdapter : IGroupManager, IDisposable
     {
         // This is handled internally by the actor's cleanup process
         // Return empty collection as this method is deprecated in favor of actor's internal cleanup
-        return Enumerable.Empty<GroupInfo>();
+        return [];
     }
 
     public event Action<string, string, List<string>, string>? OnGroupDissolved;

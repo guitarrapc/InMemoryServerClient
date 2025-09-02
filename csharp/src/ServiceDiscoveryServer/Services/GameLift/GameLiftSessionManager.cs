@@ -1,4 +1,4 @@
-namespace ServiceDiscoveryServer.Services.GameLift;
+﻿namespace ServiceDiscoveryServer.Services.GameLift;
 
 /// <summary>
 /// GameLift session management service (Phase 2 implementation)
@@ -45,7 +45,7 @@ public sealed class GameLiftSessionManager : IGameLiftIntegration
     public Task<IReadOnlyList<SessionInfo>> ListGameLiftSessionsAsync()
     {
         // TODO: Phase 2 implementation
-        return Task.FromResult<IReadOnlyList<SessionInfo>>(Array.Empty<SessionInfo>());
+        return Task.FromResult<IReadOnlyList<SessionInfo>>([]);
     }
 
     public bool IsGameLiftEnabled()

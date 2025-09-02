@@ -45,7 +45,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
 
         // SignalR connection
         var signalRConnection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -89,7 +89,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
 
         // SignalR connection
         var signalRConnection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -158,7 +158,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
 
         // SignalR connection (グループ操作用)
         var signalRConnection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })
@@ -223,7 +223,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
         for (int i = 0; i < 3; i++)
         {
             var connection = new HubConnectionBuilder()
-                .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+                .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
                 {
                     options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
                 })
@@ -383,7 +383,7 @@ public class MixedProtocolE2EIntegrationTests : IDisposable
         var factory = CreateFactory();
 
         var signalRConnection = new HubConnectionBuilder()
-            .WithUrl($"http://localhost{SystemDefines.HubRoute}", options =>
+            .WithUrl($"http://localhost{SystemDefines.BattleHubRoute}", options =>
             {
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();
             })

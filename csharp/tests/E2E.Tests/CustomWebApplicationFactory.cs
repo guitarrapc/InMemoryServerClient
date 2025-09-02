@@ -59,7 +59,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             app.UseRouting();
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapHub<SignalRBattleHub>(SystemDefines.HubRoute);
+                endpoints.MapHub<SignalRBattleHub>(SystemDefines.BattleHubRoute);
                 endpoints.MapMagicOnionService();
                 endpoints.MapGet("/health", () => "Healthy");
             });

@@ -8,17 +8,8 @@ public static class SystemDefines
     /// <summary>
     /// SignalR hub route
     /// </summary>
-    public const string HubRoute = "/inmemoryhub";
-
-    /// <summary>
-    /// Default server port (HTTP/1 - SignalR)
-    /// </summary>
-    public const int DefaultServerPort = 5000;
-
-    /// <summary>
-    /// Default server port for HTTP/2 (MagicOnion)
-    /// </summary>
-    public const int DefaultHttp2ServerPort = 5001;
+    public const string BattleHubRoute = "/inmemoryhub";
+    public const string ServiceDiscoveryHubRoute = "/discoveryhub";
 
     /// <summary>
     /// Maximum connections per group

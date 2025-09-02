@@ -1,23 +1,11 @@
-namespace ServiceDiscoveryServer.Http1Server.Hubs;
+﻿namespace ServiceDiscoveryServer.Http1Server.Hubs;
 
 /// <summary>
 /// ServiceDiscovery SignalR Hub
 /// </summary>
-public sealed class ServiceDiscoveryHub : Hub
+public sealed class ServiceDiscoveryHub(ILogger<ServiceDiscoveryHub> logger, ISessionManager sessionManager, IBattleServerRegistry serverRegistry) : Hub
 {
-    private readonly ILogger<ServiceDiscoveryHub> _logger;
-    private readonly ISessionManager _sessionManager;
-    private readonly IBattleServerRegistry _serverRegistry;
-
-    public ServiceDiscoveryHub(
-        ILogger<ServiceDiscoveryHub> logger,
-        ISessionManager sessionManager,
-        IBattleServerRegistry serverRegistry)
-    {
-        _logger = logger;
-        _sessionManager = sessionManager;
-        _serverRegistry = serverRegistry;
-    }
+    private readonly ILogger<ServiceDiscoveryHub> _logger = logger;
 
     /// <summary>
     /// Create or find session
@@ -31,7 +19,7 @@ public sealed class ServiceDiscoveryHub : Hub
             _logger.LogInformation("CreateOrFindSession request for group {GroupName} from connection {ConnectionId}",
                 request.GroupName, Context.ConnectionId);
 
-            var response = await _sessionManager.CreateOrFindSessionAsync(request);
+            var response = await sessionManager.CreateOrFindSessionAsync(request);
 
             _logger.LogInformation("CreateOrFindSession response: {IsSuccess} for group {GroupName}",
                 response.IsSuccess, request.GroupName);
@@ -58,7 +46,7 @@ public sealed class ServiceDiscoveryHub : Hub
     {
         try
         {
-            return await _sessionManager.GetSessionInfoAsync(sessionId);
+            return await sessionManager.GetSessionInfoAsync(sessionId);
         }
         catch (Exception ex)
         {
@@ -75,12 +63,12 @@ public sealed class ServiceDiscoveryHub : Hub
     {
         try
         {
-            return await _sessionManager.ListActiveSessionsAsync();
+            return await sessionManager.ListActiveSessionsAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in ListActiveSessionsAsync");
-            return Array.Empty<SessionInfo>();
+            return [];
         }
     }
 
@@ -96,7 +84,7 @@ public sealed class ServiceDiscoveryHub : Hub
             _logger.LogInformation("Terminating session {SessionId} from connection {ConnectionId}",
                 sessionId, Context.ConnectionId);
 
-            return await _sessionManager.TerminateSessionAsync(sessionId);
+            return await sessionManager.TerminateSessionAsync(sessionId);
         }
         catch (Exception ex)
         {
@@ -113,12 +101,12 @@ public sealed class ServiceDiscoveryHub : Hub
     {
         try
         {
-            return await _serverRegistry.ListAvailableServersAsync();
+            return await serverRegistry.ListAvailableServersAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in ListAvailableServersAsync");
-            return Array.Empty<BattleServerInfo>();
+            return [];
         }
     }
 
@@ -131,7 +119,7 @@ public sealed class ServiceDiscoveryHub : Hub
     {
         try
         {
-            return await _serverRegistry.GetAssignedServerAsync(sessionId);
+            return await serverRegistry.GetAssignedServerAsync(sessionId);
         }
         catch (Exception ex)
         {
@@ -152,7 +140,7 @@ public sealed class ServiceDiscoveryHub : Hub
             _logger.LogInformation("Registering BattleServer {ServerId} from connection {ConnectionId}",
                 registration.ServerId, Context.ConnectionId);
 
-            return await _serverRegistry.RegisterServerAsync(registration);
+            return await serverRegistry.RegisterServerAsync(registration);
         }
         catch (Exception ex)
         {
@@ -171,7 +159,7 @@ public sealed class ServiceDiscoveryHub : Hub
     {
         try
         {
-            return await _serverRegistry.UpdateServerStatusAsync(serverId, status);
+            return await serverRegistry.UpdateServerStatusAsync(serverId, status);
         }
         catch (Exception ex)
         {
@@ -192,7 +180,7 @@ public sealed class ServiceDiscoveryHub : Hub
             _logger.LogInformation("Unregistering BattleServer {ServerId} from connection {ConnectionId}",
                 serverId, Context.ConnectionId);
 
-            await _serverRegistry.UnregisterServerAsync(serverId);
+            await serverRegistry.UnregisterServerAsync(serverId);
         }
         catch (Exception ex)
         {

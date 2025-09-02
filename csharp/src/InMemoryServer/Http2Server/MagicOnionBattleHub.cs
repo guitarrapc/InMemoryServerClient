@@ -716,7 +716,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         catch (Exception ex)
         {
             logger.LogError(ex, "Error listing keys with pattern {Pattern}", pattern);
-            return Array.Empty<string>();
+            return [];
         }
     }
 
