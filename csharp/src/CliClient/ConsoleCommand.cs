@@ -1004,106 +1004,9 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         }
     }
 
-    /// <summary>Search for available GameLift game servers</summary>
-    /// <param name="mode">-m, GameLift Mode to use</param>
-    /// <param name="fleetId">-f, Fleet ID to search</param>
-    /// <param name="location">-l, Location to search (optional)</param>
-    [Command("gamelift-list-servers")]
-    public async Task GameLiftSearchServersAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost")
-    {
-        try
-        {
-            logger.LogInformation("Searching for GameLift servers in fleet: {FleetId}, location: {Location}", fleetId, location);
-            var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
-            var servers = await gameLiftClientProvider.SearchGameServersAsync(fleetId, location);
-
-            if (servers.Count == 0)
-            {
-                logger.LogInformation("No game servers found");
-                return;
-            }
-
-            logger.LogInformation("Found {Count} game servers:", servers.Count);
-            foreach (var server in servers)
-            {
-                logger.LogInformation("  Server: {ServerId}, Status: {Status}, Endpoint: {Endpoint}", server.ServerId, server.Status, server.ConnectionEndpoint);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to search GameLift servers");
-            Environment.ExitCode = 1;
-        }
-    }
-
-    /// <summary>Create a new GameLift game session</summary>
-    /// <param name="mode">-m, GameLift Mode to use</param>
-    /// <param name="fleetId">-f, Fleet ID</param>
-    /// <param name="location">-l, Location to search (optional)</param>
-    /// <param name="name">-n, Session name</param>
-    /// <param name="count">-c, Number of sessions to connect (default: 5)</param>
-    [Command("gamelift-create-session")]
-    public async Task GameLiftCreateSessionAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost", string? name = null, int count = 5)
-    {
-        name ??= $"battle-session-{DateTime.Now:yyyyMMdd-HHmmss}";
-        var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
-
-        logger.LogInformation("Creating GameLift session: {Name} in fleet: {FleetId}", name, fleetId);
-        var response = await gameLiftClientProvider.CreateGameSessionAsync(new CreateGameSessionRequest
-        {
-            FleetId = fleetId,
-            Name = name,
-            MaxPlayers = count,
-            GameSessionData = name,
-        }, location);
-
-        if (response.IsSuccess)
-        {
-            logger.LogInformation("GameSession created successfully:");
-            logger.LogInformation("  GameSessionId: {GameSessionId}", response.GameSession.GameSessionId);
-            logger.LogInformation("  FleetId: {FleetId}", response.GameSession.FleetId);
-            logger.LogInformation("  Status: {Status}", response.GameSession.Status);
-            logger.LogInformation("  Players: {Current}/{Max}", response.GameSession.CurrentPlayerCount, response.GameSession.MaxPlayers);
-        }
-        else
-        {
-            logger.LogError("Failed to create GameSession: {Error}", response.ErrorMessage);
-            Environment.ExitCode = 1;
-        }
-    }
-
-    /// <summary>Search for available GameLift game sessions</summary>
-    /// <param name="mode">-m, GameLift Mode to use</param>
-    /// <param name="fleetId">-f, Fleet ID to search</param>
-    /// <param name="location">-l, Location to search (optional)</param>
-    [Command("gamelift-list-sessions")]
-    public async Task GameLiftSearchSessionsAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost")
-    {
-        var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
-
-        logger.LogInformation("Searching for GameLift sessions in fleet: {FleetId}", fleetId);
-        var sessions = await gameLiftClientProvider.SearchGameSessionsAsync(fleetId, location);
-
-        if (sessions.Count == 0)
-        {
-            logger.LogInformation("No active game sessions found");
-            return;
-        }
-
-        logger.LogInformation("Found {Count} active game sessions:", sessions.Count);
-        foreach (var session in sessions)
-        {
-            logger.LogInformation("  SessionId: {SessionId}", session.GameSessionId);
-            logger.LogInformation("  Name: {Name}", session.Name);
-            logger.LogInformation("  Status: {Status}", session.Status);
-            logger.LogInformation("  Players: {Current}/{Max}", session.CurrentPlayerCount, session.MaxPlayers);
-            logger.LogInformation("  Created: {CreationTime}", session.CreationTime);
-            logger.LogInformation("  ---");
-        }
-    }
-
     /// <summary>Connect to GameLift server and start battle</summary>
     /// <param name="mode">-m, GameLift Mode to use</param>
+    /// <param name="serverUrl">-s, Server URL (e.g., http://localhost:5000)</param>
     /// <param name="fleetId">-f, Fleet ID</param>
     /// <param name="location">-l, Location to search (optional)</param>
     /// <param name="group">-g, Group name</param>
@@ -1111,7 +1014,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
     /// <param name="connectionType">-t, Connection type (default: SignalR)</param>
     /// <param name="cancellationToken">Auto-fill by ConsoleAppFramework</param>
     [Command("gamelift-connect-battle")]
-    public async Task GameLiftConnectMultipleAsync(GameLiftMode mode, string fleetId, string location = "custom-localhost", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
+    public async Task GameLiftConnectMultipleAsync(GameLiftMode mode, string serverUrl, string fleetId, string location = "custom-localhost", string group = "battle-group", int count = 5, ConnectionType connectionType = ConnectionType.SignalR, CancellationToken cancellationToken = default)
     {
         if (count <= 0 || count > 5)
         {
@@ -1120,7 +1023,7 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             return;
         }
 
-        var gameLiftClientProvider = new GameLiftClientProvider(mode, loggerFactory);
+        await using var gameLiftClientProvider = new GameLiftClientProvider(mode, serverUrl, loggerFactory);
 
         logger.LogInformation("Connecting to GameLift server for battle...");
 

@@ -8,47 +8,28 @@ namespace Shared.Contracts;
 public interface IGameLiftClientProvider
 {
     /// <summary>
-    /// Resolve server endpoint for connection
+    /// Resolve server endpoint for connection by requesting GameSession creation from server
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token</param>
+    /// <param name="fleetId">Fleet ID</param>
     /// <param name="location">Location to search</param>
+    /// <param name="groupName">Group name for the session</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Server endpoint URL</returns>
     Task<string> ResolveServerEndpointAsync(string fleetId, string location, string groupName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Search for available game servers
+    /// Request GameSession creation from server via SignalR
     /// </summary>
-    /// <param name="fleetId">Fleet ID to search</param>
-    /// <param name="location">Location to search</param>
+    /// <param name="request">GameSession creation request</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of available game servers</returns>
-    Task<List<GameServerInfo>> SearchGameServersAsync(string fleetId, string location, CancellationToken cancellationToken = default);
+    /// <returns>GameSession creation response</returns>
+    Task<GameSessionCreationResponse> RequestGameSessionCreationAsync(GameSessionCreationRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Create a new game session
+    /// Request PlayerSession creation from server via SignalR
     /// </summary>
-    /// <param name="request">Game session creation request</param>
-    /// <param name="location">Location to search</param>
+    /// <param name="request">PlayerSession creation request</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Game session creation response</returns>
-    Task<CreateGameSessionResponse> CreateGameSessionAsync(Shared.GameLift.CreateGameSessionRequest request, string location, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Search for existing game sessions
-    /// </summary>
-    /// <param name="fleetId">Fleet ID to search</param>
-    /// <param name="location">Optional location filter</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of available game sessions</returns>
-    Task<List<GameSessionInfo>> SearchGameSessionsAsync(string fleetId, string? location = null, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Create a player session to join a game session
-    /// </summary>
-    /// <param name="gameSessionId">Game session ID to join</param>
-    /// <param name="playerId">Player ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Player session information</returns>
-    Task<PlayerSessionInfo> CreatePlayerSessionAsync(string gameSessionId, string playerId, CancellationToken cancellationToken = default);
+    /// <returns>PlayerSession creation response</returns>
+    Task<PlayerSessionCreationResponse> RequestPlayerSessionCreationAsync(PlayerSessionCreationRequest request, CancellationToken cancellationToken = default);
 }

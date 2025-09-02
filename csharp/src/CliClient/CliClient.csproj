@@ -23,11 +23,6 @@
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AWSSDK.Core" />
-    <PackageReference Include="AWSSDK.GameLift" />
-    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" />
-    <PackageReference Include="AWSSDK.SSO" />
-    <PackageReference Include="AWSSDK.SSOOIDC" />
     <PackageReference Include="ConsoleAppFramework" />
     <PackageReference Include="MagicOnion.Client" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
