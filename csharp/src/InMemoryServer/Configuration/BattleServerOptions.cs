@@ -27,13 +27,11 @@ public class ServiceDiscoveryOptions
     {
         SignalREndpoint = "http://localhost:5010",
         MagicOnionEndpoint = "http://localhost:5011",
-        RegistrationIntervalSeconds = 10,
         HeartbeatIntervalSeconds = 30,
     };
 
     public required string SignalREndpoint { get; init; }
     public required string MagicOnionEndpoint { get; init; }
-    public required int RegistrationIntervalSeconds { get; init; }
     public required int HeartbeatIntervalSeconds { get; init; }
 }
 

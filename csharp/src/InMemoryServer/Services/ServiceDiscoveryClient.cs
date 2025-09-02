@@ -8,14 +8,12 @@ namespace InMemoryServer.Services;
 /// <summary>
 /// Service Discovery client for BattleServer registration and health reporting
 /// </summary>
-public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logger, IOptions<BattleServerOptions> options, ConnectionManager connectionManager, IServiceProvider serviceProvider) : IHostedService, IDisposable
+public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logger, IOptions<BattleServerOptions> options, ConnectionManager connectionManager, IServiceProvider serviceProvider) : BackgroundService
 {
     private HubConnection? _hubConnection;
-    private Timer? _heartbeatTimer;
-    private Timer? _registrationTimer;
     private bool _isRegistered;
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public override async Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -24,14 +22,10 @@ public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logge
             // Initialize SignalR connection
             await InitializeConnectionAsync(cancellationToken);
 
-            // Start registration timer
-            var registrationInterval = TimeSpan.FromSeconds(options.Value.ServiceDiscovery.RegistrationIntervalSeconds);
-            _registrationTimer = new Timer(async _ => await TryRegisterServerAsync(), null, TimeSpan.Zero, registrationInterval);
+            // Perform initial registration
+            await RegisterServerAsync();
 
-            // Start heartbeat timer
-            var heartbeatInterval = TimeSpan.FromSeconds(options.Value.ServiceDiscovery.HeartbeatIntervalSeconds);
-            _heartbeatTimer = new Timer(async _ => await SendHeartbeatAsync(), null, heartbeatInterval, heartbeatInterval);
-
+            await base.StartAsync(cancellationToken);
             logger.LogInformation("ServiceDiscoveryClient started successfully");
         }
         catch (Exception ex)
@@ -41,15 +35,11 @@ public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logge
         }
     }
 
-    public async Task StopAsync(CancellationToken cancellationToken)
+    public override async Task StopAsync(CancellationToken cancellationToken)
     {
         try
         {
             logger.LogInformation("Stopping ServiceDiscoveryClient for server {ServerId}", BattleServerOptions.ServerId);
-
-            // Stop timers
-            _registrationTimer?.Dispose();
-            _heartbeatTimer?.Dispose();
 
             // Unregister server
             if (_isRegistered && _hubConnection?.State == HubConnectionState.Connected)
@@ -63,11 +53,36 @@ public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logge
                 await _hubConnection.DisposeAsync();
             }
 
+            await base.StopAsync(cancellationToken);
             logger.LogInformation("ServiceDiscoveryClient stopped successfully");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error stopping ServiceDiscoveryClient");
+        }
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        // Start heartbeat loop using PeriodicTimer
+        var heartbeatInterval = TimeSpan.FromSeconds(options.Value.ServiceDiscovery.HeartbeatIntervalSeconds);
+        using var timer = new PeriodicTimer(heartbeatInterval);
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+            {
+                await SendHeartbeatAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancellation is requested
+            logger.LogInformation("ServiceDiscoveryClient heartbeat loop cancelled");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error in ServiceDiscoveryClient heartbeat loop");
         }
     }
 
@@ -86,32 +101,18 @@ public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logge
         logger.LogInformation("Connected to ServiceDiscovery at {Url}", serviceDiscoveryUrl);
     }
 
-    private async Task<bool> TryRegisterServerAsync()
-    {
-        try
-        {
-            if (_hubConnection?.State != HubConnectionState.Connected)
-            {
-                logger.LogWarning("Cannot register server: ServiceDiscovery connection is not established");
-                return false;
-            }
-
-            await RegisterServerAsync();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during server registration");
-            return false;
-        }
-    }
-
     private async Task RegisterServerAsync()
     {
         var registration = CreateServerRegistration();
         try
         {
-            var result = await _hubConnection!.InvokeAsync<bool>("RegisterServerAsync", registration);
+            if (_hubConnection?.State != HubConnectionState.Connected)
+            {
+                logger.LogWarning("Cannot register server: ServiceDiscovery connection is not established");
+                return;
+            }
+
+            var result = await _hubConnection.InvokeAsync<bool>("RegisterServerAsync", registration);
 
             if (result)
             {
@@ -231,15 +232,23 @@ public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logge
     private async Task OnReconnected(string? connectionId)
     {
         logger.LogInformation("Reconnected to ServiceDiscovery with connection ID: {ConnectionId}", connectionId);
-        _isRegistered = false; // Force re-registration
-        await TryRegisterServerAsync();
+        _isRegistered = false; // Force re-registration after reconnection
+        await RegisterServerAsync();
     }
 
-    private Task OnConnectionClosed(Exception? exception)
+    private async Task OnConnectionClosed(Exception? exception)
     {
         if (exception is not null)
         {
-            logger.LogWarning(exception, "ServiceDiscovery connection closed unexpectedly");
+            if (exception is OperationCanceledException)
+            {
+                // Normal shutdown
+                logger.LogInformation("ServiceDiscovery connection closed due to shutdown");
+            }
+            else
+            {
+                logger.LogWarning(exception, "ServiceDiscovery connection closed unexpectedly");
+            }
         }
         else
         {
@@ -247,13 +256,11 @@ public sealed class ServiceDiscoveryClient(ILogger<ServiceDiscoveryClient> logge
         }
 
         _isRegistered = false;
-        return Task.CompletedTask;
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
-        _registrationTimer?.Dispose();
-        _heartbeatTimer?.Dispose();
         _hubConnection?.DisposeAsync().AsTask().Wait();
+        base.Dispose();
     }
 }
