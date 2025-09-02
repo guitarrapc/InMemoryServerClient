@@ -1,4 +1,4 @@
-﻿namespace Shared.Models;
+﻿namespace Shared.BattleServer.Models;
 
 /// <summary>
 /// Group summary information

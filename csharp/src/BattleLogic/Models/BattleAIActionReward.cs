@@ -1,4 +1,6 @@
-﻿namespace BattleLogic.Models;
+﻿using Shared.BattleLogic.Models;
+
+namespace BattleLogic.Models;
 
 /// <summary>
 /// Internal structure to store action rewards for AI decision making

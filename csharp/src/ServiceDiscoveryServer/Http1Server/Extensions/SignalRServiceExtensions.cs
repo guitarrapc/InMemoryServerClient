@@ -1,5 +1,5 @@
 ﻿using ServiceDiscoveryServer.Http1Server.Hubs;
-using Shared.Constants;
+using Shared.BattleServer.Constants;
 
 namespace ServiceDiscoveryServer.Http1Server.Extensions;
 

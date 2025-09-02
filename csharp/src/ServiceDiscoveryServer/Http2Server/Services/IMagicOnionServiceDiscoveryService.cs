@@ -5,7 +5,7 @@ namespace ServiceDiscoveryServer.Http2Server.Services;
 /// <summary>
 /// ServiceDiscovery MagicOnion service interface
 /// </summary>
-public interface IServiceDiscoveryService : IService<IServiceDiscoveryService>
+public interface IMagicOnionServiceDiscoveryService : IService<IMagicOnionServiceDiscoveryService>
 {
     // Session management API
     UnaryResult<SessionCreationResponse> CreateOrFindSessionAsync(SessionCreationRequest request);

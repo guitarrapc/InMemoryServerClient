@@ -1,7 +1,7 @@
-﻿using Shared.Battle;
-using Shared.Models;
+﻿using Shared.BattleLogic.Models;
+using Shared.BattleServer.Models;
 
-namespace Shared.Contracts;
+namespace CliClient.Clients;
 
 /// <summary>
 /// Abstract interface for InMemory server client operations
@@ -64,16 +64,6 @@ public interface IBattleClient : IAsyncDisposable
     /// </summary>
     Task<bool> BroadcastMessageAsync(string message);
 
-    /// <summary>
-    /// Get available groups
-    /// </summary>
-    Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync();
-
-    /// <summary>
-    /// Get current group information
-    /// </summary>
-    Task<ClientGroupInfo?> GetCurrentGroupAsync();
-
     // Additional methods
     /// <summary>
     /// List keys matching pattern
@@ -89,11 +79,6 @@ public interface IBattleClient : IAsyncDisposable
     /// Broadcast message (alternative name)
     /// </summary>
     Task<bool> BroadcastAsync(string message);
-
-    /// <summary>
-    /// Get current group information (alternative name)
-    /// </summary>
-    Task<ClientGroupInfo?> GetMyGroupAsync();
 
     /// <summary>
     /// Get battle replay data
@@ -125,12 +110,6 @@ public interface IBattleClient : IAsyncDisposable
     /// <param name="groupName">Optional group name for reproduction</param>
     /// <returns>True if reproduction request was successful</returns>
     Task<bool> ReproduceBattleAsync(Guid battleId, int seedValue, string groupName);
-
-    // Server status
-    /// <summary>
-    /// Get server status information
-    /// </summary>
-    Task<ServerStatusInfo> GetServerStatusAsync();
 
     // Events (業務レベルのイベント)
     /// <summary>

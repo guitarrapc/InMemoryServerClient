@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using Shared.Contracts;
+using Shared.BattleServer.Constants;
+using Shared.BattleServer.Models;
 
 namespace BattleLogic.Tests;
 
@@ -17,7 +18,7 @@ public class CriticalHitTests
         _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = Substitute.For<ILogger<BattleState>>();
 
-        var groupInfo = new GroupInfo
+        var groupInfo = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "test_group",

@@ -1,12 +1,22 @@
-﻿using Shared.Contracts;
+﻿namespace Shared.BattleServer.Models;
 
-namespace Shared.Models;
+/// <summary>
+/// Represents battle group context information
+/// </summary>
+public interface IBattleGroupContext
+{
+    string GroupId { get; }
+    string Name { get; }
+    int MaxClients { get; }
+    int ConnectedCount { get; }
+    IReadOnlyList<string> ClientIds { get; }
+}
 
 /// <summary>
 /// Group information
 /// </summary>
 [MessagePackObject(true, AllowPrivate = true)]
-public class GroupInfo : IBattleGroupContext
+public class BattleGroupContext : IBattleGroupContext
 {
     /// <summary>
     /// Group unique identifier

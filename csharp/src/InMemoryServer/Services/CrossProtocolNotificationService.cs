@@ -1,8 +1,8 @@
 ﻿using InMemoryServer.Models;
 using InMemoryServer.Http1Server;
 using Microsoft.AspNetCore.SignalR;
-using Shared.Models;
-using Shared.Battle;
+using Shared.BattleServer.Models;
+using Shared.BattleLogic.Models;
 
 namespace InMemoryServer.Services;
 

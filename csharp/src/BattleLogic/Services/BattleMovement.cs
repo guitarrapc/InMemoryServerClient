@@ -1,4 +1,6 @@
-﻿namespace BattleLogic.Services;
+﻿using Shared.BattleLogic.Models;
+
+namespace BattleLogic.Services;
 
 /// <summary>
 /// Handles entity movement logic

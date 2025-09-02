@@ -3,7 +3,8 @@ using BattleLogic.Infrastructures.BattleReplayWriter;
 using BattleLogic.Models;
 using BattleLogic.Services;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts;
+using Shared.BattleLogic.Models;
+using Shared.BattleServer.Models;
 using System.Collections.Concurrent;
 
 namespace BattleLogic.Battle;

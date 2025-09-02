@@ -1,4 +1,6 @@
-﻿namespace BattleLogic.Infrastructures.BattleReplayWriter;
+﻿using Shared.BattleLogic.Models;
+
+namespace BattleLogic.Infrastructures.BattleReplayWriter;
 
 /// <summary>
 /// Interface for writing and reading battle replay data

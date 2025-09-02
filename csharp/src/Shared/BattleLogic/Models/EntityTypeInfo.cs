@@ -1,4 +1,4 @@
-﻿namespace Shared.Battle;
+﻿namespace Shared.BattleLogic.Models;
 
 /// <summary>
 /// Complete entity type information combining type and enemy size
@@ -24,17 +24,17 @@ public readonly record struct EntityTypeInfo(EntityType Type, EnemySize? EnemySi
     /// <summary>
     /// Creates a small enemy entity type
     /// </summary>
-    public static EntityTypeInfo SmallEnemy => new(EntityType.Enemy, Battle.EnemySize.Small);
+    public static EntityTypeInfo SmallEnemy => new(EntityType.Enemy, Models.EnemySize.Small);
 
     /// <summary>
     /// Creates a medium enemy entity type
     /// </summary>
-    public static EntityTypeInfo MediumEnemy => new(EntityType.Enemy, Battle.EnemySize.Medium);
+    public static EntityTypeInfo MediumEnemy => new(EntityType.Enemy, Models.EnemySize.Medium);
 
     /// <summary>
     /// Creates a large enemy entity type
     /// </summary>
-    public static EntityTypeInfo LargeEnemy => new(EntityType.Enemy, Battle.EnemySize.Large);
+    public static EntityTypeInfo LargeEnemy => new(EntityType.Enemy, Models.EnemySize.Large);
 
     /// <summary>
     /// Returns a string representation of the entity type

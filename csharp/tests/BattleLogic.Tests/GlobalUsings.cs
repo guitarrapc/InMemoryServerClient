@@ -1,6 +1,7 @@
 ﻿global using Xunit;
-global using Shared.Models;
-global using Shared.Constants;
+global using Shared.BattleLogic.Models;
+global using Shared.BattleServer.Constants;
+global using Shared.BattleServer.Models;
 global using BattleLogic.Models;
 global using BattleLogic.Battle;
 global using BattleLogic.Constants;

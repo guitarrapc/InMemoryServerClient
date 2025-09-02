@@ -1,4 +1,6 @@
-﻿namespace CliClient.Tests;
+﻿using System.Runtime.CompilerServices;
+
+namespace CliClient.Tests;
 
 /// <summary>
 /// モック・スタブ使用の統合テスト用の属性（サーバー不要）
@@ -12,6 +14,10 @@ public class IntegrationTestAttribute : FactAttribute
         {
             Skip = "Integration tests are disabled";
         }
+    }
+
+    public IntegrationTestAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1) : base(sourceFilePath, sourceLineNumber)
+    {
     }
 
     private static bool SkipIntegrationTests()
@@ -36,6 +42,10 @@ public class EmbeddedServerTestAttribute : FactAttribute
         }
     }
 
+    public EmbeddedServerTestAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1) : base(sourceFilePath, sourceLineNumber)
+    {
+    }
+
     private static bool SkipEmbeddedServerTests()
     {
         var skip = Environment.GetEnvironmentVariable("SKIP_EMBEDDED_SERVER_TESTS");
@@ -55,6 +65,10 @@ public class ExternalServerRequiredTestAttribute : FactAttribute
         {
             Skip = "External server integration tests are disabled";
         }
+    }
+
+    public ExternalServerRequiredTestAttribute([CallerFilePath] string? sourceFilePath = null, [CallerLineNumber] int sourceLineNumber = -1) : base(sourceFilePath, sourceLineNumber)
+    {
     }
 
     private static bool SkipExternalServerTests()

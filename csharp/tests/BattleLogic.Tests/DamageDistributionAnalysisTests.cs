@@ -1,5 +1,5 @@
 ﻿using BattleLogic.Services;
-using Shared.Battle;
+using Shared.BattleLogic.Models;
 
 namespace BattleLogic.Tests;
 

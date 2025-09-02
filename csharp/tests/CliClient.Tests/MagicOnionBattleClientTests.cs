@@ -123,20 +123,6 @@ public class MagicOnionBattleClientTests : IDisposable
         await Assert.ThrowsAsync<InvalidOperationException>(() => _client.BroadcastMessageAsync("test-message"));
     }
 
-    [Fact]
-    public async Task GetGroupsAsync_WhenNotConnected_ThrowsInvalidOperationException()
-    {
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetGroupsAsync());
-    }
-
-    [Fact]
-    public async Task GetCurrentGroupAsync_WhenNotConnected_ThrowsInvalidOperationException()
-    {
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetCurrentGroupAsync());
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
@@ -169,13 +155,6 @@ public class MagicOnionBattleClientTests : IDisposable
     {
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() => _client.BroadcastAsync("test-message"));
-    }
-
-    [Fact]
-    public async Task GetMyGroupAsync_WhenNotConnected_ThrowsInvalidOperationException()
-    {
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _client.GetMyGroupAsync());
     }
 
     [Fact]

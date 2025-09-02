@@ -1,4 +1,5 @@
 ﻿using CliClient.Clients;
+using Shared.BattleLogic.Models;
 
 namespace CliClient.Tests;
 
@@ -60,35 +61,6 @@ public class MockBattleClientTests
 
         var deleteResult = await mockClient.DeleteAsync("test-key");
         Assert.True(deleteResult);
-    }
-
-    [Fact]
-    public async Task MockBattleClient_GroupOperations_CanBeConfigured()
-    {
-        // Arrange
-        var mockClient = Substitute.For<IBattleClient>();
-        var groupInfo = new ClientGroupInfo(
-            GroupId: "group-123",
-            GroupName: "test-group",
-            MemberCount: 3,
-            MaxMembers: 5,
-            RemainingTime: TimeSpan.FromMinutes(5)
-        );
-
-        mockClient.JoinGroupAsync("test-group").Returns(true);
-        mockClient.GetCurrentGroupAsync().Returns(groupInfo);
-        mockClient.BroadcastMessageAsync("hello").Returns(true);
-
-        // Act & Assert
-        var joinResult = await mockClient.JoinGroupAsync("test-group");
-        Assert.True(joinResult);
-
-        var currentGroup = await mockClient.GetCurrentGroupAsync();
-        Assert.NotNull(currentGroup);
-        Assert.Equal("test-group", currentGroup.Value.GroupName);
-
-        var broadcastResult = await mockClient.BroadcastMessageAsync("hello");
-        Assert.True(broadcastResult);
     }
 
     [Fact]

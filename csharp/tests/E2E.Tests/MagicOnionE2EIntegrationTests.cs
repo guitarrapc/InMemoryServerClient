@@ -1,7 +1,7 @@
 ﻿using Grpc.Net.Client;
 using MagicOnion.Client;
-using Shared.Contracts.Http2Server;
-using Shared.Models;
+using Shared.BattleServer.Contracts.Http2Server;
+using Shared.BattleServer.Models;
 
 namespace E2E.Tests;
 

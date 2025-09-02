@@ -1,4 +1,4 @@
-﻿namespace Shared.Constants;
+﻿namespace Shared.BattleServer.Constants;
 
 /// <summary>
 /// Constants used in InMemoryServer

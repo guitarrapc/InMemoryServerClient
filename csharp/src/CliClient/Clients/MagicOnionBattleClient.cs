@@ -1,15 +1,13 @@
 ﻿using MagicOnion.Client;
 using Microsoft.Extensions.Logging;
-using Shared.Battle;
-using Shared.Constants;
-using Shared.Contracts;
-using Shared.Contracts.Http2Server;
-using Shared.Models;
 using Grpc.Net.Client;
 using System.Diagnostics.CodeAnalysis;
 using CliClient.Extensions;
 using CliClient.Models;
 using CliClient.Services;
+using Shared.BattleServer.Models;
+using Shared.BattleServer.Contracts.Http2Server;
+using Shared.BattleLogic.Models;
 
 namespace CliClient.Clients;
 
@@ -207,11 +205,6 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
         return await BroadcastMessageAsync(message);
     }
 
-    public async Task<ClientGroupInfo?> GetMyGroupAsync()
-    {
-        return await GetCurrentGroupAsync();
-    }
-
     public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
@@ -240,37 +233,6 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
         return !string.IsNullOrEmpty(_currentGroupId);
     }
 
-    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
-    {
-        EnsureConnected();
-        var groups = await _hub.GetGroupsAsync();
-
-        // Convert GroupInfo to ClientGroupInfo
-        return groups.Select(g => new ClientGroupInfo(
-            g.GroupId,
-            g.Name,
-            g.ConnectionCount,
-            g.MaxConnections,
-            g.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
-        )).ToList();
-    }
-
-    public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
-    {
-        EnsureConnected();
-        var groupInfo = await _hub.GetCurrentGroupAsync();
-        if (groupInfo == null) return null;
-
-        // Convert GroupInfo to ClientGroupInfo
-        return new ClientGroupInfo(
-            groupInfo.GroupId,
-            groupInfo.Name,
-            groupInfo.ConnectionCount,
-            groupInfo.MaxConnections,
-            groupInfo.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
-        );
-    }
-
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
         EnsureConnected();
@@ -290,29 +252,6 @@ internal class MagicOnionBattleClient : IBattleClient, IMagicOnionBattleHubRecei
 
         var result = await _hub.ReproduceBattleAsync(battleId, seedValue, groupName);
         return result;
-    }
-
-    public async Task<ServerStatusInfo> GetServerStatusAsync()
-    {
-        EnsureConnected();
-        var serverStatus = await _hub.GetServerStatusAsync();
-
-        // Convert ServerStatus to ServerStatusInfo
-        var groups = serverStatus.Groups.Select(g => new ClientGroupInfo(
-            g.GroupId,
-            g.Name,
-            g.ConnectionCount,
-            SystemDefines.MaxConnectionsPerGroup,
-            TimeSpan.Zero // TODO: Calculate remaining time
-        )).ToList() ?? [];
-
-        return new ServerStatusInfo(
-            serverStatus.Uptime,
-            serverStatus.TotalConnections,
-            serverStatus.GroupCount,
-            serverStatus.ActiveBattleCount,
-            groups
-        );
     }
 
     [MemberNotNull(nameof(_hub))]

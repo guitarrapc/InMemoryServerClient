@@ -1,9 +1,9 @@
 ﻿using Grpc.Net.Client;
 using MagicOnion.Client;
 using Microsoft.AspNetCore.SignalR.Client;
-using Shared.Constants;
-using Shared.Contracts.Http2Server;
-using Shared.Models;
+using Shared.BattleServer.Constants;
+using Shared.BattleServer.Contracts.Http2Server;
+using Shared.BattleServer.Models;
 
 namespace E2E.Tests;
 

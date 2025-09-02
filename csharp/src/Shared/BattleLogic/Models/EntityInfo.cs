@@ -1,6 +1,6 @@
 ﻿using Shared.Common;
 
-namespace Shared.Battle;
+namespace Shared.BattleLogic.Models;
 
 /// <summary>
 /// Entity information for client-server communication

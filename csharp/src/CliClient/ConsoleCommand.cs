@@ -1,7 +1,6 @@
 ﻿using CliClient.Clients;
 using ConsoleAppFramework;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts;
 using Shared.Models;
 
 namespace CliClient;
@@ -76,14 +75,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                         await DisconnectAsync();
                         break;
 
-                    case "status":
-                        await StatusAsync();
-                        break;
-
-                    case "server-status":
-                        await ServerStatusAsync();
-                        break;
-
                     case "get":
                         if (args.Length < 2)
                         {
@@ -143,14 +134,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
                         }
                         var message = string.Join(' ', args.Skip(1));
                         await BroadcastAsync(message);
-                        break;
-
-                    case "groups":
-                        await GroupsAsync();
-                        break;
-
-                    case "mygroup":
-                        await MyGroupAsync();
                         break;
 
                     case "battle-status":
@@ -243,33 +226,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             }
             logger.LogInformation($"Error connecting to server: {ex.Message}");
             Environment.ExitCode = 1;
-        }
-    }
-
-    /// <summary>Check connection status</summary>
-    private async Task StatusAsync()
-    {
-        if (_client is null || !_client.IsConnected)
-        {
-            logger.LogInformation("Connection status: Not connected");
-            return;
-        }
-
-        try
-        {
-            var currentGroup = await _client.GetMyGroupAsync();
-            if (currentGroup != null)
-            {
-                logger.LogInformation($"Current group: {currentGroup}");
-            }
-            else
-            {
-                logger.LogInformation("Current group: None");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogInformation($"Warning: Could not retrieve group information: {ex.Message}");
         }
     }
 
@@ -516,59 +472,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
         }
     }
 
-    /// <summary>Get list of available groups</summary>
-    private async Task GroupsAsync()
-    {
-        if (_client is null || !_client.IsConnected)
-        {
-            logger.LogInformation("Connection status: Not connected");
-            return;
-        }
-
-        try
-        {
-            var groups = await _client.GetGroupsAsync();
-            logger.LogInformation("Available groups:");
-            foreach (var group in groups)
-            {
-                logger.LogInformation($"  {group}");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogInformation($"Error: {ex.Message}");
-            Environment.ExitCode = 1;
-        }
-    }
-
-    /// <summary>Get current group information</summary>
-    private async Task MyGroupAsync()
-    {
-        if (_client is null || !_client.IsConnected)
-        {
-            logger.LogInformation("Connection status: Not connected");
-            return;
-        }
-
-        try
-        {
-            var currentGroup = await _client.GetMyGroupAsync();
-            if (currentGroup != null)
-            {
-                logger.LogInformation($"Current group: {currentGroup}");
-            }
-            else
-            {
-                logger.LogInformation("Not in any group");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogInformation($"Error: {ex.Message}");
-            Environment.ExitCode = 1;
-        }
-    }
-
     /// <summary>Get battle status</summary>
     private async Task BattleStatusAsync()
     {
@@ -756,47 +659,6 @@ public class ConsoleCommand(MultiBattleClientManager multiClientManager, ILogger
             {
                 _client = null;
             }
-        }
-    }
-
-    /// <summary>Get server status</summary>
-    private async Task ServerStatusAsync()
-    {
-        if (_client is null || !_client.IsConnected)
-        {
-            logger.LogInformation("Connection status: Not connected");
-            return;
-        }
-
-        try
-        {
-            if (!_client.IsConnected)
-            {
-                logger.LogInformation("Not connected to server. Connect first.");
-                Environment.ExitCode = 1;
-                return;
-            }
-            var serverStatus = await _client.GetServerStatusAsync();
-            logger.LogInformation("============ SERVER STATUS ============");
-            logger.LogInformation($"Uptime: {serverStatus.Uptime:d\\d\\ h\\h\\ m\\m\\ s\\s}");
-            logger.LogInformation($"Total Connections: {serverStatus.TotalConnections}");
-            logger.LogInformation($"Group Count: {serverStatus.ActiveGroups}");
-            logger.LogInformation($"Active Battle Count: {serverStatus.ActiveBattles}");
-            if (serverStatus.Groups.Count > 0)
-            {
-                logger.LogInformation("\n---------- GROUPS ----------");
-                foreach (var group in serverStatus.Groups)
-                {
-                    logger.LogInformation($"{group.GroupName} (ID: {group.GroupId}): {group.MemberCount}/{group.MaxMembers} connections");
-                }
-            }
-
-            logger.LogInformation("======================================");
-        }
-        catch (Exception ex)
-        {
-            logger.LogInformation($"Error getting server status: {ex.Message}");
-            Environment.ExitCode = 1;
         }
     }
 

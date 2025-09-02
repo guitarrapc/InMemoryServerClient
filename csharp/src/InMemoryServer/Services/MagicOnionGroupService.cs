@@ -1,5 +1,5 @@
 ﻿using Cysharp.Runtime.Multicast;
-using Shared.Contracts.Http2Server;
+using Shared.BattleServer.Contracts.Http2Server;
 
 namespace InMemoryServer.Services;
 

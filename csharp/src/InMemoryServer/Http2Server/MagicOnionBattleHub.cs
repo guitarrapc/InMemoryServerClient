@@ -1,8 +1,4 @@
 ﻿using MagicOnion.Server.Hubs;
-using Shared.Contracts.Http2Server;
-using Shared.Models;
-using Shared.Battle;
-using Shared.Constants;
 using BattleLogic.Battle;
 using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
@@ -10,6 +6,7 @@ using InMemoryServer.Services;
 using InMemoryServer.Models;
 using MessagePack;
 using BattleLogic.Models;
+using Shared.BattleServer.Contracts.Http2Server;
 
 namespace InMemoryServer.Http2Server;
 
@@ -216,7 +213,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     /// <summary>
     /// Get all available groups
     /// </summary>
-    public async Task<IEnumerable<GroupInfo>> GetGroupsAsync()
+    public async Task<IEnumerable<BattleGroupContext>> GetGroupsAsync()
     {
         var connectionId = Context.ContextId.ToString();
         logger.LogDebug("Client {ConnectionId} requesting group list", connectionId);
@@ -226,7 +223,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     /// <summary>
     /// Get current group info
     /// </summary>
-    public async Task<GroupInfo?> GetCurrentGroupAsync()
+    public async Task<BattleGroupContext?> GetCurrentGroupAsync()
     {
         var connectionId = Context.ContextId.ToString();
 
@@ -371,7 +368,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     /// <summary>
     /// Start a battle for a full group
     /// </summary>
-    private async Task StartBattleAsync(GroupInfo group)
+    private async Task StartBattleAsync(BattleGroupContext group)
     {
         // Generate completely independent battle ID and seed
         var battleId = BattleSeed.GenerateBattleId();
@@ -447,7 +444,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     /// <summary>
     /// Start a battle reproduction with specific battle ID and seed
     /// </summary>
-    private async Task StartReproduceBattleAsync(GroupInfo group, Guid battleId, int seed)
+    private async Task StartReproduceBattleAsync(BattleGroupContext group, Guid battleId, int seed)
     {
         group.BattleId = battleId.ToString();
 
@@ -521,7 +518,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
     /// <summary>
     /// Send battle replay data to clients in chunks
     /// </summary>
-    private async Task SendBattleReplayData(GroupInfo group, BattleState battle, Guid battleId, int seed)
+    private async Task SendBattleReplayData(BattleGroupContext group, BattleState battle, Guid battleId, int seed)
     {
         var allTurnData = battle.GetAllTurnData();
 

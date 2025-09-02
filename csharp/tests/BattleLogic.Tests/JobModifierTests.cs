@@ -1,5 +1,4 @@
-using Microsoft.Extensions.Logging;
-using Shared.Battle;
+﻿using Microsoft.Extensions.Logging;
 
 namespace BattleLogic.Tests;
 
@@ -33,7 +32,7 @@ public class JobModifierTests
     public void PlayerJob_Tank_ShouldApplyCorrectModifiers()
     {
         // Arrange
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "tank_test_group",
@@ -109,7 +108,7 @@ public class JobModifierTests
     public void PlayerJob_Warrior_ShouldApplyCorrectModifiers()
     {
         // Similar pattern to Tank test but for Warrior
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "warrior_test_group",
@@ -162,7 +161,7 @@ public class JobModifierTests
     [Fact]
     public void PlayerJob_Mage_ShouldApplyCorrectModifiers()
     {
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "mage_test_group",
@@ -207,7 +206,7 @@ public class JobModifierTests
     [Fact]
     public void PlayerJob_Archer_ShouldApplyCorrectModifiers()
     {
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "archer_test_group",
@@ -249,7 +248,7 @@ public class JobModifierTests
     [Fact]
     public void EnemyJobs_ShouldApplyCorrectModifiers()
     {
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "enemy_job_test_group",
@@ -305,7 +304,7 @@ public class JobModifierTests
     public void PlayerJobs_EvasionRates_ShouldBeWithinExpectedRanges()
     {
         // Arrange
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(),
             Name = "evasion_test_group",

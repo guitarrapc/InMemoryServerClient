@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using Shared.Contracts;
-using Shared.Battle;
+using Shared.BattleLogic.Models;
+using Shared.BattleServer.Constants;
+using Shared.BattleServer.Models;
 
 namespace BattleLogic.Tests;
 
@@ -18,7 +19,7 @@ public class BattleStateTests
         _loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
         _logger = Substitute.For<ILogger<BattleState>>();
 
-        var groupInfo = new GroupInfo
+        var groupInfo = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "test_group",
@@ -168,7 +169,7 @@ public class BattleStateTests
         // Arrange
         var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
         var seed = 12345; // Use fixed seed for testing
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = BattleSeed.NewTimestampId().ToString(), // Use GUID v7 for group ID
             Name = "test_group",

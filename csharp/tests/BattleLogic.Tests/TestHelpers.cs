@@ -1,6 +1,6 @@
 ﻿using BattleLogic.Infrastructures.BattleReplayWriter;
 using Microsoft.Extensions.Logging;
-using Shared.Contracts;
+using Shared.BattleServer.Models;
 
 namespace BattleLogic.Tests;
 

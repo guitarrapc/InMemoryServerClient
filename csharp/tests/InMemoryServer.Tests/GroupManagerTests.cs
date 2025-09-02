@@ -1,5 +1,6 @@
 ﻿using InMemoryServer.Services;
 using InMemoryServer.Models;
+using Shared.BattleServer.Constants;
 
 namespace InMemoryServer.Tests;
 

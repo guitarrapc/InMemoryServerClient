@@ -1,5 +1,5 @@
-﻿using Shared.Constants;
-using Shared.Models;
+﻿using Shared.BattleServer.Constants;
+using Shared.BattleServer.Models;
 using System.Threading.Channels;
 
 namespace InMemoryServer.Services;
@@ -18,7 +18,7 @@ public class GroupManagerActor : IDisposable
     private readonly Task _processingTask;
 
     // Single-threaded access to these collections (only accessed by the actor)
-    private readonly Dictionary<string, GroupInfo> _groups = new();
+    private readonly Dictionary<string, BattleGroupContext> _groups = new();
     private readonly Dictionary<string, string> _connectionToGroup = new();
     private readonly Dictionary<string, string> _groupNameToId = new();
 
@@ -50,9 +50,9 @@ public class GroupManagerActor : IDisposable
     /// <summary>
     /// Join a group asynchronously
     /// </summary>
-    public async Task<GroupInfo> JoinGroupAsync(string connectionId, string? groupName = null)
+    public async Task<BattleGroupContext> JoinGroupAsync(string connectionId, string? groupName = null)
     {
-        var tcs = new TaskCompletionSource<GroupInfo>();
+        var tcs = new TaskCompletionSource<BattleGroupContext>();
         var operation = new JoinGroupOperation(connectionId, groupName, tcs);
 
         if (!_writer.TryWrite(operation))
@@ -66,9 +66,9 @@ public class GroupManagerActor : IDisposable
     /// <summary>
     /// Leave a group asynchronously
     /// </summary>
-    public async Task<(GroupInfo? group, int newCount)> LeaveGroupAsync(string connectionId)
+    public async Task<(BattleGroupContext? group, int newCount)> LeaveGroupAsync(string connectionId)
     {
-        var tcs = new TaskCompletionSource<(GroupInfo?, int)>();
+        var tcs = new TaskCompletionSource<(BattleGroupContext?, int)>();
         var operation = new LeaveGroupOperation(connectionId, tcs);
 
         if (!_writer.TryWrite(operation))
@@ -82,9 +82,9 @@ public class GroupManagerActor : IDisposable
     /// <summary>
     /// Get all groups (read-only snapshot)
     /// </summary>
-    public async Task<IEnumerable<GroupInfo>> GetAllGroupsAsync()
+    public async Task<IEnumerable<BattleGroupContext>> GetAllGroupsAsync()
     {
-        var tcs = new TaskCompletionSource<IEnumerable<GroupInfo>>();
+        var tcs = new TaskCompletionSource<IEnumerable<BattleGroupContext>>();
         var operation = new GetAllGroupsOperation(tcs);
 
         if (!_writer.TryWrite(operation))
@@ -98,9 +98,9 @@ public class GroupManagerActor : IDisposable
     /// <summary>
     /// Get group info by ID
     /// </summary>
-    public async Task<GroupInfo?> GetGroupInfoAsync(string groupId)
+    public async Task<BattleGroupContext?> GetGroupInfoAsync(string groupId)
     {
-        var tcs = new TaskCompletionSource<GroupInfo?>();
+        var tcs = new TaskCompletionSource<BattleGroupContext?>();
         var operation = new GetGroupInfoOperation(groupId, tcs);
 
         if (!_writer.TryWrite(operation))
@@ -247,7 +247,7 @@ public class GroupManagerActor : IDisposable
                 return;
             }
 
-            GroupInfo targetGroup;
+            BattleGroupContext targetGroup;
 
             // If group name is specified, try to join that group
             if (!string.IsNullOrEmpty(groupName))
@@ -343,7 +343,7 @@ public class GroupManagerActor : IDisposable
         try
         {
             // Return a deep copy to avoid external mutations
-            var snapshot = _groups.Values.Select(g => new GroupInfo
+            var snapshot = _groups.Values.Select(g => new BattleGroupContext
             {
                 GroupId = g.GroupId,
                 Name = g.Name,
@@ -371,7 +371,7 @@ public class GroupManagerActor : IDisposable
         {
             if (_groups.TryGetValue(operation.GroupId, out var group))
             {
-                var snapshot = new GroupInfo
+                var snapshot = new BattleGroupContext
                 {
                     GroupId = group.GroupId,
                     Name = group.Name,
@@ -525,10 +525,10 @@ public class GroupManagerActor : IDisposable
         }
     }
 
-    private GroupInfo CreateNewGroup(string connectionId, string groupName)
+    private BattleGroupContext CreateNewGroup(string connectionId, string groupName)
     {
         var groupId = Guid.CreateVersion7().ToString();
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = groupId,
             Name = groupName,
@@ -545,7 +545,7 @@ public class GroupManagerActor : IDisposable
         return group;
     }
 
-    private void AddConnectionToGroup(string connectionId, GroupInfo group)
+    private void AddConnectionToGroup(string connectionId, BattleGroupContext group)
     {
         group.IncrementConnectionCount();
         group.ClientIds.Add(connectionId);
@@ -557,14 +557,14 @@ public class GroupManagerActor : IDisposable
         }
     }
 
-    private void RemoveConnectionFromGroup(string connectionId, GroupInfo group)
+    private void RemoveConnectionFromGroup(string connectionId, BattleGroupContext group)
     {
         group.DecrementConnectionCount();
         group.ClientIds.Remove(connectionId);
         _connectionToGroup.Remove(connectionId);
     }
 
-    private void RemoveGroup(GroupInfo group)
+    private void RemoveGroup(BattleGroupContext group)
     {
         // Get a copy of client IDs before clearing
         var clientIds = new List<string>(group.ClientIds);
@@ -575,7 +575,7 @@ public class GroupManagerActor : IDisposable
         OnGroupDissolved?.Invoke(group.GroupId, group.Name, clientIds, "Group removed");
     }
 
-    private void RemoveGroupInternal(GroupInfo group)
+    private void RemoveGroupInternal(BattleGroupContext group)
     {
         _groups.Remove(group.GroupId);
         _groupNameToId.Remove(group.Name);
@@ -684,52 +684,52 @@ public abstract class GroupOperation
 
 public class JoinGroupOperation : GroupOperation
 {
-    private readonly TaskCompletionSource<GroupInfo> _typedTcs = new();
+    private readonly TaskCompletionSource<BattleGroupContext> _typedTcs = new();
 
     public string ConnectionId { get; }
     public string? GroupName { get; }
 
-    public JoinGroupOperation(string connectionId, string? groupName, TaskCompletionSource<GroupInfo> tcs)
+    public JoinGroupOperation(string connectionId, string? groupName, TaskCompletionSource<BattleGroupContext> tcs)
     {
         ConnectionId = connectionId;
         GroupName = groupName;
         _typedTcs = tcs;
     }
 
-    public void SetResult(GroupInfo result) => _typedTcs.SetResult(result);
+    public void SetResult(BattleGroupContext result) => _typedTcs.SetResult(result);
     public new void SetException(Exception ex) => _typedTcs.SetException(ex);
-    public new Task<GroupInfo> Task => _typedTcs.Task;
+    public new Task<BattleGroupContext> Task => _typedTcs.Task;
 }
 
 public class LeaveGroupOperation : GroupOperation
 {
-    private readonly TaskCompletionSource<(GroupInfo?, int)> _typedTcs = new();
+    private readonly TaskCompletionSource<(BattleGroupContext?, int)> _typedTcs = new();
 
     public string ConnectionId { get; }
 
-    public LeaveGroupOperation(string connectionId, TaskCompletionSource<(GroupInfo?, int)> tcs)
+    public LeaveGroupOperation(string connectionId, TaskCompletionSource<(BattleGroupContext?, int)> tcs)
     {
         ConnectionId = connectionId;
         _typedTcs = tcs;
     }
 
-    public void SetResult((GroupInfo?, int) result) => _typedTcs.SetResult(result);
+    public void SetResult((BattleGroupContext?, int) result) => _typedTcs.SetResult(result);
     public new void SetException(Exception ex) => _typedTcs.SetException(ex);
-    public new Task<(GroupInfo?, int)> Task => _typedTcs.Task;
+    public new Task<(BattleGroupContext?, int)> Task => _typedTcs.Task;
 }
 
 public class GetAllGroupsOperation : GroupOperation
 {
-    private readonly TaskCompletionSource<IEnumerable<GroupInfo>> _typedTcs = new();
+    private readonly TaskCompletionSource<IEnumerable<BattleGroupContext>> _typedTcs = new();
 
-    public GetAllGroupsOperation(TaskCompletionSource<IEnumerable<GroupInfo>> tcs)
+    public GetAllGroupsOperation(TaskCompletionSource<IEnumerable<BattleGroupContext>> tcs)
     {
         _typedTcs = tcs;
     }
 
-    public void SetResult(IEnumerable<GroupInfo> result) => _typedTcs.SetResult(result);
+    public void SetResult(IEnumerable<BattleGroupContext> result) => _typedTcs.SetResult(result);
     public new void SetException(Exception ex) => _typedTcs.SetException(ex);
-    public new Task<IEnumerable<GroupInfo>> Task => _typedTcs.Task;
+    public new Task<IEnumerable<BattleGroupContext>> Task => _typedTcs.Task;
 }
 
 public class DissolveGroupOperation : GroupOperation
@@ -761,19 +761,19 @@ public class CleanupOperation : GroupOperation
 
 public class GetGroupInfoOperation : GroupOperation
 {
-    private readonly TaskCompletionSource<GroupInfo?> _typedTcs = new();
+    private readonly TaskCompletionSource<BattleGroupContext?> _typedTcs = new();
 
     public string GroupId { get; }
 
-    public GetGroupInfoOperation(string groupId, TaskCompletionSource<GroupInfo?> tcs)
+    public GetGroupInfoOperation(string groupId, TaskCompletionSource<BattleGroupContext?> tcs)
     {
         GroupId = groupId;
         _typedTcs = tcs;
     }
 
-    public void SetResult(GroupInfo? result) => _typedTcs.SetResult(result);
+    public void SetResult(BattleGroupContext? result) => _typedTcs.SetResult(result);
     public new void SetException(Exception ex) => _typedTcs.SetException(ex);
-    public new Task<GroupInfo?> Task => _typedTcs.Task;
+    public new Task<BattleGroupContext?> Task => _typedTcs.Task;
 }
 
 public class GetGroupIdForConnectionOperation : GroupOperation

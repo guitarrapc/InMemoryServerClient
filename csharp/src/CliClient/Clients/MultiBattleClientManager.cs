@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using Shared.Constants;
-using Shared.Contracts;
+using Shared.BattleServer.Constants;
 using Shared.Models;
 
 namespace CliClient.Clients;

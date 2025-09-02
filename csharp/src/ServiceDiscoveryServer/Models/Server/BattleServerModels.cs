@@ -1,4 +1,4 @@
-﻿using Shared.Constants;
+﻿using Shared.BattleServer.Constants;
 
 namespace ServiceDiscoveryServer.Models.Server;
 

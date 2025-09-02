@@ -1,4 +1,5 @@
 ﻿using CliClient.Services;
+using Shared.BattleLogic.Models;
 using Shared.Common;
 
 namespace CliClient.Tests;

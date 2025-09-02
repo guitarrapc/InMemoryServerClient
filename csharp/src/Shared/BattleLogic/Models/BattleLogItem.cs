@@ -1,4 +1,4 @@
-﻿namespace Shared.Battle;
+﻿namespace Shared.BattleLogic.Models;
 
 /// <summary>
 /// Battle log item

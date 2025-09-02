@@ -6,7 +6,7 @@ namespace ServiceDiscoveryServer.Http2Server.Services;
 /// <summary>
 /// ServiceDiscovery MagicOnion Service
 /// </summary>
-public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> logger, ISessionManager sessionManager, IBattleServerRegistry serverRegistry) : ServiceBase<IServiceDiscoveryService>, IServiceDiscoveryService
+public class MagicOnionServiceDiscoveryService(ILogger<MagicOnionServiceDiscoveryService> logger, ISessionManager sessionManager, IBattleServerRegistry serverRegistry) : ServiceBase<IMagicOnionServiceDiscoveryService>, IMagicOnionServiceDiscoveryService
 {
     public async UnaryResult<SessionCreationResponse> CreateOrFindSessionAsync(SessionCreationRequest request)
     {

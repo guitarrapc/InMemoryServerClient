@@ -1,9 +1,9 @@
-﻿using Shared.Constants;
-using BattleLogic.Constants;
+﻿using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Http1Server;
 using InMemoryServer.Extensions;
+using Shared.BattleServer.Constants;
 
 namespace InMemoryServer;
 

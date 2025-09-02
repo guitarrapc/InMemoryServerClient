@@ -1,8 +1,8 @@
 ﻿using MagicOnion;
-using Shared.Battle;
-using Shared.Models;
+using Shared.BattleLogic.Models;
+using Shared.BattleServer.Models;
 
-namespace Shared.Contracts.Http2Server;
+namespace Shared.BattleServer.Contracts.Http2Server;
 
 /// <summary>
 /// MagicOnion hub interface for real-time communication
@@ -27,13 +27,13 @@ public interface IMagicOnionBattleHub : IStreamingHub<IMagicOnionBattleHub, IMag
     /// Get all available groups
     /// </summary>
     /// <returns>List of all groups</returns>
-    Task<IEnumerable<GroupInfo>> GetGroupsAsync();
+    Task<IEnumerable<BattleGroupContext>> GetGroupsAsync();
 
     /// <summary>
     /// Get current group info
     /// </summary>
     /// <returns>Current group info if in a group, null otherwise</returns>
-    Task<GroupInfo?> GetCurrentGroupAsync();
+    Task<BattleGroupContext?> GetCurrentGroupAsync();
 
     /// <summary>
     /// Get battle status

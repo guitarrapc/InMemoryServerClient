@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
-using Shared.Constants;
-using Shared.Models;
+using Shared.BattleServer.Constants;
+using Shared.BattleServer.Models;
 
 namespace E2E.Tests;
 

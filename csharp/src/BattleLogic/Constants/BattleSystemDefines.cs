@@ -1,4 +1,5 @@
 ﻿using BattleLogic.Models;
+using Shared.BattleLogic.Models;
 
 namespace BattleLogic.Constants;
 

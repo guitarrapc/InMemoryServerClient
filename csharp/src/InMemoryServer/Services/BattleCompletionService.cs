@@ -1,5 +1,5 @@
-﻿using Shared.Models;
-using BattleLogic.Battle;
+﻿using BattleLogic.Battle;
+using Shared.BattleServer.Models;
 
 namespace InMemoryServer.Services;
 
@@ -31,7 +31,7 @@ public class BattleCompletionService
     /// <param name="seed">Battle seed</param>
     /// <param name="shouldDissolveGroup">Override for dissolve strategy. If null, uses configuration setting.</param>
     public async Task HandleBattleCompletionAsync(
-        GroupInfo group,
+        BattleGroupContext group,
         BattleState battle,
         Guid battleId,
         int seed)

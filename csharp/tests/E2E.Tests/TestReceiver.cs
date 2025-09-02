@@ -1,6 +1,6 @@
-﻿using Shared.Contracts.Http2Server;
-using Shared.Models;
-using Shared.Battle;
+﻿using Shared.BattleServer.Models;
+using Shared.BattleServer.Contracts.Http2Server;
+using Shared.BattleLogic.Models;
 
 namespace E2E.Tests;
 

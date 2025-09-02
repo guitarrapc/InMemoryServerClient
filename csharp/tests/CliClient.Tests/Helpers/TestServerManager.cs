@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Shared.BattleServer.Constants;
 
 namespace CliClient.Tests.Helpers;
 
@@ -80,7 +81,7 @@ public class TestServerManager : IDisposable
                     app.UseRouting();
                     app.UseEndpoints(endpoints =>
                     {
-                        endpoints.MapHub<SignalRBattleHub>(Shared.Constants.SystemDefines.BattleHubRoute);
+                        endpoints.MapHub<SignalRBattleHub>(SystemDefines.BattleHubRoute);
                         endpoints.MapMagicOnionService();
                         endpoints.MapGet("/health", () => "Healthy");
                     });

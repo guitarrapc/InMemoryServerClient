@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using Shared.Contracts;
+using Shared.BattleServer.Constants;
+using Shared.BattleServer.Models;
 using System.Collections.Concurrent;
 
 namespace BattleLogic.Tests;
@@ -32,7 +33,7 @@ public class BattleBalanceTests
         var battleId = BattleSeed.NewTimestampId(); // Use GUID v7 for battle ID
         var seed = 12345; // Use fixed seed for testing
         var groupId = BattleSeed.NewTimestampId().ToString(); // Use GUID v7 for group ID
-        var group = new GroupInfo
+        var group = new BattleGroupContext
         {
             GroupId = groupId,
             Name = $"test_group_{groupId}",
@@ -105,7 +106,7 @@ public class BattleBalanceTests
             var battleId = BattleSeed.NewTimestampId();
             var seed = 12345; // Use fixed seed for testing
             var groupId = BattleSeed.NewTimestampId().ToString();
-            var group = new GroupInfo
+            var group = new BattleGroupContext
             {
                 GroupId = groupId,
                 Name = $"test_group_{groupId}",

@@ -1,6 +1,6 @@
-﻿using Shared.Battle;
+﻿using Shared.BattleLogic.Models;
 
-namespace Shared.Models;
+namespace Shared.BattleServer.Models;
 
 /// <summary>
 /// Server status information

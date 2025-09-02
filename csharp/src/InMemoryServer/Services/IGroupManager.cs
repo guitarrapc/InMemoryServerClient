@@ -1,4 +1,4 @@
-﻿using Shared.Models;
+﻿using Shared.BattleServer.Models;
 
 namespace InMemoryServer.Services;
 
@@ -7,14 +7,14 @@ namespace InMemoryServer.Services;
 /// </summary>
 public interface IGroupManager
 {
-    Task<GroupInfo> JoinGroupAsync(string connectionId, string? groupName = null);
-    Task<(GroupInfo? group, int newCount)> LeaveGroupAsync(string connectionId);
-    Task<IEnumerable<GroupInfo>> GetAllGroupsAsync();
-    Task<GroupInfo?> GetGroupInfoAsync(string groupId);
+    Task<BattleGroupContext> JoinGroupAsync(string connectionId, string? groupName = null);
+    Task<(BattleGroupContext? group, int newCount)> LeaveGroupAsync(string connectionId);
+    Task<IEnumerable<BattleGroupContext>> GetAllGroupsAsync();
+    Task<BattleGroupContext?> GetGroupInfoAsync(string groupId);
     Task<string?> GetGroupIdForConnectionAsync(string connectionId);
     Task<bool> ExtendGroupWaitingTimeAsync(string groupId);
     Task<List<string>> DissolveGroupAsync(string groupId, string reason = "Group disbanded");
-    IEnumerable<GroupInfo> GetGroupsNeedingAttention();
+    IEnumerable<BattleGroupContext> GetGroupsNeedingAttention();
 
     event Action<string, string, List<string>, string>? OnGroupDissolved;
 }
@@ -33,16 +33,16 @@ public class GroupManagerAdapter : IGroupManager, IDisposable
             OnGroupDissolved?.Invoke(groupId, groupName, clientIds, reason);
     }
 
-    public async Task<GroupInfo> JoinGroupAsync(string connectionId, string? groupName = null)
+    public async Task<BattleGroupContext> JoinGroupAsync(string connectionId, string? groupName = null)
         => await _actor.JoinGroupAsync(connectionId, groupName);
 
-    public async Task<(GroupInfo? group, int newCount)> LeaveGroupAsync(string connectionId)
+    public async Task<(BattleGroupContext? group, int newCount)> LeaveGroupAsync(string connectionId)
         => await _actor.LeaveGroupAsync(connectionId);
 
-    public async Task<IEnumerable<GroupInfo>> GetAllGroupsAsync()
+    public async Task<IEnumerable<BattleGroupContext>> GetAllGroupsAsync()
         => await _actor.GetAllGroupsAsync();
 
-    public async Task<GroupInfo?> GetGroupInfoAsync(string groupId)
+    public async Task<BattleGroupContext?> GetGroupInfoAsync(string groupId)
         => await _actor.GetGroupInfoAsync(groupId);
 
     public async Task<string?> GetGroupIdForConnectionAsync(string connectionId)
@@ -54,7 +54,7 @@ public class GroupManagerAdapter : IGroupManager, IDisposable
     public async Task<List<string>> DissolveGroupAsync(string groupId, string reason = "Group disbanded")
         => await _actor.DissolveGroupAsync(groupId, reason);
 
-    public IEnumerable<GroupInfo> GetGroupsNeedingAttention()
+    public IEnumerable<BattleGroupContext> GetGroupsNeedingAttention()
     {
         // This is handled internally by the actor's cleanup process
         // Return empty collection as this method is deprecated in favor of actor's internal cleanup

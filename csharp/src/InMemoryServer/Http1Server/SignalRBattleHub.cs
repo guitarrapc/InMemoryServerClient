@@ -1,8 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using BattleLogic.Battle;
-using Shared.Battle;
-using Shared.Models;
-using Shared.Constants;
 using BattleLogic.Constants;
 using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
@@ -181,7 +178,7 @@ public class SignalRBattleHub(
     /// <summary>
     /// Get all available groups
     /// </summary>
-    public async Task<IEnumerable<GroupInfo>> GetGroupsAsync()
+    public async Task<IEnumerable<BattleGroupContext>> GetGroupsAsync()
     {
         logger.LogDebug($"Client {Context.ConnectionId} requesting group list");
         return await groupManager.GetAllGroupsAsync();
@@ -190,7 +187,7 @@ public class SignalRBattleHub(
     /// <summary>
     /// Get current group info
     /// </summary>
-    public async Task<GroupInfo?> GetCurrentGroupAsync()
+    public async Task<BattleGroupContext?> GetCurrentGroupAsync()
     {
         var groupId = await groupManager.GetGroupIdForConnectionAsync(Context.ConnectionId);
         if (string.IsNullOrEmpty(groupId))
@@ -280,7 +277,7 @@ public class SignalRBattleHub(
     /// <summary>
     /// Start a battle for a full group
     /// </summary>
-    private async Task StartBattleAsync(GroupInfo group)
+    private async Task StartBattleAsync(BattleGroupContext group)
     {
         // Generate completely independent battle ID and seed
         var battleId = BattleSeed.GenerateBattleId();
@@ -564,7 +561,7 @@ public class SignalRBattleHub(
     /// <summary>
     /// Start a battle reproduction with specific battle ID and seed
     /// </summary>
-    private async Task StartReproduceBattleAsync(GroupInfo group, Guid battleId, int seed)
+    private async Task StartReproduceBattleAsync(BattleGroupContext group, Guid battleId, int seed)
     {
         group.BattleId = battleId.ToString();
 

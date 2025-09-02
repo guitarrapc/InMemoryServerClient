@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using Shared.Battle;
-using Shared.Constants;
-using Shared.Contracts;
-using Shared.Models;
 using CliClient.Extensions;
 using CliClient.Models;
 using CliClient.Services;
+using Shared.BattleServer.Models;
+using Shared.BattleServer.Constants;
+using Shared.BattleLogic.Models;
 
 namespace CliClient.Clients;
 
@@ -151,11 +150,6 @@ internal class SignalRBattleClient : IBattleClient
         return await BroadcastMessageAsync(message);
     }
 
-    public async Task<ClientGroupInfo?> GetMyGroupAsync()
-    {
-        return await GetCurrentGroupAsync();
-    }
-
     public async Task<BattleReplayData?> GetBattleReplayAsync(Guid battleId)
     {
         EnsureConnected();
@@ -184,37 +178,6 @@ internal class SignalRBattleClient : IBattleClient
         return !string.IsNullOrEmpty(_currentGroupId);
     }
 
-    public async Task<IReadOnlyList<ClientGroupInfo>> GetGroupsAsync()
-    {
-        EnsureConnected();
-        var groups = await _connection!.InvokeAsync<IEnumerable<GroupInfo>>("GetGroupsAsync");
-
-        // Convert GroupInfo to ClientGroupInfo
-        return groups.Select(g => new ClientGroupInfo(
-            g.GroupId,
-            g.Name,
-            g.ConnectionCount,
-            g.MaxConnections,
-            g.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
-        )).ToList();
-    }
-
-    public async Task<ClientGroupInfo?> GetCurrentGroupAsync()
-    {
-        EnsureConnected();
-        var groupInfo = await _connection!.InvokeAsync<GroupInfo?>("GetCurrentGroupAsync");
-        if (groupInfo == null) return null;
-
-        // Convert GroupInfo to ClientGroupInfo
-        return new ClientGroupInfo(
-            groupInfo.GroupId,
-            groupInfo.Name,
-            groupInfo.ConnectionCount,
-            groupInfo.MaxConnections,
-            groupInfo.CreatedAt.Add(TimeSpan.FromMinutes(10)) - DateTime.UtcNow // Approximate remaining time
-        );
-    }
-
     public async Task<BattleStatus?> GetBattleStatusAsync()
     {
         EnsureConnected();
@@ -234,29 +197,6 @@ internal class SignalRBattleClient : IBattleClient
 
         var result = await _connection!.InvokeAsync<bool>("ReproduceBattleAsync", battleId, seedValue, groupName);
         return result;
-    }
-
-    public async Task<ServerStatusInfo> GetServerStatusAsync()
-    {
-        EnsureConnected();
-        var serverStatus = await _connection!.InvokeAsync<ServerStatus>("GetServerStatusAsync");
-
-        // Convert ServerStatus to ServerStatusInfo
-        var groups = serverStatus.Groups.Select(g => new ClientGroupInfo(
-            g.GroupId,
-            g.Name,
-            g.ConnectionCount,
-            SystemDefines.MaxConnectionsPerGroup,
-            TimeSpan.Zero // TODO: Calculate remaining time
-        )).ToList() ?? [];
-
-        return new ServerStatusInfo(
-            serverStatus.Uptime,
-            serverStatus.TotalConnections,
-            serverStatus.GroupCount,
-            serverStatus.ActiveBattleCount,
-            groups
-        );
     }
 
     private void EnsureConnected()
