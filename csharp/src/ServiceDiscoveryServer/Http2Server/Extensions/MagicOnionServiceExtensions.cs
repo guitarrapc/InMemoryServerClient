@@ -1,4 +1,4 @@
-using MagicOnion.Server;
+﻿using MagicOnion.Server;
 
 namespace ServiceDiscoveryServer.Http2Server.Extensions;
 
@@ -10,17 +10,22 @@ public static class MagicOnionServiceExtensions
     /// <summary>
     /// Add MagicOnion services for ServiceDiscovery
     /// </summary>
-    /// <param name="services">Service collection</param>
-    /// <param name="options">ServiceDiscovery options</param>
+    /// <param name="builder">WebApplicationBuilder</param>
     /// <returns>Service collection</returns>
-    public static IServiceCollection AddServiceDiscoveryMagicOnion(this IServiceCollection services, ServiceDiscoveryOptions options)
+    public static WebApplicationBuilder AddServiceDiscoveryMagicOnion(this WebApplicationBuilder builder)
     {
-        services.AddMagicOnion(magicOnionOptions =>
+        builder.Services.AddMagicOnion(options =>
         {
-            magicOnionOptions.IsReturnExceptionStackTraceInErrorDetail = true;
+            options.IsReturnExceptionStackTraceInErrorDetail = builder.Environment.IsDevelopment();
+            // Enable heartbeat for all StreamingHub instances
+            options.EnableStreamingHubHeartbeat = true;
+            // Send heartbeat every 30 seconds, disconnect if no response within 5 seconds
+            options.StreamingHubHeartbeatInterval = TimeSpan.FromSeconds(30);
+            options.StreamingHubHeartbeatTimeout = TimeSpan.FromSeconds(5);
+
         });
 
-        return services;
+        return builder;
     }
 
     /// <summary>

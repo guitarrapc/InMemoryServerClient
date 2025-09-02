@@ -12,20 +12,19 @@ public static class SignalRServiceExtensions
     /// Add SignalR services for ServiceDiscovery
     /// </summary>
     /// <param name="services">Service collection</param>
-    /// <param name="options">ServiceDiscovery options</param>
     /// <returns>Service collection</returns>
-    public static IServiceCollection AddServiceDiscoverySignalR(this IServiceCollection services, ServiceDiscoveryOptions options)
+    public static IServiceCollection AddServiceDiscoverySignalR(this IServiceCollection services)
     {
-        services.AddSignalR(hubOptions =>
+        services.AddSignalR(options =>
         {
-            hubOptions.MaximumReceiveMessageSize = 1024 * 1024; // 1MB
-            hubOptions.StreamBufferCapacity = 10;
-            hubOptions.EnableDetailedErrors = true;
+            options.MaximumReceiveMessageSize = 1024 * 1024; // 1MB
+            options.StreamBufferCapacity = 10;
+            options.EnableDetailedErrors = true;
         })
-        .AddJsonProtocol(jsonOptions =>
+        .AddJsonProtocol(options =>
         {
-            jsonOptions.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-            jsonOptions.PayloadSerializerOptions.WriteIndented = false;
+            options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.PayloadSerializerOptions.WriteIndented = false;
         });
 
         return services;

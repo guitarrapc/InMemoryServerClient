@@ -1,4 +1,4 @@
-namespace ServiceDiscoveryServer.Services.Core;
+﻿namespace ServiceDiscoveryServer.Services.Core;
 
 /// <summary>
 /// BattleServer registry service interface
@@ -52,4 +52,9 @@ public interface IBattleServerRegistry
     /// <param name="sessionId">Session ID</param>
     /// <returns>Assigned server information or null</returns>
     Task<BattleServerInfo?> GetAssignedServerAsync(string sessionId);
+
+    /// <summary>
+    /// Check server health
+    /// </summary>
+    void CheckServerHealth();
 }

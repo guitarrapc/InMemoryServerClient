@@ -33,7 +33,16 @@ public class Program
             options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB
             options.StreamBufferCapacity = 50;
         });
-        builder.Services.AddMagicOnion();
+        builder.Services.AddMagicOnion(options =>
+        {
+            options.IsReturnExceptionStackTraceInErrorDetail = builder.Environment.IsDevelopment();
+            // Enable heartbeat for all StreamingHub instances
+            options.EnableStreamingHubHeartbeat = true;
+            // Send heartbeat every 30 seconds, disconnect if no response within 5 seconds
+            options.StreamingHubHeartbeatInterval = TimeSpan.FromSeconds(30);
+            options.StreamingHubHeartbeatTimeout = TimeSpan.FromSeconds(5);
+        });
+
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();
 

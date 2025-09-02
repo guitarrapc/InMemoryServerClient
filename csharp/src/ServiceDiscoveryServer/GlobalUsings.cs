@@ -1,10 +1,6 @@
 ﻿global using System.Collections.Concurrent;
 global using System.Text.Json;
-global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.AspNetCore.SignalR;
-global using Microsoft.Extensions.DependencyInjection;
-global using Microsoft.Extensions.Hosting;
-global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using ServiceDiscoveryServer.Configuration;
 global using ServiceDiscoveryServer.Models.Session;

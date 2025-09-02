@@ -3,28 +3,11 @@
 /// <summary>
 /// In-memory session management service
 /// </summary>
-public sealed class SessionManager : ISessionManager, IHostedService, IDisposable
+public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<ServiceDiscoveryOptions> options, IBattleServerRegistry serverRegistry) : ISessionManager, IDisposable
 {
-    private readonly ILogger<SessionManager> _logger;
-    private readonly IOptions<ServiceDiscoveryOptions> _options;
-    private readonly IBattleServerRegistry _serverRegistry;
     private readonly ConcurrentDictionary<string, SessionInfo> _sessions = new();
     private readonly ConcurrentDictionary<string, List<string>> _groupSessions = new();
-    private readonly Timer _cleanupTimer;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
-
-    public SessionManager(
-        ILogger<SessionManager> logger,
-        IOptions<ServiceDiscoveryOptions> options,
-        IBattleServerRegistry serverRegistry)
-    {
-        _logger = logger;
-        _options = options;
-        _serverRegistry = serverRegistry;
-
-        var cleanupInterval = TimeSpan.FromMinutes(_options.Value.Session.CleanupIntervalMinutes);
-        _cleanupTimer = new Timer(CleanupExpiredSessions, null, cleanupInterval, cleanupInterval);
-    }
 
     public async Task<SessionCreationResponse> CreateOrFindSessionAsync(SessionCreationRequest request)
     {
@@ -45,7 +28,7 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
                         var connectionInfo = await GetConnectionInfoForSessionAsync(session);
                         if (connectionInfo.HasValue)
                         {
-                            _logger.LogInformation("Found existing session {SessionId} for group {GroupName}",
+                            logger.LogInformation("Found existing session {SessionId} for group {GroupName}",
                                 sessionId, request.GroupName);
 
                             return new SessionCreationResponse
@@ -60,10 +43,10 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
             }
 
             // Create new session
-            var availableServer = await _serverRegistry.GetAvailableServerAsync();
+            var availableServer = await serverRegistry.GetAvailableServerAsync();
             if (availableServer is null)
             {
-                _logger.LogWarning("No available battle servers for group {GroupName}", request.GroupName);
+                logger.LogWarning("No available battle servers for group {GroupName}", request.GroupName);
                 return new SessionCreationResponse
                 {
                     IsSuccess = false,
@@ -102,7 +85,7 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
             var updatedSession = newSession with { Status = SessionStatus.Active };
             _sessions[newSessionId] = updatedSession;
 
-            _logger.LogInformation("Created new session {SessionId} for group {GroupName} on server {ServerId}",
+            logger.LogInformation("Created new session {SessionId} for group {GroupName} on server {ServerId}",
                 newSessionId, request.GroupName, availableServer.Value.ServerId);
 
             return new SessionCreationResponse
@@ -114,7 +97,7 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create or find session for group {GroupName}", request.GroupName);
+            logger.LogError(ex, "Failed to create or find session for group {GroupName}", request.GroupName);
             return new SessionCreationResponse
             {
                 IsSuccess = false,
@@ -171,7 +154,7 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
             }
         }
 
-        _logger.LogInformation("Terminated session {SessionId} for group {GroupName}",
+        logger.LogInformation("Terminated session {SessionId} for group {GroupName}",
             sessionId, session.GroupName);
 
         return Task.FromResult(true);
@@ -192,7 +175,7 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
 
         _sessions[sessionId] = updatedSession;
 
-        _logger.LogDebug("Updated session {SessionId} status to {Status}", sessionId, status);
+        logger.LogDebug("Updated session {SessionId} status to {Status}", sessionId, status);
 
         return Task.FromResult(true);
     }
@@ -207,48 +190,19 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
         var updatedSession = session with { CurrentPlayers = playerCount };
         _sessions[sessionId] = updatedSession;
 
-        _logger.LogDebug("Updated session {SessionId} player count to {PlayerCount}", sessionId, playerCount);
+        logger.LogDebug("Updated session {SessionId} player count to {PlayerCount}", sessionId, playerCount);
 
         return Task.FromResult(true);
     }
 
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("SessionManager started with cleanup interval of {CleanupInterval} minutes",
-            _options.Value.Session.CleanupIntervalMinutes);
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _logger.LogInformation("SessionManager stopping");
-        _cleanupTimer?.Dispose();
-        return Task.CompletedTask;
-    }
-
-    private async Task<BattleServerConnectionInfo?> GetConnectionInfoForSessionAsync(SessionInfo session)
-    {
-        var serverInfo = await _serverRegistry.GetServerInfoAsync(session.AssignedServerId);
-        if (serverInfo is null)
-        {
-            return null;
-        }
-
-        return new BattleServerConnectionInfo
-        {
-            ServerId = serverInfo.Value.ServerId,
-            Address = serverInfo.Value.Address,
-            SignalRPort = serverInfo.Value.SignalRPort,
-            MagicOnionPort = serverInfo.Value.MagicOnionPort,
-            SupportedTypes = Models.Server.ConnectionType.Both
-        };
-    }
-
-    private void CleanupExpiredSessions(object? state)
+    /// <summary>
+    /// Cleanup expired sessions (called by SessionCleanupService)
+    /// </summary>
+    public void CleanupExpiredSessions()
     {
         try
         {
-            var timeoutMinutes = _options.Value.Session.SessionTimeoutMinutes;
+            var timeoutMinutes = options.Value.Session.SessionTimeoutMinutes;
             var cutoffTime = DateTime.UtcNow.AddMinutes(-timeoutMinutes);
             var expiredSessions = new List<string>();
 
@@ -279,25 +233,42 @@ public sealed class SessionManager : ISessionManager, IHostedService, IDisposabl
                         }
                     }
 
-                    _logger.LogDebug("Cleaned up expired session {SessionId} for group {GroupName}",
+                    logger.LogDebug("Cleaned up expired session {SessionId} for group {GroupName}",
                         sessionId, session.GroupName);
                 }
             }
 
             if (expiredSessions.Count > 0)
             {
-                _logger.LogInformation("Cleaned up {Count} expired sessions", expiredSessions.Count);
+                logger.LogInformation("Cleaned up {Count} expired sessions", expiredSessions.Count);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during session cleanup");
+            logger.LogError(ex, "Error during session cleanup");
         }
+    }
+
+    private async Task<BattleServerConnectionInfo?> GetConnectionInfoForSessionAsync(SessionInfo session)
+    {
+        var serverInfo = await serverRegistry.GetServerInfoAsync(session.AssignedServerId);
+        if (serverInfo is null)
+        {
+            return null;
+        }
+
+        return new BattleServerConnectionInfo
+        {
+            ServerId = serverInfo.Value.ServerId,
+            Address = serverInfo.Value.Address,
+            SignalRPort = serverInfo.Value.SignalRPort,
+            MagicOnionPort = serverInfo.Value.MagicOnionPort,
+            SupportedTypes = Models.Server.ConnectionType.Both
+        };
     }
 
     public void Dispose()
     {
-        _cleanupTimer?.Dispose();
         _semaphore?.Dispose();
     }
 }

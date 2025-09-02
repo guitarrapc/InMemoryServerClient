@@ -12,7 +12,7 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Add ServiceDiscoveryServer services
     /// </summary>
-    /// <param name="builder">Service collection</param>
+    /// <param name="builder">WebApplicationBuilder</param>
     /// <param name="configuration">Configuration</param>
     /// <returns>Service collection</returns>
     public static IServiceCollection AddServiceDiscoveryServer(this WebApplicationBuilder builder, IConfiguration configuration)
@@ -24,24 +24,21 @@ public static class ServiceCollectionExtensions
 
         // Configuration
         services.Configure<ServiceDiscoveryOptions>(configuration.GetSection(ServiceDiscoveryOptions.SectionName));
-        var serviceDiscoveryOptions = configuration.GetSection(ServiceDiscoveryOptions.SectionName).Get<ServiceDiscoveryOptions>() ?? ServiceDiscoveryOptions.Default;
 
-        // Core services
+        // Core services (business logic)
         services.AddSingleton<IBattleServerRegistry, BattleServerRegistry>();
         services.AddSingleton<ISessionManager, SessionManager>();
         services.AddSingleton<IGameLiftIntegration, GameLiftSessionManager>();
 
-        // Register as hosted services
-        services.AddHostedService<BattleServerRegistry>(provider =>
-            (BattleServerRegistry)provider.GetRequiredService<IBattleServerRegistry>());
-        services.AddHostedService<SessionManager>(provider =>
-            (SessionManager)provider.GetRequiredService<ISessionManager>());
+        // Background services (lifecycle management)
+        services.AddHostedService<SessionCleanupService>();
+        services.AddHostedService<ServerHealthCheckService>();
 
         // HTTP/1 services (SignalR)
-        services.AddServiceDiscoverySignalR(serviceDiscoveryOptions);
+        services.AddServiceDiscoverySignalR();
 
         // HTTP/2 services (MagicOnion)
-        services.AddServiceDiscoveryMagicOnion(serviceDiscoveryOptions);
+        builder.AddServiceDiscoveryMagicOnion();
 
         // Health checks
         services.AddHealthChecks();

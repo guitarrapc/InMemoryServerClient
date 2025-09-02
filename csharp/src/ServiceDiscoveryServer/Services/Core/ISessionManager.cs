@@ -1,4 +1,4 @@
-namespace ServiceDiscoveryServer.Services.Core;
+﻿namespace ServiceDiscoveryServer.Services.Core;
 
 /// <summary>
 /// Session management service interface
@@ -47,4 +47,9 @@ public interface ISessionManager
     /// <param name="playerCount">Current player count</param>
     /// <returns>True if successfully updated</returns>
     Task<bool> UpdateSessionPlayerCountAsync(string sessionId, int playerCount);
+
+    /// <summary>
+    /// Cleanup expired sessions
+    /// </summary>
+    void CleanupExpiredSessions();
 }

@@ -16,6 +16,7 @@ namespace InMemoryServer.Http2Server;
 /// <summary>
 /// MagicOnion streaming hub implementation for real-time communication
 /// </summary>
+[Heartbeat]
 public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>, IMagicOnionBattleHub
 {
     private readonly ILogger<MagicOnionBattleHub> logger;
