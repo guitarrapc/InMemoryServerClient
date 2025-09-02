@@ -12,15 +12,19 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Add ServiceDiscoveryServer services
     /// </summary>
-    /// <param name="services">Service collection</param>
+    /// <param name="builder">Service collection</param>
     /// <param name="configuration">Configuration</param>
     /// <returns>Service collection</returns>
-    public static IServiceCollection AddServiceDiscoveryServer(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddServiceDiscoveryServer(this WebApplicationBuilder builder, IConfiguration configuration)
     {
+        var services = builder.Services;
+
+        // Add structured logging
+        builder.AddServiceDiscoveryLogging();
+
         // Configuration
         services.Configure<ServiceDiscoveryOptions>(configuration.GetSection(ServiceDiscoveryOptions.SectionName));
-        var serviceDiscoveryOptions = configuration.GetSection(ServiceDiscoveryOptions.SectionName).Get<ServiceDiscoveryOptions>()
-            ?? new ServiceDiscoveryOptions();
+        var serviceDiscoveryOptions = configuration.GetSection(ServiceDiscoveryOptions.SectionName).Get<ServiceDiscoveryOptions>() ?? ServiceDiscoveryOptions.Default;
 
         // Core services
         services.AddSingleton<IBattleServerRegistry, BattleServerRegistry>();
@@ -42,15 +46,6 @@ public static class ServiceCollectionExtensions
         // Health checks
         services.AddHealthChecks();
 
-        // Controllers
-        services.AddControllers()
-            .ConfigureApiBehaviorOptions(options =>
-            {
-                options.SuppressConsumesConstraintForFormFileParameters = true;
-                options.SuppressInferBindingSourcesForParameters = true;
-                options.SuppressModelStateInvalidFilter = true;
-            });
-
         return services;
     }
 
@@ -58,9 +53,8 @@ public static class ServiceCollectionExtensions
     /// Configure ServiceDiscoveryServer application
     /// </summary>
     /// <param name="app">Web application</param>
-    /// <param name="options">ServiceDiscovery options</param>
     /// <returns>Web application</returns>
-    public static WebApplication ConfigureServiceDiscoveryServer(this WebApplication app, ServiceDiscoveryOptions options)
+    public static WebApplication ConfigureServiceDiscoveryServer(this WebApplication app)
     {
         // Development environment configuration
         if (app.Environment.IsDevelopment())
@@ -68,18 +62,11 @@ public static class ServiceCollectionExtensions
             app.UseDeveloperExceptionPage();
         }
 
-        // CORS
-        app.UseCors();
-
         // Routing
         app.UseRouting();
 
         // Health checks
-        app.MapHealthChecks("/health");
-        app.UseHealthChecks("/health");
-
-        // Controllers
-        app.MapControllers();
+        app.MapGet("/health", () => "Healthy");
 
         // SignalR hubs
         app.MapServiceDiscoverySignalR();

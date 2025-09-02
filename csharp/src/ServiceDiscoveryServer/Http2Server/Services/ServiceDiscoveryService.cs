@@ -8,24 +8,22 @@ namespace ServiceDiscoveryServer.Http2Server.Services;
 /// </summary>
 public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> logger, ISessionManager sessionManager, IBattleServerRegistry serverRegistry) : ServiceBase<IServiceDiscoveryService>, IServiceDiscoveryService
 {
-    private readonly ILogger<ServiceDiscoveryService> _logger = logger;
-
     public async UnaryResult<SessionCreationResponse> CreateOrFindSessionAsync(SessionCreationRequest request)
     {
         try
         {
-            _logger.LogInformation("CreateOrFindSession request for group {GroupName} via MagicOnion", request.GroupName);
+            logger.LogInformation("CreateOrFindSession request for group {GroupName} via MagicOnion", request.GroupName);
 
             var response = await sessionManager.CreateOrFindSessionAsync(request);
 
-            _logger.LogInformation("CreateOrFindSession response: {IsSuccess} for group {GroupName}",
+            logger.LogInformation("CreateOrFindSession response: {IsSuccess} for group {GroupName}",
                 response.IsSuccess, request.GroupName);
 
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in CreateOrFindSessionAsync for group {GroupName}", request.GroupName);
+            logger.LogError(ex, "Error in CreateOrFindSessionAsync for group {GroupName}", request.GroupName);
             return new SessionCreationResponse
             {
                 IsSuccess = false,
@@ -42,7 +40,7 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GetSessionInfoAsync for session {SessionId}", sessionId);
+            logger.LogError(ex, "Error in GetSessionInfoAsync for session {SessionId}", sessionId);
             return null;
         }
     }
@@ -55,7 +53,7 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in ListActiveSessionsAsync");
+            logger.LogError(ex, "Error in ListActiveSessionsAsync");
             return [];
         }
     }
@@ -64,12 +62,12 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
     {
         try
         {
-            _logger.LogInformation("Terminating session {SessionId} via MagicOnion", sessionId);
+            logger.LogInformation("Terminating session {SessionId} via MagicOnion", sessionId);
             return await sessionManager.TerminateSessionAsync(sessionId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in TerminateSessionAsync for session {SessionId}", sessionId);
+            logger.LogError(ex, "Error in TerminateSessionAsync for session {SessionId}", sessionId);
             return false;
         }
     }
@@ -82,7 +80,7 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in ListAvailableServersAsync");
+            logger.LogError(ex, "Error in ListAvailableServersAsync");
             return [];
         }
     }
@@ -95,7 +93,7 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GetAssignedServerAsync for session {SessionId}", sessionId);
+            logger.LogError(ex, "Error in GetAssignedServerAsync for session {SessionId}", sessionId);
             return null;
         }
     }
@@ -104,12 +102,12 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
     {
         try
         {
-            _logger.LogInformation("Registering BattleServer {ServerId} via MagicOnion", registration.ServerId);
+            logger.LogInformation("Registering BattleServer {ServerId} via MagicOnion", registration.ServerId);
             return await serverRegistry.RegisterServerAsync(registration);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in RegisterServerAsync for server {ServerId}", registration.ServerId);
+            logger.LogError(ex, "Error in RegisterServerAsync for server {ServerId}", registration.ServerId);
             return false;
         }
     }
@@ -122,7 +120,7 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in UpdateServerStatusAsync for server {ServerId}", serverId);
+            logger.LogError(ex, "Error in UpdateServerStatusAsync for server {ServerId}", serverId);
             return false;
         }
     }
@@ -131,12 +129,12 @@ public sealed class ServiceDiscoveryService(ILogger<ServiceDiscoveryService> log
     {
         try
         {
-            _logger.LogInformation("Unregistering BattleServer {ServerId} via MagicOnion", serverId);
+            logger.LogInformation("Unregistering BattleServer {ServerId} via MagicOnion", serverId);
             return await serverRegistry.UnregisterServerAsync(serverId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in UnregisterServerAsync for server {ServerId}", serverId);
+            logger.LogError(ex, "Error in UnregisterServerAsync for server {ServerId}", serverId);
             return false;
         }
     }

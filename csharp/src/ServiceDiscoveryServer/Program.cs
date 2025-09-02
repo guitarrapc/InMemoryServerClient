@@ -2,23 +2,15 @@
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add structured logging
-builder.AddServiceDiscoveryLogging();
-
 // Add ServiceDiscoveryServer services
-builder.Services.AddServiceDiscoveryServer(builder.Configuration);
-
-// Configure Kestrel for multiple ports
-var serviceDiscoveryOptions = builder.Configuration.GetSection(ServiceDiscoveryOptions.SectionName).Get<ServiceDiscoveryOptions>()
-    ?? new ServiceDiscoveryOptions();
+builder.AddServiceDiscoveryServer(builder.Configuration);
 
 var app = builder.Build();
 
 // Configure ServiceDiscoveryServer application
-app.ConfigureServiceDiscoveryServer(serviceDiscoveryOptions);
+app.ConfigureServiceDiscoveryServer();
 
 // Log startup information
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("ServiceDiscoveryServer starting up");
+Console.WriteLine($"ServiceDiscoveryServer Server starting...");
 
 await app.RunAsync();

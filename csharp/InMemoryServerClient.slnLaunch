@@ -3,14 +3,19 @@
     "Name": "Server&Client",
     "Projects": [
       {
-        "Path": "src\\CliClient\\CliClient.csproj",
-        "Action": "Start",
-        "DebugTarget": "CliClient"
-      },
-      {
         "Path": "src\\InMemoryServer\\InMemoryServer.csproj",
         "Action": "Start",
         "DebugTarget": "InMemoryServer"
+      },
+      {
+        "Path": "src\\ServiceDiscoveryServer\\ServiceDiscoveryServer.csproj",
+        "Action": "Start",
+        "DebugTarget": "ServiceDiscoveryServer"
+      },
+      {
+        "Path": "src\\CliClient\\CliClient.csproj",
+        "Action": "Start",
+        "DebugTarget": "CliClient - Http/1"
       }
     ]
   }

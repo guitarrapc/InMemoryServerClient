@@ -37,6 +37,9 @@ public class Program
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();
 
+        // Health checks
+        builder.Services.AddHealthChecks();
+
         // Choose Group Manager implementation
         // Use Actor Model Pattern (Recommended)
         builder.Services.AddActorGroupManager();
@@ -52,14 +55,14 @@ public class Program
         // Build the app
         var app = builder.Build();
 
+        // Add a basic health check endpoint
+        app.MapGet("/health", () => "Healthy");
+
         // Configure the SignalR endpoint (HTTP/1)
         app.MapHub<SignalRBattleHub>(SystemDefines.BattleHubRoute);
 
         // Configure MagicOnion endpoint (HTTP/2)
         app.MapMagicOnionService();
-
-        // Add a basic health check endpoint
-        app.MapGet("/health", () => "Healthy");
 
         // Create directory for battle replays
         Directory.CreateDirectory(BattleSystemDefines.BattleReplayDirectory);
