@@ -8,22 +8,59 @@ Amazon GameLift Anywhereは、AWS GameLiftのFleet管理機能をオンプレミ
 - GameLiftの制御プレーン（管理API）とサーバーSDK（ランタイム管理）の両方を利用
 - クラウド/オンプレ混在のハイブリッド運用が可能
 
-## 2. 典型的な接続フロー
+## 2. GameLift Anywhere実装仕様
 
-### (A) 制御プレーン（AWS SDK）
+### クライアント・サーバー間の責任分離
+
+**📋 実装仕様:**
+
+- **クライアントはAWS認証ができない**: AWS認証が必要な処理はすべてサーバーで行う必要がある
+- **サーバーはバトルごとにGameSessionを作成**: バトルが終了し、メンバーがいなくなったら（=プレイヤーセッションが0になったら）GameSessionを終了する
+- **サーバーは接続クライアントごとにプレイヤーセッション管理**: クライアント切断時にプレイヤーセッションも終了する
+- **クライアントはプレイヤーセッションを意識しない**: サーバー側でクライアント毎のGameLiftプレイヤーセッション管理を行うため、クライアントは直接的なPlayerSession操作は不要
+
+### GameSessionとPlayerSessionのライフサイクル
+
+```
+GameSession作成 (サーバー)
+├── クライアント接続1 → PlayerSession作成 (サーバー側で自動)
+├── クライアント接続2 → PlayerSession作成 (サーバー側で自動)
+├── ...
+├── 5プレイヤー集まったらバトル開始
+├── バトル完了
+├── クライアント切断1 → PlayerSession終了 (サーバー側で自動)
+├── クライアント切断2 → PlayerSession終了 (サーバー側で自動)
+├── ...
+└── PlayerSession = 0 → GameSession終了 (サーバー側で自動)
+```
+
+## 3. 典型的な接続フロー
+
+### (A) 制御プレーン（AWS SDK）- サーバーのみ
 1. **Compute登録**: サーバーはFleetId/ComputeName/Locationで自身をFleetに登録（`RegisterCompute`）
 2. **認証トークン取得**: サーバーは`GetComputeAuthToken`でFleet/Compute用のAuthTokenとServiceSdkEndpoint(WSS)を取得
 
-### (B) サーバーSDK（WebSocket）
+### (B) サーバーSDK（WebSocket）- サーバーのみ
 3. **SDK初期化**: サーバーSDKは地域ベースのGameLift WebSocketエンドポイント（例：`wss://{region}.api.amazongamelift.com`）にAuthTokenで接続し、GameSession管理の準備
 4. **ProcessReady**: サーバーSDKがGameLiftに自身の準備完了を通知
 5. **GameSession管理**: GameLiftからの指示でゲームセッションの開始/終了を管理
 
+### (C) クライアント接続 - GameSession作成リクエスト
+6. **GameSession作成リクエスト**: クライアントがサーバーにGameSession作成をリクエスト（使っている接続経由 - SignalR/MagicOnion）
+7. **GameSession作成**: サーバーがAWS SDK for GameLiftを使用してGameSession作成
+8. **サーバー通知**: GameLiftがサーバーに`onStartGameSession`コールバックでGameSession開始を通知
+9. **GameSession準備**: サーバーがGameSessionを受け入れ、バトル準備を開始
+
+### (D) クライアント接続 - 実際の接続
+10. **直接接続**: クライアントはGameSessionの接続情報（IPアドレス、ポート）を使ってサーバーに直接接続
+11. **プレイヤーセッション管理**: サーバーが内部的にPlayerSessionを管理（クライアントは意識不要）
+
 **重要な注意事項**:
 - WebSocketURLはAWSリージョンに基づいて決定される（例：us-west-2の場合 `wss://us-west-2.api.amazongamelift.com`）
 - `GetComputeAuthToken`のレスポンスにはWebSocket URLは含まれないため、リージョン設定から動的に構築する
+- **クライアントはAWS認証不要**: サーバーが全てのGameLift関連処理を代行
 
-## 3. アーキテクチャ概要
+## 4. アーキテクチャ概要
 
 ### 新しい疎結合アーキテクチャ（v2）
 
@@ -32,6 +69,7 @@ Amazon GameLift Anywhereは、AWS GameLiftのFleet管理機能をオンプレミ
 - **条件付きサービス登録**: 必要な時だけGameLift関連サービスを登録
 - **完全な疎結合**: 不要なモードでは関連コードが一切実行されない
 - **責任分離**: Program.csからGameLift初期化ロジックを完全分離
+- **サーバー集中処理**: クライアントのAWS認証問題を回避するため、全GameLift処理をサーバーに集約
 
 #### GameLift Anywhereモード
 ```
@@ -39,6 +77,7 @@ Application Startup
 ├── appsettings.json読み込み
 ├── Mode: "Anywhere" 検出
 ├── GameLiftAnywhereHostedService 登録 ← BackgroundService
+├── GameSessionManager 登録 ← GameSession/PlayerSession管理
 ├── IAmazonGameLift 登録
 └── 通常のASP.NET Core起動
 
@@ -46,6 +85,15 @@ GameLiftAnywhereHostedService.ExecuteAsync()
 ├── 制御プレーン初期化（Compute登録、AuthToken取得）
 ├── サーバーSDK初期化（WSS接続、ProcessReady）
 └── バックグラウンドで実行継続
+
+クライアント接続時:
+├── クライアント → サーバー: GameSession作成リクエスト（SignalR）
+├── サーバー → GameLift: GameSession作成（AWS SDK）
+├── GameLift → サーバー: onStartGameSession コールバック
+├── GameSessionManager.OnPlayerConnectedAsync()
+├── 初回接続時: GameSession自動アクティベーション
+├── PlayerSession内部管理（クライアント側では不可視）
+└── バトル開始準備
 
 Application Shutdown
 └── GameLiftAnywhereHostedService.StopAsync() ← 自動呼び出し
@@ -73,21 +121,30 @@ Application Startup
 
 ### クライアント起動時
 - appsettings.jsonで`GameLift.Mode = Anywhere`を指定
-- FleetId/Locationを指定してサーバー探索（今後拡張）
-- 現状はサーバーのWebSocketエンドポイントに直接接続
+- クライアントはFleetId/Locationを指定してサーバーに接続
+- サーバーに対してGameSession作成をリクエスト（SignalR経由）
+- GameSessionが作成されると、サーバーの接続情報を取得してSignalR接続を継続
+- **重要**: クライアントは自身ではPlayerSessionを作成せず、AWS認証も不要（サーバーが代行）
 
-## 4. 実装状況
+## 5. 実装状況
 
-### ✅ 完了済み（最新アーキテクチャ v4）
+### ✅ 完了済み（最新アーキテクチャ v5）
 
-#### 🎮 GameSessionバトル統合 ✅ 完了
+#### 🎮 GameSession完全ライフサイクル管理 ✅ 完了
 - **GameSessionManager**: GameSessionとBattleStateの完全統合管理
-- **自動バトル開始**: `onStartGameSession`コールバック内でのバトル自動開始
-- **バトル完了処理**: バトル終了時のGameSession終了とリソース解放
-- **GameSessionとBattleの関連付け**: GameSessionIDとBattleIDの一対一対応
-- **仮想グループ作成**: GameLift用の5プレイヤー仮想グループ生成
-- **メモリ管理**: バトル完了後の適切なメモリクリーンアップ
-- **BattleCompletionService拡張**: GameLift GameSession終了処理の統合
+- **動的GameSession作成**: クライアント接続時の`onStartGameSession`コールバック処理
+- **自動PlayerSession管理**: サーバー側でクライアント接続/切断時のPlayerSession自動管理
+- **適切なGameSession終了**: 全プレイヤー切断時の自動GameSession終了処理
+- **バトル連携**: GameSessionとBattleの一対一対応とライフサイクル同期
+- **リソース効率化**: バトル完了後の適切なメモリクリーンアップ
+- **クライアント透明性**: クライアントはPlayerSessionを意識する必要がない設計
+
+#### 🚀 クライアント・サーバー責任分離 ✅ 完了
+- **サーバー集中AWS処理**: 全てのGameLift AWS API処理をサーバーに集約
+- **クライアント認証不要**: クライアントはAWS認証なしでGameLift機能を利用可能
+- **GameSession作成**: クライアントがサーバーにリクエスト、サーバーがGameLift APIで作成
+- **透明なPlayerSession**: サーバーがクライアント接続に応じて自動的にPlayerSession管理
+- **直接接続**: クライアントはSignalR接続のみでGameLift機能を利用
 
 #### 🚀 WebSocketエンドポイント修正 ✅ 完了
 - **正しいエンドポイント形式**: `wss://{region}.api.amazongamelift.com`形式のWebSocketURLを動的構築
@@ -155,29 +212,34 @@ Application Startup
 - [ ] FleetIQモードのHostedService実装
 - [ ] ECS/EC2環境での動作検証
 
-## 5. 現在の状況と次のステップ
+## 6. 現在の状況と次のステップ
 
 ### 🎉 現在達成できていること
 1. **GameLift Anywhere基盤の動作**: サーバー登録・認証・SDK初期化が完全に動作
 2. **適切なアーキテクチャ**: ASP.NET Core標準パターンによる保守性の高い実装
 3. **設定の柔軟性**: appsettings.jsonと環境変数による設定管理
+4. **完全なGameSessionライフサイクル**: 作成から終了まで自動管理
+5. **クライアント透明性**: クライアントはGameLiftの複雑さを意識せず利用可能
+6. **責任分離の実現**: サーバーがAWS処理を集約、クライアントは認証不要
 
 ### 🎯 次に実装すべき機能（推奨順序）
 
-**ステップ1: GameSessionとバトルシステムの統合**
-- `onStartGameSession`コールバックでバトル開始をトリガー
-- バトル完了時に`GameLiftServerAPI.ProcessEnding()`を呼び出し
-- GameSessionIdとバトルIdの連携
+**ステップ1: 複数クライアント同時接続の検証 ✅ 完了**
+- 5つのクライアントが同時接続してバトルが開始されることの確認
+- GameSessionとPlayerSessionの正常な管理確認
+- バトル完了後のリソースクリーンアップ確認
 
-**ステップ2: クライアント側GameLift対応**
-- GameLiftクライアントSDKでGameSession参加
-- FleetIdベースのサーバー検索機能
+**ステップ2: バトルシステムとの完全統合**
+- GameSessionでのバトル開始から完了までの正常動作確認
+- バトル結果の適切な処理とGameSession終了の連携
+- エラー処理の強化（接続エラー、バトルエラー等）
 
 **ステップ3: 統合テストとドキュメント**
-- 実際のFleet環境でのテスト
+- 実際のFleet環境でのE2Eテスト
 - 運用手順書の整備
+- パフォーマンステストの実施
 
-## 6. Computeクリーンナップ戦略
+## 7. Computeクリーンナップ戦略
 
 ### クリーンナップロジック
 
@@ -230,7 +292,7 @@ Application Startup
 [GameLift] Registering new compute: local-compute-01 in fleet: fleet-xxx
 ```
 
-## 7. 設計の利点
+## 8. 設計の利点
 
 ### ASP.NET Core標準パターンによる利点
 - **自動ライフサイクル管理**: 起動・シャットダウンが自動で適切に処理される
@@ -244,19 +306,21 @@ Application Startup
 - **保守性向上**: 機能ごとの責任が明確に分離されている
 - **拡張性**: 新しいGameLiftサービス（FleetIQ等）の追加が容易
 
-## 8. GameSessionライフサイクル設計ベストプラクティス
+### 責任分離による利点
+- **クライアント実装簡素化**: AWS認証やGameLift APIの複雑さからクライアントを解放
+- **セキュリティ向上**: AWS認証情報をサーバーのみに集約、クライアント側の認証情報漏洩リスク排除
+- **運用負荷軽減**: サーバー側でのPlayerSession一元管理により、クライアント側のエラー処理が簡単
+- **開発効率向上**: クライアント開発者はGameLiftの詳細を理解せずに済む
 
-### 現在の実装の問題点
+## 9. GameSessionライフサイクル設計ベストプラクティス
 
-**❌ 問題のある設計（現在）:**
-- サーバー起動と同時にGameSession開始
-- 1サーバー = 1GameSession の固定関係
-- リソース効率が悪く、スケールしない
+### 現在の実装の利点
 
-**✅ 推奨設計:**
+**✅ 適切な設計（現在）:**
 - GameSession = 1つの具体的なバトル/マッチ
 - プレイヤー要求時にGameSession動的作成
 - 1サーバーで複数GameSessionの並行処理
+- プレイヤー切断時の自動GameSession終了
 
 ### GameSessionの適切な単位
 
@@ -273,16 +337,10 @@ Application Startup
 - **GameSession数**: コストに直接影響しない
 - **推奨**: 1サーバーで複数GameSessionを効率的に処理
 
-**現在 vs 推奨設計の比較:**
+**現在の設計（効率的）:**
 
 ```
-現在の設計（非効率）:
-┌─ Server ─────────────┐
-│ ◯ 1 GameSession     │ ← 常時1つのバトルのみ
-│ 💸 リソース使用率低い │
-└─────────────────────┘
-
-推奨設計（効率的）:
+現在の設計（効率的）:
 ┌─ Server ─────────────┐
 │ ◯ GameSession A     │ ← 複数バトル並行処理
 │ ◯ GameSession B     │
@@ -291,19 +349,15 @@ Application Startup
 └─────────────────────┘
 ```
 
-### 修正すべき実装項目
+### 現在の実装状況
 
-**1. GameSessionの動的管理**
-- `onStartGameSession`コールバック時のみGameSession作成
+**✅ 実装完了項目**
+- `onStartGameSession`コールバック時のGameSession動的作成
 - バトル完了時のGameSession自動終了
-- 複数GameSessionの並行管理
+- 複数GameSessionの並行管理（MaxConcurrentGameSessions: 3）
+- プレイヤー切断時の自動PlayerSession・GameSession管理
 
-**2. リソース効率化**
-- 1サーバーでの複数バトル同時実行
-- GameSession終了後の即座なメモリクリーンアップ
-- 次のGameSession受け入れ準備の自動化
-
-**3. 設定の調整**
+**3. 設定の現状**
 ```json
 {
   "GameLift": {
@@ -326,30 +380,31 @@ Application Startup
 - 1バトル = 5プレイヤー分のAI処理とシミュレーション
 - バトル時間: 100-300ターン程度
 - メモリ使用量: バトルデータ、リプレイデータ、ログ
-- 推奨開始値: 2-3（様子を見て調整）
+- 現在の設定: 3（適切なバランス値）
 
-## 9. 今後の課題と対応
+## 10. 今後の課題と対応
 
-### ✅ 緊急対応完了（2025-08-20）
-1. **GameSessionライフサイクル修正**: ✅ 完了
-   - サーバー起動時の自動GameSession作成を停止
-   - `onStartGameSession`コールバックによる動的作成のみ
-   - 容量チェック機能の実装
-2. **複数GameSession対応**: ✅ 完了
-   - `MaxConcurrentGameSessions`設定による並行処理制限
-   - GameSession統計とモニタリング機能
-   - 定期的なアイドルセッションクリーンアップ
-3. **リソース効率化**: ✅ 完了
-   - バトル完了後の即座なメモリクリーンアップ
-   - 強制ガベージコレクションによるメモリ解放
-   - 設定可能なクリーンアップ遅延時間
+### ✅ 重要機能完了（2025-09-02）
+1. **GameSessionライフサイクル完全制御**: ✅ 完了
+   - クライアントリクエスト時のサーバー経由GameSession動的作成
+   - バトル完了・プレイヤー切断時の自動GameSession終了
+   - 複数GameSession並行処理（MaxConcurrentGameSessions: 3）
+2. **PlayerSession自動管理**: ✅ 完了
+   - サーバー側でのPlayerSession自動作成・削除
+   - クライアント透明性（PlayerSession操作不要）
+   - プレイヤー切断時の適切なクリーンアップ
+3. **AWS処理のサーバー完全集約**: ✅ 完了
+   - クライアントAWS認証問題の完全解決
+   - サーバーが全GameLift処理を代行（GameSession作成含む）
+   - クライアントはSignalR接続のみで済む
 
 ### 中期的な拡張
-1. **スケーラビリティ**: より多くの同時GameSessionサポート
+1. **パフォーマンス最適化**: より多くの同時GameSessionサポート
 2. **FleetIQ対応**: 新しいHostedServiceクラスの追加
 3. **監視機能**: GameLiftの状態監視とアラート機能
+4. **エラー回復**: 接続エラー時の自動再接続機能
 
-## 9. 参考
+## 11. 参考
 - [AWS公式ドキュメント: GameLift Anywhere](https://docs.aws.amazon.com/ja_jp/gamelift/latest/developerguide/fleets-anywhere.html)
 - [AWS SDK for .NET: GameLift API](https://docs.aws.amazon.com/sdkfornet/v3/apidocs/items/GameLift/NGameLift.html)
 - [AWS公式ドキュメント: C# server SDK 5.x for Amazon GameLift Servers -- Actions](https://docs.aws.amazon.com/gameliftservers/latest/developerguide/integration-server-sdk5-csharp-actions.html)
@@ -360,4 +415,4 @@ Application Startup
 
 ---
 
-**最終更新: 2025-08-20**
+**最終更新: 2025-09-02**
