@@ -1,6 +1,5 @@
 ﻿using BattleLogic.Models;
 using Microsoft.Extensions.Logging;
-using Shared.BattleLogic.Models;
 using System.Text.Json;
 
 namespace BattleLogic.Infrastructures.BattleReplayWriter;

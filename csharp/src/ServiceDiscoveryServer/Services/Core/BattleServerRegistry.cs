@@ -3,22 +3,11 @@
 /// <summary>
 /// In-memory BattleServer registry service
 /// </summary>
-public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
+public sealed class BattleServerRegistry(ILogger<BattleServerRegistry> logger) : IBattleServerRegistry
 {
-    private readonly ILogger<BattleServerRegistry> _logger;
-    private readonly IOptions<ServiceDiscoveryOptions> _options;
     private readonly ConcurrentDictionary<string, BattleServerInfo> _servers = new();
     private readonly ConcurrentDictionary<string, int> _healthFailureCount = new();
     private readonly ConcurrentDictionary<string, string> _sessionAssignments = new();
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-
-    public BattleServerRegistry(
-        ILogger<BattleServerRegistry> logger,
-        IOptions<ServiceDiscoveryOptions> options)
-    {
-        _logger = logger;
-        _options = options;
-    }
 
     public Task<bool> RegisterServerAsync(BattleServerRegistration registration)
     {
@@ -37,17 +26,16 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
                 LoadScore = 0.0
             };
 
-            _servers[registration.ServerId] = serverInfo;
+            _servers.AddOrUpdate(registration.ServerId, serverInfo, (key, oldValue) => serverInfo);
             _healthFailureCount[registration.ServerId] = 0;
 
-            _logger.LogInformation("Registered BattleServer {ServerId} at {Address}:{SignalRPort}/{MagicOnionPort}",
-                registration.ServerId, registration.Address, registration.SignalRPort, registration.MagicOnionPort);
+            logger.LogInformation("Registered BattleServer {ServerId} at {Address}:{SignalRPort}/{MagicOnionPort}", registration.ServerId, registration.Address, registration.SignalRPort, registration.MagicOnionPort);
 
             return Task.FromResult(true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to register BattleServer {ServerId}", registration.ServerId);
+            logger.LogError(ex, "Failed to register BattleServer {ServerId}", registration.ServerId);
             return Task.FromResult(false);
         }
     }
@@ -56,7 +44,7 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
     {
         if (!_servers.TryGetValue(serverId, out var existingServer))
         {
-            _logger.LogWarning("Attempted to update status for unknown server {ServerId}", serverId);
+            logger.LogWarning("Attempted to update status for unknown server {ServerId}", serverId);
             return Task.FromResult(false);
         }
 
@@ -72,7 +60,7 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
         _servers[serverId] = updatedServer;
         _healthFailureCount[serverId] = 0; // Reset failure count on successful update
 
-        _logger.LogDebug("Updated status for server {ServerId}: Health={Health}, ActiveSessions={ActiveSessions}, LoadScore={LoadScore:F2}",
+        logger.LogDebug("Updated status for server {ServerId}: Health={Health}, ActiveSessions={ActiveSessions}, LoadScore={LoadScore:F2}",
             serverId, status.Health, status.ActiveSessions, updatedServer.LoadScore);
 
         return Task.FromResult(true);
@@ -84,7 +72,7 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
         if (removed)
         {
             _healthFailureCount.TryRemove(serverId, out _);
-            _logger.LogInformation("Unregistered BattleServer {ServerId}", serverId);
+            logger.LogInformation("Unregistered BattleServer {ServerId}", serverId);
         }
 
         return Task.FromResult(removed);
@@ -102,7 +90,7 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
 
         if (selectedServer.ServerId is not null)
         {
-            _logger.LogDebug("Selected server {ServerId} with load score {LoadScore:F2} and {ActiveSessions} active sessions",
+            logger.LogDebug("Selected server {ServerId} with load score {LoadScore:F2} and {ActiveSessions} active sessions",
                 selectedServer.ServerId, selectedServer.LoadScore, selectedServer.ActiveSessions);
         }
 
@@ -147,7 +135,7 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
             // Simulate health check - in real scenario, ping the server
             if (DateTime.UtcNow - server.LastHeartbeat > TimeSpan.FromMinutes(5))
             {
-                _logger.LogWarning("Server {ServerId} has not sent heartbeat for {ElapsedTime}", server.ServerId, DateTime.UtcNow - server.LastHeartbeat);
+                logger.LogWarning("Server {ServerId} has not sent heartbeat for {ElapsedTime}", server.ServerId, DateTime.UtcNow - server.LastHeartbeat);
             }
         }
     }
@@ -159,10 +147,5 @@ public sealed class BattleServerRegistry : IBattleServerRegistry, IDisposable
 
         // Weighted average: 60% session load, 40% resource load
         return (sessionLoad * 0.6) + (resourceLoad * 0.4);
-    }
-
-    public void Dispose()
-    {
-        _semaphore?.Dispose();
     }
 }

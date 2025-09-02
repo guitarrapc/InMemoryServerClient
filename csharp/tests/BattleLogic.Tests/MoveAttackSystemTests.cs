@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Shared.BattleServer.Constants;
-using Shared.BattleServer.Models;
 
 namespace BattleLogic.Tests;
 

@@ -1,7 +1,6 @@
 ﻿using BattleLogic.Constants;
 using BattleLogic.Models;
 using Microsoft.Extensions.Logging;
-using Shared.BattleLogic.Models;
 
 namespace BattleLogic.Services;
 

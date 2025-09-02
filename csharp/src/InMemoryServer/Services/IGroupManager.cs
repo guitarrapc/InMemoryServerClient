@@ -1,6 +1,4 @@
-﻿using Shared.BattleServer.Models;
-
-namespace InMemoryServer.Services;
+﻿namespace InMemoryServer.Services;
 
 /// <summary>
 /// Interface for group management to allow easy swapping between implementations

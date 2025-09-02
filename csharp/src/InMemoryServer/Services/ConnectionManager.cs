@@ -97,6 +97,12 @@ public class ConnectionManager
     }
 
     /// <summary>
+    /// Get total connection count (alias for ServiceDiscoveryClient compatibility)
+    /// </summary>
+    /// <returns>Total number of active connections</returns>
+    public int GetTotalConnections() => GetConnectionCount();
+
+    /// <summary>
     /// Check if a connection is still active
     /// </summary>
     /// <param name="connectionId">Connection ID to check</param>

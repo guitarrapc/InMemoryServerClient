@@ -289,7 +289,6 @@ public enum ServerHealth
 ```json
 {
   "BattleServer": {
-    "ServerId": "", // 空の場合は自動生成
     "ServiceDiscovery": {
       "SignalREndpoint": "http://localhost:5010",
       "MagicOnionEndpoint": "http://localhost:5011",
@@ -313,8 +312,6 @@ public enum ServerHealth
 
 ```
 csharp/src/ServiceDiscoveryServer/
-├── Controllers/
-│   └── HealthController.cs
 ├── Http1Server/
 │   ├── Hubs/
 │   │   └── ServiceDiscoveryHub.cs
@@ -354,7 +351,6 @@ csharp/src/ServiceDiscoveryServer/
    - ASP.NET Core + SignalR + MagicOnion設定
    - 設定システム（Options Pattern）
    - ログ設定・構造化ログ
-   - ヘルスチェックエンドポイント
 
 2. **セッション管理サービス**
    - インメモリセッション管理

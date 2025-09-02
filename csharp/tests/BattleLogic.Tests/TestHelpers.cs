@@ -1,6 +1,5 @@
 ﻿using BattleLogic.Infrastructures.BattleReplayWriter;
 using Microsoft.Extensions.Logging;
-using Shared.BattleServer.Models;
 
 namespace BattleLogic.Tests;
 

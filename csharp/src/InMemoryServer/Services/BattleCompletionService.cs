@@ -1,5 +1,4 @@
 ﻿using BattleLogic.Battle;
-using Shared.BattleServer.Models;
 
 namespace InMemoryServer.Services;
 

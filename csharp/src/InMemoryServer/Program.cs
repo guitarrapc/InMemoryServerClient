@@ -3,7 +3,7 @@ using BattleLogic.Infrastructures.BattleReplayWriter;
 using InMemoryServer.Services;
 using InMemoryServer.Http1Server;
 using InMemoryServer.Extensions;
-using Shared.BattleServer.Constants;
+using InMemoryServer.Configuration;
 
 namespace InMemoryServer;
 
@@ -26,6 +26,9 @@ public class Program
             options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
             options.IncludeScopes = true;
         });
+
+        // Configure BattleServer options
+        builder.Services.Configure<BattleServerOptions>(builder.Configuration.GetSection(BattleServerOptions.SectionName));
 
         // Add services to the container
         builder.Services.AddSignalR(options =>
@@ -60,6 +63,9 @@ public class Program
 
         // Register BattleReplayWriterFactory and options
         builder.Services.AddSingleton<BattleReplayWriterFactory>();
+
+        // Register ServiceDiscoveryClient as hosted service
+        builder.Services.AddHostedService<ServiceDiscoveryClient>();
 
         // Build the app
         var app = builder.Build();

@@ -78,7 +78,7 @@ public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<Serv
                 Address = availableServer.Value.Address,
                 SignalRPort = availableServer.Value.SignalRPort,
                 MagicOnionPort = availableServer.Value.MagicOnionPort,
-                SupportedTypes = Models.Server.ConnectionType.Both
+                SupportedTypes = BattleServerConnectionType.Both
             };
 
             // Update session status to Active
@@ -263,7 +263,7 @@ public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<Serv
             Address = serverInfo.Value.Address,
             SignalRPort = serverInfo.Value.SignalRPort,
             MagicOnionPort = serverInfo.Value.MagicOnionPort,
-            SupportedTypes = Models.Server.ConnectionType.Both
+            SupportedTypes = BattleServerConnectionType.Both
         };
     }
 

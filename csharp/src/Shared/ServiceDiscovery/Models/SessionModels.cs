@@ -1,4 +1,4 @@
-namespace ServiceDiscoveryServer.Models.Session;
+namespace Shared.ServiceDiscovery.Models;
 
 /// <summary>
 /// Session information model

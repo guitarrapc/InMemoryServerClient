@@ -1,6 +1,6 @@
-﻿using Shared.BattleServer.Constants;
+using Shared.BattleServer.Constants;
 
-namespace ServiceDiscoveryServer.Models.Server;
+namespace Shared.ServiceDiscovery.Models;
 
 /// <summary>
 /// BattleServer connection information
@@ -12,7 +12,7 @@ public readonly record struct BattleServerConnectionInfo
     public int SignalRPort { get; init; }
     public int MagicOnionPort { get; init; }
     public string SignalRHubPath { get; init; } = SystemDefines.BattleHubRoute;
-    public ConnectionType SupportedTypes { get; init; }
+    public BattleServerConnectionType SupportedTypes { get; init; }
 
     public BattleServerConnectionInfo()
     {
@@ -88,10 +88,10 @@ public enum ServerHealth
 }
 
 /// <summary>
-/// Connection type flags
+/// BattleServer connection type flags
 /// </summary>
 [Flags]
-public enum ConnectionType
+public enum BattleServerConnectionType
 {
     None = 0,
     SignalR = 1,
