@@ -27,7 +27,7 @@ public static class ServiceCollectionExtensions
 
         // Core services (business logic)
         services.AddSingleton<IBattleServerRegistry, BattleServerRegistry>();
-        services.AddSingleton<ISessionManager, SessionManager>();
+        services.AddSingleton<ISessionManager, InmemorySessionManager>();
         services.AddSingleton<IGameLiftIntegration, GameLiftSessionManager>();
 
         // Background services (lifecycle management)

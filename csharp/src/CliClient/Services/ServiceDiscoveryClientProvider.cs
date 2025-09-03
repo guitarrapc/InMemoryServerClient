@@ -168,9 +168,10 @@ public sealed class ServiceDiscoveryClientProvider(ILogger<ServiceDiscoveryClien
     /// Create battle client and connect to assigned battle server
     /// </summary>
     /// <param name="connectionInfo">Battle server connection information</param>
+    /// <param name="groupName">Group name to join after connection</param>
     /// <param name="connectionType">Preferred connection type</param>
     /// <returns>Connected battle client</returns>
-    public async Task<IBattleClient> ConnectToBattleServerAsync(BattleServerConnectionInfo connectionInfo, ConnectionType connectionType = ConnectionType.SignalR)
+    public async Task<IBattleClient> ConnectToBattleServerAsync(BattleServerConnectionInfo connectionInfo, string groupName, ConnectionType connectionType = ConnectionType.SignalR)
     {
         try
         {
@@ -188,9 +189,14 @@ public sealed class ServiceDiscoveryClientProvider(ILogger<ServiceDiscoveryClien
                 _ => throw new ArgumentException($"Unsupported connection type: {connectionType}")
             };
 
-            await battleClient.ConnectAsync(serverUrl);
+            // Connect to server and join the group
+            var connected = await battleClient.ConnectAsync(serverUrl, groupName);
+            if (!connected)
+            {
+                throw new InvalidOperationException($"Failed to connect to BattleServer {connectionInfo.ServerId}");
+            }
 
-            logger.LogInformation("Successfully connected to BattleServer {ServerId}", connectionInfo.ServerId);
+            logger.LogInformation("Successfully connected to BattleServer {ServerId} and joined group {GroupName}", connectionInfo.ServerId, groupName);
             return battleClient;
         }
         catch (Exception ex)
@@ -226,6 +232,30 @@ public sealed class ServiceDiscoveryClientProvider(ILogger<ServiceDiscoveryClien
     }
 
     /// <summary>
+    /// Remove player from session (for connection cleanup)
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>True if successfully removed</returns>
+    public async Task<bool> RemovePlayerFromSessionAsync(string sessionId)
+    {
+        if (_hubConnection?.State != HubConnectionState.Connected)
+        {
+            throw new InvalidOperationException("Not connected to ServiceDiscovery server. Call InitializeAsync first.");
+        }
+
+        try
+        {
+            logger.LogDebug("Removing player from session {SessionId}", sessionId);
+            return await _hubConnection.InvokeAsync<bool>("RemovePlayerFromSessionAsync", sessionId);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error removing player from session {SessionId}", sessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Full session creation and connection flow
     /// </summary>
     /// <param name="groupName">Group name</param>
@@ -247,12 +277,30 @@ public sealed class ServiceDiscoveryClientProvider(ILogger<ServiceDiscoveryClien
             throw new InvalidOperationException($"Failed to create session: {sessionResponse.ErrorMessage}");
         }
 
-        // Step 2: Connect to the assigned battle server
-        var battleClient = await ConnectToBattleServerAsync(sessionResponse.ConnectionInfo.Value, connectionType);
+        var session = sessionResponse.Session.Value;
 
-        logger.LogInformation("Successfully completed session creation and connection flow for group {GroupName}", groupName);
+        try
+        {
+            // Step 2: Connect to the assigned battle server
+            var battleClient = await ConnectToBattleServerAsync(sessionResponse.ConnectionInfo.Value, groupName, connectionType);
 
-        return (battleClient, sessionResponse.Session.Value);
+            logger.LogInformation("Successfully completed session creation and connection flow for group {GroupName}", groupName);
+
+            return (battleClient, session);
+        }
+        catch (Exception)
+        {
+            // Connection failed, remove player from session to free up the slot
+            try
+            {
+                await RemovePlayerFromSessionAsync(session.SessionId);
+            }
+            catch (Exception cleanupEx)
+            {
+                logger.LogWarning(cleanupEx, "Failed to remove player from session {SessionId} during error cleanup", session.SessionId);
+            }
+            throw;
+        }
     }
 
     /// <summary>

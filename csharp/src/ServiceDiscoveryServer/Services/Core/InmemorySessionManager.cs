@@ -3,7 +3,7 @@
 /// <summary>
 /// In-memory session management service
 /// </summary>
-public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<ServiceDiscoveryOptions> options, IBattleServerRegistry serverRegistry) : ISessionManager, IDisposable
+public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logger, IOptions<ServiceDiscoveryOptions> options, IBattleServerRegistry serverRegistry) : ISessionManager, IDisposable
 {
     private readonly ConcurrentDictionary<string, SessionInfo> _sessions = new();
     private readonly ConcurrentDictionary<string, List<string>> _groupSessions = new();
@@ -28,13 +28,17 @@ public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<Serv
                         var connectionInfo = await GetConnectionInfoForSessionAsync(session);
                         if (connectionInfo.HasValue)
                         {
-                            logger.LogInformation("Found existing session {SessionId} for group {GroupName}",
-                                sessionId, request.GroupName);
+                            // Increment current players count for reservation
+                            var updatedSession = session with { CurrentPlayers = session.CurrentPlayers + 1 };
+                            _sessions[sessionId] = updatedSession;
+
+                            logger.LogInformation("Found existing session {SessionId} for group {GroupName} (CurrentPlayers: {CurrentPlayers}/{MaxPlayers})",
+                                sessionId, request.GroupName, updatedSession.CurrentPlayers, updatedSession.MaxPlayers);
 
                             return new SessionCreationResponse
                             {
                                 IsSuccess = true,
-                                Session = session,
+                                Session = updatedSession,
                                 ConnectionInfo = connectionInfo
                             };
                         }
@@ -62,7 +66,7 @@ public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<Serv
                 Mode = request.Mode,
                 Status = SessionStatus.Creating,
                 AssignedServerId = availableServer.Value.ServerId,
-                CurrentPlayers = 0,
+                CurrentPlayers = 1, // Reserve slot for this request
                 MaxPlayers = request.MaxPlayers,
                 CreatedAt = DateTime.UtcNow
             };
@@ -82,16 +86,16 @@ public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<Serv
             };
 
             // Update session status to Active
-            var updatedSession = newSession with { Status = SessionStatus.Active };
-            _sessions[newSessionId] = updatedSession;
+            var activeSession = newSession with { Status = SessionStatus.Active };
+            _sessions[newSessionId] = activeSession;
 
-            logger.LogInformation("Created new session {SessionId} for group {GroupName} on server {ServerId}",
-                newSessionId, request.GroupName, availableServer.Value.ServerId);
+            logger.LogInformation("Created new session {SessionId} for group {GroupName} on server {ServerId} (CurrentPlayers: {CurrentPlayers}/{MaxPlayers})",
+                newSessionId, request.GroupName, availableServer.Value.ServerId, activeSession.CurrentPlayers, activeSession.MaxPlayers);
 
             return new SessionCreationResponse
             {
                 IsSuccess = true,
-                Session = updatedSession,
+                Session = activeSession,
                 ConnectionInfo = newConnectionInfo
             };
         }
@@ -191,6 +195,23 @@ public sealed class SessionManager(ILogger<SessionManager> logger, IOptions<Serv
         _sessions[sessionId] = updatedSession;
 
         logger.LogDebug("Updated session {SessionId} player count to {PlayerCount}", sessionId, playerCount);
+
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> RemovePlayerFromSessionAsync(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return Task.FromResult(false);
+        }
+
+        var newPlayerCount = Math.Max(0, session.CurrentPlayers - 1);
+        var updatedSession = session with { CurrentPlayers = newPlayerCount };
+        _sessions[sessionId] = updatedSession;
+
+        logger.LogDebug("Removed player from session {SessionId}, CurrentPlayers: {CurrentPlayers}",
+            sessionId, newPlayerCount);
 
         return Task.FromResult(true);
     }

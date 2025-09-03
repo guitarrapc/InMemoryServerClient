@@ -49,6 +49,13 @@ public interface ISessionManager
     Task<bool> UpdateSessionPlayerCountAsync(string sessionId, int playerCount);
 
     /// <summary>
+    /// Remove player from session (decrements CurrentPlayers)
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>True if successfully decremented</returns>
+    Task<bool> RemovePlayerFromSessionAsync(string sessionId);
+
+    /// <summary>
     /// Cleanup expired sessions
     /// </summary>
     void CleanupExpiredSessions();

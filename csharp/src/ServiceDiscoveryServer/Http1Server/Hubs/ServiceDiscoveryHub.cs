@@ -129,6 +129,27 @@ public sealed class ServiceDiscoveryHub(ILogger<ServiceDiscoveryHub> logger, ISe
     }
 
     /// <summary>
+    /// Remove player from session (for connection cleanup)
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>True if successfully removed</returns>
+    public async Task<bool> RemovePlayerFromSessionAsync(string sessionId)
+    {
+        try
+        {
+            _logger.LogDebug("Removing player from session {SessionId} from connection {ConnectionId}",
+                sessionId, Context.ConnectionId);
+
+            return await sessionManager.RemovePlayerFromSessionAsync(sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in RemovePlayerFromSessionAsync for session {SessionId}", sessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Register BattleServer (for BattleServer use)
     /// </summary>
     /// <param name="registration">Server registration information</param>

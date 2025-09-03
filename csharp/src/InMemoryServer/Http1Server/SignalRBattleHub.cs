@@ -115,6 +115,8 @@ public class SignalRBattleHub(
     {
         var connectionId = Context.ConnectionId;
 
+        logger.LogInformation("JoinGroupAsync called - ConnectionId: {ConnectionId}", connectionId);
+
         // Find or create group
         var group = await groupManager.JoinGroupAsync(connectionId, groupName);
         await Groups.AddToGroupAsync(connectionId, group.GroupId);
@@ -409,7 +411,7 @@ public class SignalRBattleHub(
         connectionManager.RegisterConnection(connectionId, ConnectionProtocol.SignalR);
 
         state.ConnectionCount++;
-        logger.LogDebug("SignalR client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
+        logger.LogInformation("SignalR client connected - ConnectionId: {ConnectionId}, Total connections: {Count}", connectionId, state.ConnectionCount);
 
         await base.OnConnectedAsync();
     }
