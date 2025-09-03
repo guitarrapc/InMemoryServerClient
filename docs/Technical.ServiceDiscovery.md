@@ -4,6 +4,38 @@
 
 InMemoryServerClientプロジェクトにおけるサービスディスカバリーサーバーは、バトルサーバーの検索・割り当て・管理を担当する中央制御システムです。GameLift統合とDirect接続の両方を透過的にサポートし、クライアントからはセッション管理の詳細を隠蔽します。
 
+### 重要な設計原則
+
+**責任分離の明確化**:
+- **ServiceDiscovery**: サーバー発見とセッション管理のみ
+- **BattleServer**: グループ管理とバトル実行のみ
+- **セッション ≠ グループ**: セッションは接続先情報、グループは実際のバトルメンバー
+
+**GameLiftスタイル採用の理由**:
+- **コスト効率**: 1グループ=1セッションで無駄なセッション作成を防止（5人が個別セッションを作らない）
+- **運用簡素化**: セッション管理とバトルグループの1:1対応で管理を簡素化
+- **スケーラビリティ**: セッション単位での負荷分散とリソース管理が容易
+
+**用語の定義**:
+- **セッション**: GameLiftの管理単位（1つのバトルマッチに対応）
+- **バトルグループ**: BattleServer上の実際のバトルメンバー集合（最大5人）
+- **BattleServer**: 物理的なサーバープロセス（複数セッションを同時実行可能）
+
+**GameLiftスタイル vs 個別セッション方式の比較**:
+```
+[ GameLiftスタイル（採用案）]
+グループ "battle-001" の場合：
+- セッション作成: 1個（session-123）
+- 全5人が同一セッション session-123 を取得
+- BattleServer上で1つのバトルグループを形成
+
+[ 個別セッション方式（不採用）]
+グループ "battle-001" の場合：
+- セッション作成: 5個（session-001, session-002, ...）
+- 各プレイヤーが異なるセッションを取得
+- 後でセッション間の統合が必要（複雑）
+```
+
 ## アーキテクチャ概要
 
 ### システム全体構成
@@ -32,15 +64,78 @@ graph TB
 1. **クライアント → ServiceDiscoveryServer**: セッション作成要求
 2. **ServiceDiscoveryServer**: 適切なBattleServerを選択・割り当て
 3. **ServiceDiscoveryServer → クライアント**: BattleServer接続情報を返却
-4. **クライアント → BattleServer**: 直接接続してバトル実行
+4. **クライアント → BattleServer**: 直接接続
+5. **クライアント → BattleServer**: JoinGroup実行（**重要**: この時点で実際のバトルメンバーとして登録）
+6. **BattleServer**: グループメンバー数が5人に達したらバトル開始
+
+#### **重要な責任分離**
+- **Step 1-3**: ServiceDiscoveryの責任範囲（サーバー発見・セッション管理）
+- **Step 4-6**: BattleServerの責任範囲（グループ管理・バトル実行）
+- **プレイヤー数管理**: BattleServerのグループ参加時にのみ実施（ServiceDiscoveryではカウントしない）
+
+#### **なぜこの分離が重要か**
+- **単一責任原則**: ServiceDiscoveryはセッション割り当てのみ、BattleServerは実際のゲームロジックのみ
+- **故障隔離**: ServiceDiscovery故障でも既存バトルは継続実行
+- **負荷分散**: セッション管理とバトル処理の負荷を分離
+
+#### **接続ライフサイクル管理**
+
+**クライアント⇔ServiceDiscovery接続方式**: **接続切断型（推奨）**
+```
+1. クライアント → ServiceDiscovery: 接続＆セッション取得
+2. ServiceDiscovery → クライアント: BattleServer情報返却
+3. クライアント → ServiceDiscovery: 接続切断（セッション情報取得後即座に切断）
+4. クライアント → BattleServer: 接続＆JoinGroup実行
+```
+
+**セッション終了検出の仕組み**:
+```
+方式1: BattleServer主導（推奨）
+- BattleServer → ServiceDiscovery: バトル終了通知
+- ServiceDiscovery: セッション状態をCompletedに変更
+
+方式2: クライアント主導（補助）
+- クライアント → ServiceDiscovery: セッション終了通知（TerminateSessionAsync）
+- 接続失敗時のクリーンアップで使用
+
+方式3: タイムアウト主導（フェイルセーフ）
+- ServiceDiscovery: 30分間未更新のセッションを自動削除
+```
+
+**接続切断型を採用する理由**:
+- **ServiceDiscovery負荷軽減**: 大量クライアント接続でも負荷を最小化
+- **単純性**: クライアント側の接続管理が簡素
+- **故障耐性**: ServiceDiscovery故障時でもバトル継続可能
 
 #### **GameLiftモード時の追加フロー**
 - ServiceDiscoveryServerがGameLift APIを呼び出してGameSession管理
 - BattleServerの登録・ヘルスチェックもGameLift経由
 
-#### **Directモード時の追加フロー**
-- ServiceDiscoveryServerが内部でグループ管理
-- BattleServerの登録・ヘルスチェックは直接通信
+#### **BattleServer → ServiceDiscovery 通知フロー**
+
+**バトル状態変化の通知**:
+```csharp
+// BattleServerがServiceDiscoveryに状態変化を通知
+public interface IServiceDiscoveryNotifier
+{
+    Task NotifyBattleStartedAsync(string sessionId);
+    Task NotifyBattleCompletedAsync(string sessionId, BattleResult result);
+    Task NotifySessionTerminatedAsync(string sessionId, TerminationReason reason);
+}
+```
+
+**具体的な通知タイミング**:
+1. **バトル開始時**: グループメンバー5人揃ってバトル開始
+   - `NotifyBattleStartedAsync(sessionId)` → セッション状態を`InBattle`に変更
+2. **バトル終了時**: 全クライアントのリプレイ視聴完了
+   - `NotifyBattleCompletedAsync(sessionId, result)` → セッション状態を`Completed`に変更
+3. **異常終了時**: クライアント全断、サーバー故障等
+   - `NotifySessionTerminatedAsync(sessionId, reason)` → セッション状態を`Terminated`に変更
+
+**実装済みの仕組み**:
+- `BattleServer.ServiceDiscoveryClient`: 定期ハートビート送信とサーバー登録
+- `CliClient.ServiceDiscoveryClientProvider.RemovePlayerFromSessionAsync()`: 接続失敗時のクリーンアップ
+- `ServiceDiscoveryServer.SessionManager`: セッションタイムアウトによる自動削除
 
 ## サーバー仕様
 
@@ -58,8 +153,10 @@ graph TB
 #### **責任範囲**
 - **セッション管理**:
   - グループ名ベースのGameSession作成・検索
+  - **重要**: 同一グループに対して常に同一セッションを返却（GameLiftスタイル）
   - セッション状態の追跡（Active/Completed/Terminated）
   - セッション有効期限管理
+  - **注意**: プレイヤー数カウントは行わない（BattleServerのグループ管理に委譲）
 - **サーバー管理**:
   - 利用可能なBattleServerの登録・管理
   - サーバー負荷分散・割り当て
@@ -69,7 +166,7 @@ graph TB
   - Fleet管理・Compute管理
   - PlayerSession作成の代理実行
 - **Direct接続サポート**:
-  - インメモリでのグループ管理
+  - インメモリでのグループ管理（セッション情報のみ）
   - BattleServerとの直接通信による状態同期
 
 ### **BattleServer（改修）**
@@ -82,9 +179,18 @@ graph TB
 
 #### **責任範囲**
 - **バトル実行**: 既存のバトルロジックの実行
+- **グループ管理**:
+  - JoinGroup実行時の実際のバトルメンバー登録
+  - **重要**: プレイヤー数カウントとバトル開始条件判定
+  - グループ状態管理（ConnectionsReady, BattleStarted等）
 - **サーバー登録**: ServiceDiscoveryServerへの登録・ヘルスレポート
 - **GameLift統合**: GameLift Server SDK統合（Anywhereモード時）
 - **Direct接続**: ServiceDiscoveryServerとの直接通信（Directモード時）
+
+#### **なぜBattleServerでグループ管理するのか**
+- **リアルタイム性**: 接続断・再接続の即座の反映が必要
+- **バトル開始判定**: 実際に接続しているプレイヤーのみでバトル開始
+- **故障隔離**: ServiceDiscovery故障時もバトル継続実行
 
 ## API仕様
 
