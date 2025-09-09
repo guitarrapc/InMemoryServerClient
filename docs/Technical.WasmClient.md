@@ -313,7 +313,7 @@ public class SettingsService
         SignalRUrl = "http://localhost:5000";
         MagicOnionUrl = "http://localhost:5001";
         ShowDebugInfo = false;
-        FieldSize = 100;
+        FieldSize = 200;
     }
 }
 ```
@@ -373,7 +373,7 @@ public class SettingsService
 
 <div class="battle-list-page">
     <header class="page-header">
-        <h1>バトル詳細 - &lt;BATTLE-GROUP&gt;</h1>
+        <h1>バトル一覧</h1>
         <nav class="nav-menu">
             <a href="/options">オプション</a>
         </nav>
@@ -497,7 +497,7 @@ public class SettingsService
 
 ### Battle Field Component
 
-100px四方の小さなフィールドでバトル進行を表示するコンポーネント。
+200px四方のフィールドでバトル進行を表示するコンポーネント。
 
 ```razor
 @using CliClient.Constants
@@ -535,12 +535,12 @@ public class SettingsService
 
 @code {
     [Parameter] public BattleClient Client { get; set; } = null!;
-    [Parameter] public int Size { get; set; } = 100;
+    [Parameter] public int Size { get; set; } = 200;
 
     private BattleFieldData? fieldData;
     private double scaleX => (Size - 4) / 20.0; // 20x20座標を縮尺
     private double scaleY => (Size - 20) / 20.0; // ヘッダー分を考慮
-    private int entitySize => Math.Max(2, (int)(scaleX * 0.8)); // エンティティサイズ
+    private int entitySize => Math.Max(4, (int)(scaleX * 0.8)); // エンティティサイズ
 
     protected override void OnInitialized()
     {
@@ -616,7 +616,7 @@ public class SettingsService
             <div class="form-group">
                 <label>
                     フィールドサイズ:
-                    <input type="range" @bind="Settings.FieldSize" min="80" max="200" />
+                    <input type="range" @bind="Settings.FieldSize" min="120" max="300" />
                     @Settings.FieldSize px
                 </label>
             </div>
@@ -828,7 +828,7 @@ WasmClient Application
 │   ├── Client List (接続済みクライアント一覧)
 │   ├── + SignalR Button (SignalRクライアント追加)
 │   ├── + MagicOnion Button (MagicOnionクライアント追加)
-│   └── Battle Field Grid (100px四方のフィールド表示)
+│   └── Battle Field Grid (200px四方のフィールド表示)
 └── Options Page (設定)
     ├── SignalR Server URL Setting
     └── MagicOnion Server URL Setting
@@ -860,7 +860,7 @@ WasmClient Application
 - 各「+ボタン」クリックで対応する方式のクライアントを作成・接続
 
 **フィールド表示**
-- 接続されたクライアントごとに100px四方の小さなフィールドを表示
+- 接続されたクライアントごとに200px四方のフィールドを表示
 - フィールドは格子状に配置し、最大5つまで表示
 - 各フィールドには接続情報（クライアントID、接続方式）を表示
 
@@ -872,11 +872,10 @@ WasmClient Application
 #### 3. バトルフィールドの表示仕様
 
 **フィールドサイズ**
-- 各クライアントフィールド: 100px × 100px
-- 20×20のゲーム座標を100px四方にスケール (1座標 = 5px)
+- 各クライアントフィールド: 200px × 200px（20×20のゲーム座標を200px四方にスケール: 1座標 = 10px）
 
 **エンティティ表示**
-- プレイヤー: 青色の円 (直径4px)
+- プレイヤー: 青色の円 (直径8px)
 - 敵: 赤色の円 (サイズは敵タイプにより可変)
 - HP情報はマウスホバーで表示
 
@@ -907,7 +906,7 @@ WasmClient Application
           <AddMagicOnionButton />
         </AddClientButtons>
         <BattleFieldGrid>
-          <BattleField /> <!-- 100px × 100px -->
+          <BattleField /> <!-- 200px × 200px -->
         </BattleFieldGrid>
       </BattleDetailPage>
 
@@ -929,7 +928,7 @@ WasmClient Application
 5. **Cross-Platform**: Windows, Mac, Linuxのブラウザで実行可能
 6. **Real-time Updates**: WebAssemblyの高いパフォーマンスでリアルタイム更新
 7. **Intuitive UI**: GUIベースの直感的な操作インターフェース
-8. **Real-time Field Visualization**: 100px四方の小さなフィールドで複数バトルを同時監視
+8. **Real-time Field Visualization**: 200px四方のフィールドで複数バトルを同時監視
 
 ## Implementation Notes
 
