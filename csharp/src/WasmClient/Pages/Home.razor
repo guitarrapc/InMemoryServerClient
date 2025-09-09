@@ -1,7 +1,380 @@
 ﻿@page "/"
+@inject BattleSessionManager SessionManager
+@inject NavigationManager Navigation
+@inject SettingsService Settings
 
-<PageTitle>Home</PageTitle>
+<div class="battle-list-page">
+    <header class="page-header">
+        <h1>バトル詳細 - &lt;BATTLE-GROUP&gt;</h1>
+        <nav class="nav-menu">
+            <a href="/options" class="nav-link">オプション</a>
+        </nav>
+    </header>
 
-<h1>Hello, world!</h1>
+    <div class="battle-grid">
+        @foreach (var battle in SessionManager.ActiveBattles)
+        {
+            <div class="battle-card" @onclick="() => NavigateToBattle(battle.Id)">
+                <div class="battle-card-header">
+                    <h3>@battle.GroupName</h3>
+                    <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
+                </div>
+                <div class="battle-card-body">
+                    <div class="client-count">
+                        <span class="icon">👥</span>
+                        <span>@battle.ClientCount / 5</span>
+                    </div>
+                    <div class="server-url">
+                        <span class="icon">🌐</span>
+                        <span>@battle.ServerUrl</span>
+                    </div>
+                    <div class="created-time">
+                        <span class="icon">⏰</span>
+                        <span>@battle.CreatedAt.ToString("HH:mm")</span>
+                    </div>
+                </div>
+            </div>
+        }
 
-Welcome to your new app.
+        <div class="add-battle-card">
+            <button class="add-battle-btn" @onclick="ShowCreateBattleDialog">
+                <div class="plus-icon">+</div>
+                <div class="add-text">新規バトル作成</div>
+            </button>
+        </div>
+    </div>
+
+    @if (showCreateDialog)
+    {
+        <div class="dialog-overlay" @onclick="HideCreateBattleDialog">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialog-header">
+                    <h3>新規バトル作成</h3>
+                    <button class="close-btn" @onclick="HideCreateBattleDialog">×</button>
+                </div>
+                <div class="dialog-body">
+                    <div class="form-group">
+                        <label>グループ名:</label>
+                        <input @bind="newBattleGroupName" placeholder="battle-group-1" />
+                    </div>
+                    <div class="form-group">
+                        <label>サーバーURL:</label>
+                        <input @bind="newBattleServerUrl" placeholder="@Settings.SignalRUrl" />
+                    </div>
+                </div>
+                <div class="dialog-footer">
+                    <button class="btn-secondary" @onclick="HideCreateBattleDialog">キャンセル</button>
+                    <button class="btn-primary" @onclick="CreateBattle" disabled="@string.IsNullOrWhiteSpace(newBattleGroupName)">作成</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+.battle-list-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.page-header h1 {
+    margin: 0;
+    color: #333;
+    font-size: 1.8em;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.nav-link:hover {
+    background-color: #f8f9fa;
+}
+
+.battle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.battle-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.battle-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    border-color: #007bff;
+}
+
+.battle-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.battle-card-header h3 {
+    margin: 0;
+    color: #333;
+}
+
+.battle-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.battle-status.waiting {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.battle-status.inprogress {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.battle-status.completed {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.battle-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.battle-card-body > div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.icon {
+    font-size: 1em;
+}
+
+.add-battle-card {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
+.add-battle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: #666;
+    font-size: 1em;
+    transition: color 0.2s;
+}
+
+.add-battle-btn:hover {
+    color: #007bff;
+}
+
+.plus-icon {
+    font-size: 3em;
+    font-weight: 300;
+}
+
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.dialog {
+    background: white;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90vw;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.dialog-header h3 {
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    color: #666;
+}
+
+.dialog-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #eee;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.btn-primary:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+</style>
+
+@code {
+    private bool showCreateDialog;
+    private string newBattleGroupName = string.Empty;
+    private string newBattleServerUrl = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        // デモ用のモックデータを追加
+        SessionManager.AddMockBattles();
+        newBattleServerUrl = Settings.SignalRUrl;
+    }
+
+    private void ShowCreateBattleDialog()
+    {
+        showCreateDialog = true;
+        newBattleGroupName = string.Empty;
+        newBattleServerUrl = Settings.SignalRUrl;
+    }
+
+    private void HideCreateBattleDialog()
+    {
+        showCreateDialog = false;
+    }
+
+    private void CreateBattle()
+    {
+        if (!string.IsNullOrWhiteSpace(newBattleGroupName))
+        {
+            var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.SignalRUrl : newBattleServerUrl;
+            var battle = SessionManager.CreateBattle(newBattleGroupName, serverUrl);
+            HideCreateBattleDialog();
+            Navigation.NavigateTo($"/battle/{battle.Id}");
+        }
+    }
+
+    private void NavigateToBattle(string battleId)
+    {
+        Navigation.NavigateTo($"/battle/{battleId}");
+    }
+}

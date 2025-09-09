@@ -16,6 +16,7 @@
     <!-- Client (WASM) -->
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.6" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.6" />
+    <PackageVersion Include="Grpc.Net.Client.Web" Version="2.71.0" />
     <!-- Server/Client -->
     <PackageVersion Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <!-- Shared -->

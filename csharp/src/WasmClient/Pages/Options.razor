@@ -1,0 +1,386 @@
+@page "/options"
+@inject SettingsService Settings
+@inject NavigationManager Navigation
+
+<div class="options-page">
+    <header class="page-header">
+        <div class="header-left">
+            <button class="back-btn" @onclick="GoBack">← 戻る</button>
+            <h1>設定</h1>
+        </div>
+    </header>
+
+    <div class="settings-form">
+        <div class="setting-group">
+            <h3>🔗 接続設定</h3>
+            <div class="form-group">
+                <label>SignalR サーバーURL:</label>
+                <input @bind="Settings.SignalRUrl" placeholder="http://localhost:5000" />
+                <small class="form-hint">WebSocket接続用のサーバーアドレス</small>
+            </div>
+            <div class="form-group">
+                <label>MagicOnion サーバーURL:</label>
+                <input @bind="Settings.MagicOnionUrl" placeholder="http://localhost:5001" />
+                <small class="form-hint">gRPC-Web接続用のサーバーアドレス</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🖥️ 表示設定</h3>
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="Settings.ShowDebugInfo" />
+                    <span class="checkbox-text">デバッグ情報を表示</span>
+                </label>
+                <small class="form-hint">接続詳細やパフォーマンス情報を表示します</small>
+            </div>
+            <div class="form-group">
+                <label>バトルフィールドサイズ: <span class="field-size-value">@Settings.FieldSize px</span></label>
+                <input type="range" @bind="Settings.FieldSize" min="80" max="200" class="range-input" />
+                <div class="range-labels">
+                    <span>小 (80px)</span>
+                    <span>大 (200px)</span>
+                </div>
+                <small class="form-hint">各バトルフィールドの表示サイズを調整します</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🎮 動作設定</h3>
+            <div class="form-group">
+                <label>リプレイフレームレート:</label>
+                <select class="select-input" disabled>
+                    <option>5 FPS (固定)</option>
+                </select>
+                <small class="form-hint">バトルリプレイの再生速度（現在は固定値）</small>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button @onclick="SaveSettings" class="btn-primary">設定を保存</button>
+            <button @onclick="ResetSettings" class="btn-secondary">デフォルトに戻す</button>
+            <button @onclick="TestConnections" class="btn-outline" disabled>接続テスト (未実装)</button>
+        </div>
+
+        @if (showSaveMessage)
+        {
+            <div class="save-message">
+                ✅ 設定を保存しました
+            </div>
+        }
+    </div>
+
+    <div class="info-section">
+        <h3>ℹ️ 情報</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>アプリケーション:</strong>
+                <span>WasmClient v1.0</span>
+            </div>
+            <div class="info-item">
+                <strong>ビルド日時:</strong>
+                <span>@DateTime.Now.ToString("yyyy/MM/dd")</span>
+            </div>
+            <div class="info-item">
+                <strong>対応プロトコル:</strong>
+                <span>SignalR, MagicOnion</span>
+            </div>
+            <div class="info-item">
+                <strong>最大同時バトル:</strong>
+                <span>制限なし</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.options-page {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.back-btn {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.back-btn:hover {
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.page-header h1 {
+    margin: 0;
+    color: #333;
+    font-size: 1.8em;
+}
+
+.settings-form {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 30px;
+    margin-bottom: 30px;
+}
+
+.setting-group {
+    margin-bottom: 35px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.setting-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.setting-group h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-weight: normal !important;
+}
+
+.checkbox-text {
+    font-size: 14px;
+}
+
+.range-input {
+    width: 100%;
+    margin: 8px 0;
+}
+
+.field-size-value {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 4px;
+}
+
+.select-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+}
+
+.select-input:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid #f0f0f0;
+    flex-wrap: wrap;
+}
+
+.btn-primary, .btn-secondary, .btn-outline {
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-outline:hover:not(:disabled) {
+    background-color: #007bff;
+    color: white;
+}
+
+.save-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-top: 15px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.info-section {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+}
+
+.info-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item strong {
+    color: #333;
+}
+
+.info-item span {
+    color: #666;
+}
+</style>
+
+@code {
+    private bool showSaveMessage = false;
+
+    private async Task SaveSettings()
+    {
+        await Settings.SaveAsync();
+        showSaveMessage = true;
+
+        // 3秒後にメッセージを非表示にする
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            showSaveMessage = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task ResetSettings()
+    {
+        Settings.Reset();
+        await Settings.SaveAsync();
+        StateHasChanged();
+    }
+
+    private async Task TestConnections()
+    {
+        // 将来実装: サーバー接続テスト
+        await Task.CompletedTask;
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
