@@ -11,6 +11,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 
 // Services registration
 builder.Services.AddSingleton<SettingsService>();
+builder.Services.AddSingleton<IConnectionFactory, ConnectionFactory>();
 builder.Services.AddSingleton<BattleSessionManager>();
 
 // Logging

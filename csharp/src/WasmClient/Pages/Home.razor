@@ -345,8 +345,8 @@
 
     protected override void OnInitialized()
     {
-        // デモ用のモックデータを追加
-        SessionManager.AddMockBattles();
+        // デモ用のモックデータを追加（コメントアウト）
+        // SessionManager.AddMockBattles();
         newBattleServerUrl = Settings.SignalRUrl;
     }
 
@@ -362,14 +362,22 @@
         showCreateDialog = false;
     }
 
-    private void CreateBattle()
+    private async Task CreateBattle()
     {
         if (!string.IsNullOrWhiteSpace(newBattleGroupName))
         {
-            var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.SignalRUrl : newBattleServerUrl;
-            var battle = SessionManager.CreateBattle(newBattleGroupName, serverUrl);
-            HideCreateBattleDialog();
-            Navigation.NavigateTo($"/battle/{battle.Id}");
+            try
+            {
+                var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.SignalRUrl : newBattleServerUrl;
+                var battle = await SessionManager.CreateBattleAsync(newBattleGroupName, serverUrl);
+                HideCreateBattleDialog();
+                Navigation.NavigateTo($"/battle/{battle.Id}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to create battle: {ex.Message}");
+                // TODO: Show error message to user
+            }
         }
     }
 

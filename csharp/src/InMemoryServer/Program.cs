@@ -35,6 +35,19 @@ public class Program
             options.StreamBufferCapacity = 50;
         });
         builder.Services.AddMagicOnion();
+
+        // Add CORS for WasmClient
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("WasmClientPolicy", policy =>
+            {
+                policy.WithOrigins("http://localhost:5066", "https://localhost:5067") // Add common WASM ports
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials(); // Required for SignalR
+            });
+        });
+
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();
 
@@ -52,6 +65,9 @@ public class Program
 
         // Build the app
         var app = builder.Build();
+
+        // Configure CORS (must be before MapHub and MapMagicOnionService)
+        app.UseCors("WasmClientPolicy");
 
         // Configure the SignalR endpoint (HTTP/1)
         app.MapHub<SignalRBattleHub>(SystemDefines.HubRoute);

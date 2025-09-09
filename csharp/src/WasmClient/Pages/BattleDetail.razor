@@ -2,6 +2,7 @@
 @inject BattleSessionManager SessionManager
 @inject NavigationManager Navigation
 @inject SettingsService Settings
+@implements IDisposable
 
 <div class="battle-detail-page">
     @if (battle != null)
@@ -54,18 +55,29 @@
             </div>
 
             <div class="add-client-buttons">
-                <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@battle.IsFull">
-                    <div class="btn-icon">+</div>
-                    <div class="btn-text">SignalR追加</div>
+                <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@(battle.IsFull || isLoading)">
+                    <div class="btn-icon">@(isLoading ? "⏳" : "+")</div>
+                    <div class="btn-text">@(isLoading ? "接続中..." : "SignalR追加")</div>
                     <div class="btn-subtitle">WebSocket</div>
                 </button>
 
-                <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@battle.IsFull">
-                    <div class="btn-icon">+</div>
-                    <div class="btn-text">MagicOnion追加</div>
+                <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(battle.IsFull || isLoading)">
+                    <div class="btn-icon">@(isLoading ? "⏳" : "+")</div>
+                    <div class="btn-text">@(isLoading ? "接続中..." : "MagicOnion追加")</div>
                     <div class="btn-subtitle">gRPC-Web</div>
                 </button>
             </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="error-alert">
+                    <div class="error-content">
+                        <span class="error-icon">⚠️</span>
+                        <span class="error-text">@errorMessage</span>
+                        <button class="error-close" @onclick="() => errorMessage = null">×</button>
+                    </div>
+                </div>
+            }
         </div>
 
         @if (battle.Clients.Any())
@@ -78,13 +90,45 @@
                         <div class="field-container">
                             <div class="field-header">
                                 <span class="field-title">@client.ConnectionId[..8] (@client.Type)</span>
-                                <span class="field-status">待機中</span>
+                                <span class="field-status">
+                                    @(battle.Status switch
+                                    {
+                                        BattleStatus.Waiting => "待機中",
+                                        BattleStatus.InProgress => "戦闘中",
+                                        BattleStatus.Completed => "完了",
+                                        _ => "不明"
+                                    })
+                                </span>
                             </div>
                             <div class="battle-field" style="width: @(Settings.FieldSize)px; height: @(Settings.FieldSize)px;">
-                                <div class="field-placeholder">
-                                    <div class="placeholder-icon">🎮</div>
-                                    <div class="placeholder-text">バトル待機中</div>
-                                </div>
+                                @if (client.CurrentField != null && battle.Status != BattleStatus.Waiting)
+                                {
+                                    <div class="field-content">
+                                        <div class="turn-info">ターン: @client.CurrentField.Turn</div>
+                                        @foreach (var entity in client.CurrentField.Entities)
+                                        {
+                                            <div class="entity @entity.Type.ToString().ToLower()"
+                                                 style="left: @(entity.Position.X * 8)px; top: @(entity.Position.Y * 8)px;">
+                                                @(entity.Type == EntityType.Player ? "👤" : GetEnemyIcon(entity.Type))
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="field-placeholder">
+                                        <div class="placeholder-icon">🎮</div>
+                                        <div class="placeholder-text">
+                                            @(battle.Status switch
+                                            {
+                                                BattleStatus.Waiting => "バトル待機中",
+                                                BattleStatus.InProgress => "戦闘データ受信中",
+                                                BattleStatus.Completed => "バトル完了",
+                                                _ => "準備中"
+                                            })
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         </div>
                     }
@@ -399,6 +443,48 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+.field-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.turn-info {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7em;
+    z-index: 10;
+}
+
+.entity {
+    position: absolute;
+    font-size: 12px;
+    z-index: 5;
+    transform: translate(-50%, -50%);
+}
+
+.entity.player {
+    filter: hue-rotate(120deg);
+}
+
+.entity.small {
+    font-size: 10px;
+}
+
+.entity.medium {
+    font-size: 12px;
+}
+
+.entity.large {
+    font-size: 14px;
 }
 
 .field-placeholder {
@@ -443,53 +529,143 @@
 .btn-primary:hover {
     background-color: #0056b3;
 }
+
+.error-alert {
+    margin-top: 20px;
+    padding: 0;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.error-content {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 10px;
+}
+
+.error-icon {
+    flex-shrink: 0;
+    font-size: 1.2em;
+}
+
+.error-text {
+    flex: 1;
+    color: #c53030;
+    font-size: 0.9em;
+    word-break: break-word;
+}
+
+.error-close {
+    background: none;
+    border: none;
+    color: #a0a0a0;
+    cursor: pointer;
+    font-size: 1.3em;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.error-close:hover {
+    background-color: #fed7d7;
+    color: #c53030;
+}
 </style>
 
 @code {
     [Parameter] public string BattleId { get; set; } = string.Empty;
 
-    private Battle? battle;
+    private BattleSessionModel? battle;
+    private string? errorMessage;
+    private bool isLoading;
 
     protected override void OnInitialized()
     {
         battle = SessionManager.GetBattle(BattleId);
-    }
 
-    private void AddClient(ConnectionType type)
-    {
-        if (battle != null && !battle.IsFull)
+        // Subscribe to battle status changes
+        if (battle != null)
         {
-            var client = new BattleClient
-            {
-                ConnectionId = $"client-{Random.Shared.Next(1000, 9999):D4}",
-                Type = type,
-                PlayerId = $"player-{Random.Shared.Next(100, 999):D3}",
-                ConnectedAt = DateTime.Now
-            };
-
-            battle.Clients.Add(client);
-
-            // 5クライアント揃ったらバトル開始状態に変更
-            if (battle.IsFull)
-            {
-                battle.Status = BattleStatus.InProgress;
-            }
-
-            StateHasChanged();
+            battle.OnStatusChanged += OnBattleStatusChanged;
         }
     }
 
-    private void RemoveClient(BattleClient client)
+    private void OnBattleStatusChanged(BattleStatus status)
+    {
+        InvokeAsync(() =>
+        {
+            // Trigger UI update when battle status changes
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from events when component is disposed
+        if (battle != null)
+        {
+            battle.OnStatusChanged -= OnBattleStatusChanged;
+        }
+    }
+
+    private async Task AddClient(ConnectionType type)
+    {
+        if (battle != null && !battle.IsFull)
+        {
+            isLoading = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            try
+            {
+                var connectionInfo = new ConnectionInfo
+                {
+                    ServerUrl = battle.ServerUrl,
+                    GroupName = battle.GroupName,
+                    Type = type,
+                    PlayerId = $"player-{Random.Shared.Next(100, 999):D3}"
+                };
+
+                var client = await battle.AddClientAsync(connectionInfo);
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to add {type} client: {ex.Message}";
+                Console.WriteLine($"Failed to add client: {ex}");
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task RemoveClient(BattleClient client)
     {
         if (battle != null)
         {
-            battle.Clients.Remove(client);
-            // クライアントが減ったら待機状態に戻す
-            if (battle.Status == BattleStatus.InProgress && !battle.IsFull)
+            try
             {
-                battle.Status = BattleStatus.Waiting;
+                await battle.RemoveClientAsync(client);
+                errorMessage = null; // Clear any previous errors
+                StateHasChanged();
             }
-            StateHasChanged();
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to remove client: {ex.Message}";
+                Console.WriteLine($"Failed to remove client: {ex}");
+                StateHasChanged();
+            }
         }
     }
 
@@ -497,4 +673,12 @@
     {
         Navigation.NavigateTo("/");
     }
+
+    private string GetEnemyIcon(EntityType enemyType) => enemyType switch
+    {
+        EntityType.Small => "👹",
+        EntityType.Medium => "👺",
+        EntityType.Large => "👾",
+        _ => "❓"
+    };
 }

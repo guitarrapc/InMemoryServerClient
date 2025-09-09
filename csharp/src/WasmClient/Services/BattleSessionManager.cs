@@ -1,20 +1,29 @@
-using WasmClient.Models;
+﻿using WasmClient.Models;
 
 namespace WasmClient.Services;
 
+/// <summary>
+/// Battle session management service for WasmClient
+/// </summary>
 public class BattleSessionManager
 {
-    private readonly Dictionary<string, Battle> _battles = new();
+    private readonly Dictionary<string, BattleSessionModel> _battles = new();
+    private readonly IConnectionFactory _connectionFactory;
     private readonly SettingsService _settings;
+    private readonly ILogger<BattleSessionManager> _logger;
 
-    public BattleSessionManager(SettingsService settings)
+    public BattleSessionManager(IConnectionFactory connectionFactory, SettingsService settings, ILogger<BattleSessionManager> logger)
     {
+        _connectionFactory = connectionFactory;
         _settings = settings;
+        _logger = logger;
     }
 
-    public Battle CreateBattle(string groupName, string? serverUrl = null)
+    public async Task<BattleSessionModel> CreateBattleAsync(string groupName, string? serverUrl = null)
     {
-        var battle = new Battle
+        var battle = new BattleSessionModel(
+            _connectionFactory,
+            _logger)
         {
             Id = Guid.NewGuid().ToString(),
             GroupName = groupName,
@@ -24,56 +33,21 @@ public class BattleSessionManager
         };
 
         _battles[battle.Id] = battle;
+        _logger.LogInformation("Created battle {BattleId} with group {GroupName}", battle.Id, groupName);
         return battle;
     }
 
-    public Battle? GetBattle(string battleId) =>
-        _battles.TryGetValue(battleId, out var battle) ? battle : null;
+    public BattleSessionModel? GetBattle(string battleId) => _battles.TryGetValue(battleId, out var battle) ? battle : null;
 
-    public void RemoveBattle(string battleId)
+    public async Task RemoveBattleAsync(string battleId)
     {
-        _battles.Remove(battleId);
+        if (_battles.TryGetValue(battleId, out var battle))
+        {
+            await battle.DisposeAsync();
+            _battles.Remove(battleId);
+            _logger.LogInformation("Removed battle {BattleId}", battleId);
+        }
     }
 
-    public IReadOnlyList<Battle> ActiveBattles => _battles.Values.ToList();
-
-    // モックデータでテスト用のバトルを追加
-    public void AddMockBattles()
-    {
-        var mockBattle1 = new Battle
-        {
-            Id = Guid.NewGuid().ToString(),
-            GroupName = "test-group-1",
-            ServerUrl = "http://localhost:5000",
-            Status = BattleStatus.Waiting,
-            CreatedAt = DateTime.Now.AddMinutes(-5)
-        };
-
-        var mockBattle2 = new Battle
-        {
-            Id = Guid.NewGuid().ToString(),
-            GroupName = "battle-group-2",
-            ServerUrl = "http://localhost:5000",
-            Status = BattleStatus.InProgress,
-            CreatedAt = DateTime.Now.AddMinutes(-10)
-        };
-
-        // モッククライアントを追加
-        mockBattle1.Clients.Add(new BattleClient
-        {
-            ConnectionId = "client-001",
-            Type = ConnectionType.SignalR,
-            PlayerId = "player-001",
-            ConnectedAt = DateTime.Now.AddMinutes(-4)
-        });
-
-        mockBattle2.Clients.AddRange([
-            new BattleClient { ConnectionId = "client-101", Type = ConnectionType.SignalR },
-            new BattleClient { ConnectionId = "client-102", Type = ConnectionType.MagicOnion },
-            new BattleClient { ConnectionId = "client-103", Type = ConnectionType.SignalR }
-        ]);
-
-        _battles[mockBattle1.Id] = mockBattle1;
-        _battles[mockBattle2.Id] = mockBattle2;
-    }
+    public IReadOnlyList<BattleSessionModel> ActiveBattles => _battles.Values.ToList();
 }

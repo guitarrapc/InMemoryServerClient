@@ -22,7 +22,7 @@ WasmClient/
 │   ├── SignalRConnection.cs        # SignalR接続実装
 │   └── MagicOnionConnection.cs     # MagicOnion接続実装
 ├── Models/
-│   ├── BattleSession.cs            # バトルセッション管理
+│   ├── BattleSessionModel.cs       # バトルセッション管理
 │   └── ConnectionInfo.cs           # 接続情報
 └── Constants/
     └── BattleReplayDefines.cs      # リプレイ定数
