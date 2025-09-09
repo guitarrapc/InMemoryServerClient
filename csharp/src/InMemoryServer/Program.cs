@@ -24,7 +24,7 @@ public class Program
         builder.Logging.AddConsoleFormatter<CustomTimestampConsoleFormatter, CustomTimestampConsoleFormatterOptions>(options =>
         {
             options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
-            options.IncludeScopes = true;
+            options.IncludeScopes = false; // omit scopes for simplicity
         });
 
         // Add services to the container
