@@ -160,13 +160,23 @@ public class BattleClient : IAsyncDisposable
         _logger.LogInformation("Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns",
             replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count);
 
-        // Convert the latest turn data to field data for visualization
-        if (replayData.TurnData.Any())
+        // Process each turn data individually for complete replay history
+        foreach (var turnData in replayData.TurnData)
         {
-            var latestTurn = replayData.TurnData.Last();
-            CurrentField = ConvertToFieldData(latestTurn);
-            OnBattleFieldUpdated?.Invoke(CurrentField);
+            var fieldData = ConvertToFieldData(turnData);
+
+            _logger.LogDebug("Processing turn {Turn} with {EntityCount} entities",
+                fieldData.Turn, fieldData.Entities.Count);
+
+            // Always update current field for the latest turn
+            CurrentField = fieldData;
+
+            // Fire the event for each turn to build up the complete history
+            OnBattleFieldUpdated?.Invoke(fieldData);
         }
+
+        _logger.LogInformation("Processed {TurnCount} turns from replay chunk {ChunkIndex}. Total chunks: {ChunkIndex}/{TotalChunks}",
+            replayData.TurnData.Count, replayData.ChunkIndex, replayData.ChunkIndex + 1, replayData.TotalChunks);
     }
 
     private void HandleConnectionsReady(Shared.Models.ConnectionsReadyData data)

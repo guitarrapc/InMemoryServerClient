@@ -50,14 +50,23 @@
     @if (allTurnData.Any())
     {
         <div class="turn-controls">
+            <button @onclick="() => GoToPreviousTurn()"
+                    disabled="@(selectedTurn <= 0)"
+                    class="nav-btn">◀</button>
             <input type="range"
                    min="0"
                    max="@(allTurnData.Count - 1)"
-                   value="@selectedTurn"
-                   @oninput="OnTurnSliderChanged"
-                   class="turn-slider" />
+                   step="1"
+                   @bind="selectedTurn"
+                   @bind:event="oninput"
+                   @onchange="OnTurnSliderBindChange"
+                   title="ターン @selectedTurn / @(allTurnData.Count - 1)"
+                   class="turn-slider-bind" />
+            <button @onclick="() => GoToNextTurn()"
+                    disabled="@(selectedTurn >= allTurnData.Count - 1)"
+                    class="nav-btn">▶</button>
             <div class="turn-info">
-                <span>Turn: @(fieldData?.Turn ?? 0)</span>
+                <span>Turn: @(fieldData?.Turn ?? 0) / @(allTurnData.Count > 0 ? allTurnData.Last().Turn : 0)</span>
                 @if (isReplayMode)
                 {
                     <button @onclick="EnableRealtimeMode" class="realtime-btn">🔴 Live</button>
@@ -138,7 +147,7 @@
             });
         }
 
-        // If not in replay mode, show the latest data
+        // If not in replay mode, show the latest data and update selectedTurn
         if (!isReplayMode)
         {
             fieldData = data;
@@ -161,14 +170,47 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private void OnTurnSliderChanged(ChangeEventArgs e)
+    private void OnTurnSliderBindChange()
     {
-        if (int.TryParse(e.Value?.ToString(), out var turn) && allTurnData.Any())
+        if (allTurnData.Any())
         {
-            selectedTurn = Math.Clamp(turn, 0, allTurnData.Count - 1);
+            var clampedTurn = Math.Clamp(selectedTurn, 0, allTurnData.Count - 1);
+            if (clampedTurn != selectedTurn)
+            {
+                selectedTurn = clampedTurn;
+            }
+
             fieldData = allTurnData[selectedTurn];
             isReplayMode = true;
             StateHasChanged();
+        }
+    }
+
+    private void GoToPreviousTurn()
+    {
+        if (selectedTurn > 0)
+        {
+            GoToTurn(selectedTurn - 1);
+        }
+    }
+
+    private void GoToNextTurn()
+    {
+        if (selectedTurn < allTurnData.Count - 1)
+        {
+            GoToTurn(selectedTurn + 1);
+        }
+    }
+
+    private void GoToTurn(int turn)
+    {
+        if (allTurnData.Any())
+        {
+            var clampedTurn = Math.Clamp(turn, 0, allTurnData.Count - 1);
+
+            selectedTurn = clampedTurn;
+            fieldData = allTurnData[selectedTurn];
+            isReplayMode = true;
         }
     }
 
@@ -181,6 +223,25 @@
             fieldData = allTurnData[selectedTurn];
         }
         StateHasChanged();
+    }
+
+    private void OnTurnSliderKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowLeft":
+                GoToPreviousTurn();
+                break;
+            case "ArrowRight":
+                GoToNextTurn();
+                break;
+            case "Home":
+                GoToTurn(0);
+                break;
+            case "End":
+                GoToTurn(allTurnData.Count - 1);
+                break;
+        }
     }
 
     private bool IsValidPosition(Position position)
