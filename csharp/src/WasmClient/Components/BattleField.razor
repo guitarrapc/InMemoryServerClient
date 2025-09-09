@@ -1,0 +1,122 @@
+@using WasmClient.Models
+@using WasmClient.Services
+@using WasmClient.Constants
+@implements IDisposable
+
+<div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px;">
+    <div class="field-header">
+        <span class="client-id">@Client.ConnectionId[..8]</span>
+        <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
+    </div>
+
+    <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 20px);">
+        @if (fieldData != null)
+        {
+            @foreach (var entity in fieldData.Entities)
+            {
+                <div class="entity @entity.Type.ToString().ToLower() @(entity.Health <= 0 ? "dead" : "") @(entity.Health < entity.MaxHealth * 0.3 ? "critical-health" : "")"
+                     style="position: absolute;
+                            left: @(entity.Position.X * scaleX)px;
+                            top: @(entity.Position.Y * scaleY)px;
+                            width: @entitySize px;
+                            height: @entitySize px;"
+                     title="@GetEntityTooltip(entity)">
+                    @* Entity health bar overlay *@
+                    @if (Settings.ShowHealthBars && entity.MaxHealth > 0)
+                    {
+                        <div class="health-bar">
+                            <div class="health-fill"
+                                 style="width: @(Math.Max(0, (double)entity.Health / entity.MaxHealth * 100))%"></div>
+                        </div>
+                    }
+
+                    @* Entity type icon *@
+                    <div class="entity-icon">
+                        @(entity.Type == EntityType.Player ? "👤" : GetEnemyIcon(entity.Type))
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="field-placeholder">
+                <div class="placeholder-icon">🎮</div>
+                <div class="placeholder-text">データ受信中...</div>
+            </div>
+        }
+    </div>
+
+    <div class="field-status @(turnChanged ? "turn-changed" : "")">
+        <span>Turn: @(fieldData?.Turn ?? 0)</span>
+        <span>Entities: @(fieldData?.Entities.Count(e => e.Health > 0) ?? 0)</span>
+        @if (Settings.ShowDebugInfo)
+        {
+            <span>Scale: @scaleX.ToString("F1")</span>
+            <span>FPS: @(PerformanceMonitor.GetStats(Client.ConnectionId).CurrentFPS)</span>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public BattleClient Client { get; set; } = null!;
+    [Parameter] public int Size { get; set; } = 200;
+
+    [Inject] private SettingsService Settings { get; set; } = null!;
+    [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
+
+    private BattleFieldData? fieldData;
+    private int lastTurn = -1;
+    private bool turnChanged = false;
+
+    // Scale calculations based on 20x20 game field
+    private double scaleX => (Size - 8) / (double)BattleReplayDefines.BattleFieldSize; // 8px margin for borders
+    private double scaleY => (Size - 28) / (double)BattleReplayDefines.BattleFieldSize; // 28px for header + status
+    private int entitySize => Math.Max(6, (int)(scaleX * 0.7)); // Entity size with minimum
+
+    protected override void OnInitialized()
+    {
+        Client.OnBattleFieldUpdated += OnFieldUpdated;
+    }
+
+    private void OnFieldUpdated(BattleFieldData data)
+    {
+        // Record performance metrics
+        PerformanceMonitor.RecordUpdate(Client.ConnectionId, data.Entities.Count);
+
+        // Check if turn has changed for visual feedback
+        if (fieldData != null && data.Turn != lastTurn)
+        {
+            turnChanged = true;
+            lastTurn = data.Turn;
+
+            // Reset turn change indicator after a short delay
+            _ = Task.Delay(500).ContinueWith(_ =>
+            {
+                turnChanged = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+
+        fieldData = data;
+        InvokeAsync(StateHasChanged);
+    }    private string GetEntityTooltip(EntityData entity)
+    {
+        var status = entity.Health <= 0 ? " [DEAD]" : "";
+        var healthPercent = entity.MaxHealth > 0 ? (entity.Health * 100 / entity.MaxHealth) : 0;
+        return $"{entity.Type} - HP: {entity.Health}/{entity.MaxHealth} ({healthPercent}%) - Pos: ({entity.Position.X}, {entity.Position.Y}){status}";
+    }
+
+    private string GetEnemyIcon(EntityType enemyType) => enemyType switch
+    {
+        EntityType.Small => "👹",
+        EntityType.Medium => "👺",
+        EntityType.Large => "👾",
+        _ => "❓"
+    };
+
+    public void Dispose()
+    {
+        Client.OnBattleFieldUpdated -= OnFieldUpdated;
+        PerformanceMonitor.RemoveField(Client.ConnectionId);
+    }
+}

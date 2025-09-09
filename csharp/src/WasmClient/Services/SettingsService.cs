@@ -5,6 +5,7 @@ public class SettingsService
     public string SignalRUrl { get; set; } = "http://localhost:5000";
     public string MagicOnionUrl { get; set; } = "http://localhost:5001";
     public bool ShowDebugInfo { get; set; } = false;
+    public bool ShowHealthBars { get; set; } = true;
     public int FieldSize { get; set; } = 200;
 
     public async Task LoadAsync()
@@ -24,6 +25,7 @@ public class SettingsService
         SignalRUrl = "http://localhost:5000";
         MagicOnionUrl = "http://localhost:5001";
         ShowDebugInfo = false;
+        ShowHealthBars = true;
         FieldSize = 200;
     }
 }

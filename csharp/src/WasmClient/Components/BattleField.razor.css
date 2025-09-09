@@ -1,0 +1,399 @@
+/* Enhanced Battle Field Animations and Effects */
+
+/* Entity smooth movement animations */
+.entity {
+  transition: left 0.2s ease-out, top 0.2s ease-out, transform 0.15s ease-in-out, opacity 0.3s ease;
+}
+
+/* Entity spawn/death animations */
+@keyframes entitySpawn {
+  0% {
+    transform: scale(0) rotate(180deg);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.2) rotate(90deg);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes entityDeath {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.3) rotate(-90deg);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(0.3) rotate(-180deg);
+    opacity: 0;
+  }
+}
+
+.entity.spawning {
+  animation: entitySpawn 0.5s ease-out;
+}
+
+.entity.dying {
+  animation: entityDeath 0.8s ease-in-out;
+}
+
+/* Health bar animations */
+.health-fill {
+  transition: width 0.5s ease-out;
+}
+
+/* Critical health warning */
+.entity.critical-health {
+  animation: criticalPulse 1s infinite;
+}
+
+@keyframes criticalPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 2px 8px rgba(234, 67, 53, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+/* Battle field grid enhancement */
+.field-canvas {
+  background:
+    linear-gradient(45deg, #f8f9fa 25%, transparent 25%),
+    linear-gradient(-45deg, #f8f9fa 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f8f9fa 75%),
+    linear-gradient(-45deg, transparent 75%, #f8f9fa 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+  position: relative;
+}
+
+/* Battle field active state */
+.battle-field.active {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.battle-field.active .field-canvas {
+  background:
+    linear-gradient(45deg, #e7f3ff 25%, transparent 25%),
+    linear-gradient(-45deg, #e7f3ff 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e7f3ff 75%),
+    linear-gradient(-45deg, transparent 75%, #e7f3ff 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+}
+
+/* Combat effect animations */
+@keyframes combatFlash {
+  0% {
+    background-color: rgba(255, 255, 255, 0);
+  }
+
+  50% {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  100% {
+    background-color: rgba(255, 255, 255, 0);
+  }
+}
+
+.entity.in-combat {
+  animation: combatFlash 0.3s ease-in-out;
+}
+
+/* Entity type specific enhancements */
+.entity.player {
+  background: linear-gradient(135deg, #4285f4 0%, #1a73e8 50%, #0d47a1 100%);
+  box-shadow: 0 2px 4px rgba(66, 133, 244, 0.3);
+}
+
+.entity.small {
+  background: linear-gradient(135deg, #34a853 0%, #137333 50%, #0f5132 100%);
+  box-shadow: 0 1px 3px rgba(52, 168, 83, 0.3);
+}
+
+.entity.medium {
+  background: linear-gradient(135deg, #fbbc04 0%, #f57c00 50%, #e65100 100%);
+  box-shadow: 0 2px 4px rgba(251, 188, 4, 0.4);
+}
+
+.entity.large {
+  background: linear-gradient(135deg, #ea4335 0%, #c5221f 50%, #b71c1c 100%);
+  box-shadow: 0 2px 6px rgba(234, 67, 53, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+  ::deep .entity {
+    transform-origin: center;
+  }
+
+  ::deep .entity:hover {
+    transform: scale(1.3) !important;
+    z-index: 100;
+  }
+
+  ::deep .health-bar {
+    height: 3px;
+  }
+}
+
+/* Field loading state */
+.field-placeholder {
+  animation: fieldPulse 2s infinite;
+}
+
+@keyframes fieldPulse {
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Turn transition effects */
+.field-status {
+  transition: all 0.2s ease;
+}
+
+.field-status.turn-changed {
+  background: rgba(0, 123, 255, 0.8);
+  transform: scale(1.02);
+}
+
+/* Entity tooltips enhancement */
+.entity:hover::after {
+  content: attr(title);
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Performance optimizations */
+.entity,
+.health-bar,
+.health-fill {
+  will-change: transform, opacity;
+}
+
+.field-canvas {
+  contain: layout style paint;
+}
+
+/* BattleField.razor */
+.battle-field {
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  background: #f8f9fa;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.field-header {
+  background: #e9ecef;
+  padding: 4px 8px;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  height: 20px;
+}
+
+.client-id {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #495057;
+}
+
+.connection-type {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.connection-type.signalr {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.connection-type.magiconion {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.field-canvas {
+  background: linear-gradient(45deg, #f1f3f4 25%, transparent 25%),
+    linear-gradient(-45deg, #f1f3f4 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f1f3f4 75%),
+    linear-gradient(-45deg, transparent 75%, #f1f3f4 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+  position: relative;
+}
+
+.entity {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.entity:hover {
+  transform: scale(1.2);
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.entity.player {
+  background: linear-gradient(135deg, #4285f4, #1a73e8);
+}
+
+.entity.small {
+  background: linear-gradient(135deg, #34a853, #137333);
+}
+
+.entity.medium {
+  background: linear-gradient(135deg, #fbbc04, #f57c00);
+}
+
+.entity.large {
+  background: linear-gradient(135deg, #ea4335, #c5221f);
+  border-width: 2px;
+}
+
+.entity.dead {
+  opacity: 0.3;
+  filter: grayscale(100%);
+  transform: scale(0.8);
+}
+
+.entity-icon {
+  font-size: 0.7em;
+  line-height: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+.health-bar {
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ea4335 0%, #fbbc04 50%, #34a853 100%);
+  transition: width 0.3s ease;
+}
+
+.field-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  opacity: 0.5;
+  color: #6c757d;
+}
+
+.placeholder-icon {
+  font-size: 2.5em;
+  margin-bottom: 8px;
+}
+
+.placeholder-text {
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.field-status {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 2px 6px;
+  font-size: 9px;
+  display: flex;
+  justify-content: space-between;
+  height: 16px;
+  align-items: center;
+}
+
+.field-status span {
+  margin-right: 8px;
+}
+
+.field-status span:last-child {
+  margin-right: 0;
+}
+
+/* Responsive adjustments for smaller field sizes */
+@media (max-width: 200px) {
+  .field-header {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  .connection-type {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+
+  .field-status {
+    font-size: 8px;
+  }
+
+  .entity-icon {
+    font-size: 0.6em;
+  }
+
+  .placeholder-icon {
+    font-size: 2em;
+  }
+}

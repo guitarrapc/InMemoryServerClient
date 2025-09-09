@@ -34,6 +34,13 @@
                 </label>
                 <small class="form-hint">接続詳細やパフォーマンス情報を表示します</small>
             </div>
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="Settings.ShowHealthBars" />
+                    <span class="checkbox-text">エンティティのヘルスバーを表示</span>
+                </label>
+                <small class="form-hint">バトルフィールド上でHPの状態を視覚的に表示します</small>
+            </div>
             <div class="form-group">
                 <label>バトルフィールドサイズ: <span class="field-size-value">@Settings.FieldSize px</span></label>
                 <input type="range" @bind="Settings.FieldSize" min="120" max="300" class="range-input" />

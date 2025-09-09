@@ -1,0 +1,61 @@
+.battle-field-visualization {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: #f0f0f0; /* Light background for better visibility */
+    border: 1px solid #ccc; /* Border to define the area */
+    overflow: hidden; /* Prevent overflow of entities */
+}
+
+.entity-display {
+    position: absolute;
+    font-size: 12px;
+    color: #333; /* Dark text for contrast */
+    background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+    border-radius: 4px; /* Rounded corners for entity info */
+    padding: 2px 4px; /* Padding for better spacing */
+}
+
+.field-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr); /* Example for a 10-column grid */
+    grid-template-rows: repeat(10, 1fr); /* Example for a 10-row grid */
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none; /* Allow clicks to pass through to entities */
+}
+
+.field-cell {
+    border: 1px solid #e0e0e0; /* Light border for grid cells */
+    background-color: transparent; /* Transparent background for cells */
+}
+
+.entity {
+    transition: transform 0.2s ease; /* Smooth transition for movement */
+}
+
+.entity.player {
+    background-color: #4285f4; /* Blue for player entities */
+}
+
+.entity.enemy {
+    background-color: #ea4335; /* Red for enemy entities */
+}
+
+.entity.small {
+    width: 20px; /* Size for small entities */
+    height: 20px;
+}
+
+.entity.medium {
+    width: 30px; /* Size for medium entities */
+    height: 30px;
+}
+
+.entity.large {
+    width: 40px; /* Size for large entities */
+    height: 40px;
+}

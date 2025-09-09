@@ -13,6 +13,8 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<SettingsService>();
 builder.Services.AddSingleton<IConnectionFactory, ConnectionFactory>();
 builder.Services.AddSingleton<BattleSessionManager>();
+builder.Services.AddSingleton<RealtimeUpdateService>();
+builder.Services.AddSingleton<FieldPerformanceMonitor>();
 
 // Logging
 builder.Services.AddLogging();

@@ -1,0 +1,38 @@
+@page "/battle-visualization"
+@using WasmClient.Models
+@using WasmClient.Services
+@inject FieldVisualizationService VisualizationService
+
+<div class="battle-field-visualization">
+    <FieldGrid @ref="fieldGrid" />
+    <FieldCanvas @ref="fieldCanvas" />
+    <div class="entity-displays">
+        @foreach (var entity in VisualizationService.CurrentBattleField.Entities)
+        {
+            <EntityDisplay Entity="entity" />
+        }
+    </div>
+</div>
+
+@code {
+    private FieldGrid fieldGrid;
+    private FieldCanvas fieldCanvas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        VisualizationService.OnFieldUpdated += UpdateField;
+        await VisualizationService.InitializeAsync();
+    }
+
+    private void UpdateField(BattleFieldData fieldData)
+    {
+        fieldGrid.UpdateGrid(fieldData);
+        fieldCanvas.DrawEntities(fieldData.Entities);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        VisualizationService.OnFieldUpdated -= UpdateField;
+    }
+}
