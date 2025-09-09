@@ -1,9 +1,10 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Extensions.Options;
 using System.Text;
 
-namespace InMemoryServer;
+namespace Shared.Infrastructures.Loggers;
 
 /// <summary>
 /// タイムスタンプを付与するカスタムコンソールフォーマッタのオプション

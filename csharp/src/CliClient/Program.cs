@@ -3,6 +3,7 @@ using CliClient.Clients;
 using ConsoleAppFramework;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Shared.Infrastructures.Loggers;
 
 // Create ConsoleApp with dependency injection
 var app = ConsoleApp.Create()
@@ -18,7 +19,7 @@ var app = ConsoleApp.Create()
         logging.AddConsoleFormatter<CustomTimestampConsoleFormatter, CustomTimestampConsoleFormatterOptions>(options =>
         {
             options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
-            options.IncludeScopes = true;
+            options.IncludeScopes = false;
         });
     })
     .ConfigureServices((context, services) =>
