@@ -12,6 +12,10 @@
                 <button class="back-btn" @onclick="GoBack">← 戻る</button>
                 <h2>@battle.GroupName</h2>
                 <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
+                @if (!string.IsNullOrEmpty(battleResult))
+                {
+                    <span class="battle-result @(battleResult.Contains("勝利") ? "victory" : "defeat")">@battleResult</span>
+                }
             </div>
             <div class="header-right">
                 <span class="server-info">📡 @battle.ServerUrl</span>
@@ -109,6 +113,7 @@
     private BattleSessionModel? battle;
     private string? errorMessage;
     private bool isLoading;
+    private string battleResult = "";
 
     protected override void OnInitialized()
     {
@@ -118,6 +123,12 @@
         if (battle != null)
         {
             battle.OnStatusChanged += OnBattleStatusChanged;
+
+            // Subscribe to battle completion events for all clients
+            foreach (var client in battle.Clients)
+            {
+                client.OnBattleComplete += () => OnBattleCompleted(client);
+            }
         }
     }
 
@@ -128,6 +139,33 @@
             // Trigger UI update when battle status changes
             StateHasChanged();
         });
+    }
+
+    private void OnBattleCompleted(BattleClient client)
+    {
+        // Determine battle result from the completed client's field data
+        var finalTurnData = client.CurrentField;
+        if (finalTurnData != null)
+        {
+            var alivePlayers = finalTurnData.Entities.Count(e => e.Type == EntityType.Player && e.Health > 0);
+            var aliveEnemies = finalTurnData.Entities.Count(e => e.Type != EntityType.Player && e.Health > 0);
+
+            if (aliveEnemies == 0)
+            {
+                battleResult = "🎉 勝利";
+            }
+            else if (alivePlayers == 0)
+            {
+                battleResult = "❌ 敗北";
+            }
+            else
+            {
+                // Use survivor count to determine result
+                battleResult = alivePlayers > aliveEnemies ? "🎉 勝利" : "❌ 敗北";
+            }
+
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     public void Dispose()
@@ -158,6 +196,10 @@
                 };
 
                 var client = await battle.AddClientAsync(connectionInfo);
+
+                // Subscribe to new client's battle completion event
+                client.OnBattleComplete += () => OnBattleCompleted(client);
+
                 StateHasChanged();
             }
             catch (Exception ex)

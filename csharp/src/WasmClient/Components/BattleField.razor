@@ -9,10 +9,10 @@
         <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
     </div>
 
-    <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 20px);">
+    <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 48px);">
         @if (fieldData != null)
         {
-            @foreach (var entity in fieldData.Entities)
+            @foreach (var entity in fieldData.Entities.Where(e => IsValidPosition(e.Position)))
             {
                 <div class="entity @entity.Type.ToString().ToLower() @(entity.Health <= 0 ? "dead" : "") @(entity.Health < entity.MaxHealth * 0.3 ? "critical-health" : "")"
                      style="position: absolute;
@@ -46,13 +46,36 @@
         }
     </div>
 
+    @* Turn navigation controls *@
+    @if (allTurnData.Any())
+    {
+        <div class="turn-controls">
+            <input type="range"
+                   min="0"
+                   max="@(allTurnData.Count - 1)"
+                   value="@selectedTurn"
+                   @oninput="OnTurnSliderChanged"
+                   class="turn-slider" />
+            <div class="turn-info">
+                <span>Turn: @(fieldData?.Turn ?? 0)</span>
+                @if (isReplayMode)
+                {
+                    <button @onclick="EnableRealtimeMode" class="realtime-btn">🔴 Live</button>
+                }
+            </div>
+        </div>
+    }
+
     <div class="field-status @(turnChanged ? "turn-changed" : "")">
-        <span>Turn: @(fieldData?.Turn ?? 0)</span>
-        <span>Entities: @(fieldData?.Entities.Count(e => e.Health > 0) ?? 0)</span>
+        <span>Entities: @(fieldData?.Entities.Count(e => e.Health > 0 && IsValidPosition(e.Position)) ?? 0)</span>
         @if (Settings.ShowDebugInfo)
         {
             <span>Scale: @scaleX.ToString("F1")</span>
             <span>FPS: @(PerformanceMonitor.GetStats(Client.ConnectionId).CurrentFPS)</span>
+        }
+        @if (isReplayMode)
+        {
+            <span class="replay-indicator">⏯️ Replay</span>
         }
     </div>
 </div>
@@ -68,20 +91,38 @@
     private int lastTurn = -1;
     private bool turnChanged = false;
 
+    // Battle replay data for turn navigation
+    private List<BattleFieldData> allTurnData = new();
+    private int selectedTurn = 0;
+    private bool isReplayMode = false;
+
     // Scale calculations based on 20x20 game field
     private double scaleX => (Size - 8) / (double)BattleReplayDefines.BattleFieldSize; // 8px margin for borders
-    private double scaleY => (Size - 28) / (double)BattleReplayDefines.BattleFieldSize; // 28px for header + status
+    private double scaleY => (Size - 48) / (double)BattleReplayDefines.BattleFieldSize; // 48px for header + status + controls
     private int entitySize => Math.Max(6, (int)(scaleX * 0.7)); // Entity size with minimum
 
     protected override void OnInitialized()
     {
         Client.OnBattleFieldUpdated += OnFieldUpdated;
+        Client.OnBattleComplete += OnBattleCompleted;
     }
 
     private void OnFieldUpdated(BattleFieldData data)
     {
         // Record performance metrics
         PerformanceMonitor.RecordUpdate(Client.ConnectionId, data.Entities.Count);
+
+        // Store turn data for replay
+        var existingIndex = allTurnData.FindIndex(t => t.Turn == data.Turn);
+        if (existingIndex >= 0)
+        {
+            allTurnData[existingIndex] = data;
+        }
+        else
+        {
+            allTurnData.Add(data);
+            allTurnData.Sort((a, b) => a.Turn.CompareTo(b.Turn));
+        }
 
         // Check if turn has changed for visual feedback
         if (fieldData != null && data.Turn != lastTurn)
@@ -97,8 +138,56 @@
             });
         }
 
-        fieldData = data;
+        // If not in replay mode, show the latest data
+        if (!isReplayMode)
+        {
+            fieldData = data;
+            selectedTurn = Math.Max(0, allTurnData.Count - 1);
+        }
+
         InvokeAsync(StateHasChanged);
+    }
+
+    private void OnBattleCompleted()
+    {
+        // Determine victory result from the final turn data
+        if (allTurnData.Any())
+        {
+            var finalTurn = allTurnData.Last();
+            var alivePlayers = finalTurn.Entities.Count(e => e.Type == EntityType.Player && e.Health > 0 && IsValidPosition(e.Position));
+            var aliveEnemies = finalTurn.Entities.Count(e => e.Type != EntityType.Player && e.Health > 0 && IsValidPosition(e.Position));
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTurnSliderChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var turn) && allTurnData.Any())
+        {
+            selectedTurn = Math.Clamp(turn, 0, allTurnData.Count - 1);
+            fieldData = allTurnData[selectedTurn];
+            isReplayMode = true;
+            StateHasChanged();
+        }
+    }
+
+    private void EnableRealtimeMode()
+    {
+        isReplayMode = false;
+        if (allTurnData.Any())
+        {
+            selectedTurn = allTurnData.Count - 1;
+            fieldData = allTurnData[selectedTurn];
+        }
+        StateHasChanged();
+    }
+
+    private bool IsValidPosition(Position position)
+    {
+        return position.X >= 0 && position.Y >= 0
+               && position.X < BattleReplayDefines.BattleFieldSize
+               && position.Y < BattleReplayDefines.BattleFieldSize;
     }    private string GetEntityTooltip(EntityData entity)
     {
         var status = entity.Health <= 0 ? " [DEAD]" : "";
@@ -117,6 +206,7 @@
     public void Dispose()
     {
         Client.OnBattleFieldUpdated -= OnFieldUpdated;
+        Client.OnBattleComplete -= OnBattleCompleted;
         PerformanceMonitor.RemoveField(Client.ConnectionId);
     }
 }

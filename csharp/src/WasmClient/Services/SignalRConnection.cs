@@ -152,8 +152,7 @@ public class SignalRConnection : IBattleConnection
         // Battle events
         _connection.On<ConnectionsReadyData>("ConnectionsReady", data =>
         {
-            _logger.LogInformation("Connections ready received - BattleId: {BattleId}, Seed: {Seed}",
-                data.BattleId, data.Seed);
+            _logger.LogInformation("Connections ready received - BattleId: {BattleId}, Seed: {Seed}", data.BattleId, data.Seed);
             OnConnectionsReady?.Invoke(data);
 
             // Automatically confirm connection ready
@@ -174,15 +173,13 @@ public class SignalRConnection : IBattleConnection
 
         _connection.On<BattleStartedData>("BattleStarted", data =>
         {
-            _logger.LogInformation("Battle started - BattleId: {BattleId}, Seed: {Seed}",
-                data.BattleId, data.Seed);
+            _logger.LogInformation("Battle started - BattleId: {BattleId}, Seed: {Seed}", data.BattleId, data.Seed);
             OnBattleStarted?.Invoke(data);
         });
 
         _connection.On<BattleReplayData>("BattleReplayData", replayData =>
         {
-            _logger.LogInformation("Battle replay data received - Chunk: {ChunkIndex}/{TotalChunks}, Turns: {TurnCount}",
-                replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count);
+            _logger.LogInformation("Battle replay data received - Chunk: {ChunkIndex}/{TotalChunks}, Turns: {TurnCount}", replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count);
             OnBattleReplayReceived?.Invoke(replayData);
         });
 

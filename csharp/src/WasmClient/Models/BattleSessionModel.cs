@@ -207,7 +207,9 @@ public class BattleClient : IAsyncDisposable
             Position = new Position(e.Position.X, e.Position.Y),
             Health = e.CurrentHp,
             MaxHealth = e.MaxHp
-        }));        return new BattleFieldData
+        }));
+
+        return new BattleFieldData
         {
             Turn = battleStatus.CurrentTurn,
             Entities = allEntities

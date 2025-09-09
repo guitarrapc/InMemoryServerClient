@@ -397,3 +397,89 @@
     font-size: 2em;
   }
 }
+
+/* Turn navigation controls */
+.turn-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 4px;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  z-index: 10;
+}
+
+.turn-slider {
+  flex: 1;
+  height: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #444;
+  border-radius: 8px;
+  outline: none;
+}
+
+.turn-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
+  border: 1px solid #2c5530;
+}
+
+.turn-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
+  border: 1px solid #2c5530;
+}
+
+.turn-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.realtime-btn {
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.realtime-btn:hover {
+  background: #ff6666;
+}
+
+.victory-result {
+  font-weight: bold;
+  color: #4CAF50;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.replay-indicator {
+  color: #FFA726;
+  font-weight: bold;
+}
+
+/* Adjust field canvas height when turn controls are present */
+.battle-field:has(.turn-controls) .field-canvas {
+  height: calc(100% - 68px);
+}

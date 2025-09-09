@@ -63,6 +63,27 @@
   color: #155724;
 }
 
+.battle-result {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+.battle-result.victory {
+  background-color: #d4edda;
+  color: #155724;
+  border: 2px solid #28a745;
+}
+
+.battle-result.defeat {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 2px solid #dc3545;
+}
+
 .header-right {
   color: #666;
   font-size: 0.9em;
