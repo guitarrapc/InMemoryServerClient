@@ -5,96 +5,96 @@
 <div class="options-page">
     <header class="page-header">
         <div class="header-left">
-            <button class="back-btn" @onclick="GoBack">← 戻る</button>
-            <h1>設定</h1>
+            <button class="back-btn" @onclick="GoBack">← Back</button>
+            <h1>Settings</h1>
         </div>
     </header>
 
     <div class="settings-form">
         <div class="setting-group">
-            <h3>🔗 接続設定</h3>
+            <h3>🔗 Connection Settings</h3>
             <div class="form-group">
-                <label>SignalR サーバーURL:</label>
+                <label>SignalR Server URL:</label>
                 <input @bind="Settings.SignalRUrl" placeholder="http://localhost:5000" />
-                <small class="form-hint">WebSocket接続用のサーバーアドレス</small>
+                <small class="form-hint">WebSocket connection server address</small>
             </div>
             <div class="form-group">
-                <label>MagicOnion サーバーURL:</label>
+                <label>MagicOnion Server URL:</label>
                 <input @bind="Settings.MagicOnionUrl" placeholder="http://localhost:5001" />
-                <small class="form-hint">gRPC-Web接続用のサーバーアドレス</small>
+                <small class="form-hint">MagicOnion connection server address</small>
             </div>
         </div>
 
         <div class="setting-group">
-            <h3>🖥️ 表示設定</h3>
+            <h3>🖥️ Display Settings</h3>
             <div class="form-group checkbox-group">
                 <label class="checkbox-label">
                     <input type="checkbox" @bind="Settings.ShowDebugInfo" />
-                    <span class="checkbox-text">デバッグ情報を表示</span>
+                    <span class="checkbox-text">Show Debug Info</span>
                 </label>
-                <small class="form-hint">接続詳細やパフォーマンス情報を表示します</small>
+                <small class="form-hint">Displays connection details and performance information</small>
             </div>
             <div class="form-group checkbox-group">
                 <label class="checkbox-label">
                     <input type="checkbox" @bind="Settings.ShowHealthBars" />
-                    <span class="checkbox-text">エンティティのヘルスバーを表示</span>
+                    <span class="checkbox-text">Show Entity Health Bars</span>
                 </label>
-                <small class="form-hint">バトルフィールド上でHPの状態を視覚的に表示します</small>
+                <small class="form-hint">Displays HP status visually on the battlefields</small>
             </div>
             <div class="form-group">
-                <label>バトルフィールドサイズ: <span class="field-size-value">@Settings.FieldSize px</span></label>
+                <label>Battle Field Size: <span class="field-size-value">@Settings.FieldSize px</span></label>
                 <input type="range" @bind="Settings.FieldSize" min="120" max="300" class="range-input" />
                 <div class="range-labels">
-                    <span>小 (120px)</span>
-                    <span>大 (300px)</span>
+                    <span>Small (120px)</span>
+                    <span>Large (300px)</span>
                 </div>
-                <small class="form-hint">各バトルフィールドの表示サイズを調整します</small>
+                <small class="form-hint">Adjust the display size of each battle field</small>
             </div>
         </div>
 
         <div class="setting-group">
-            <h3>🎮 動作設定</h3>
+            <h3>🎮 Action Settings</h3>
             <div class="form-group">
-                <label>リプレイフレームレート:</label>
+                <label>Replay Frame Rate:</label>
                 <select class="select-input" disabled>
-                    <option>5 FPS (固定)</option>
+                    <option>5 FPS (Fixed)</option>
                 </select>
-                <small class="form-hint">バトルリプレイの再生速度（現在は固定値）</small>
+                <small class="form-hint">Battle replay frame rate (currently fixed)</small>
             </div>
         </div>
 
         <div class="form-actions">
-            <button @onclick="SaveSettings" class="btn-primary">設定を保存</button>
-            <button @onclick="ResetSettings" class="btn-secondary">デフォルトに戻す</button>
-            <button @onclick="TestConnections" class="btn-outline" disabled>接続テスト (未実装)</button>
+            <button @onclick="SaveSettings" class="btn-primary">Save Settings</button>
+            <button @onclick="ResetSettings" class="btn-secondary">Reset to Default</button>
+            <button @onclick="TestConnections" class="btn-outline" disabled>Test Connections (Not Implemented)</button>
         </div>
 
         @if (showSaveMessage)
         {
             <div class="save-message">
-                ✅ 設定を保存しました
+                ✅ Settings have been saved
             </div>
         }
     </div>
 
     <div class="info-section">
-        <h3>ℹ️ 情報</h3>
+        <h3>ℹ️ Information</h3>
         <div class="info-grid">
             <div class="info-item">
-                <strong>アプリケーション:</strong>
+                <strong>Application:</strong>
                 <span>WasmClient v1.0</span>
             </div>
             <div class="info-item">
-                <strong>ビルド日時:</strong>
+                <strong>Build Date:</strong>
                 <span>@DateTime.Now.ToString("yyyy/MM/dd")</span>
             </div>
             <div class="info-item">
-                <strong>対応プロトコル:</strong>
+                <strong>Supported Protocols:</strong>
                 <span>SignalR, MagicOnion</span>
             </div>
             <div class="info-item">
-                <strong>最大同時バトル:</strong>
-                <span>制限なし</span>
+                <strong>Max Concurrent Battles:</strong>
+                <span>Unlimited</span>
             </div>
         </div>
     </div>

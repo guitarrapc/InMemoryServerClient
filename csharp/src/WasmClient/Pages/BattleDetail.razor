@@ -9,12 +9,12 @@
     {
         <header class="battle-header">
             <div class="header-left">
-                <button class="back-btn" @onclick="GoBack">← 戻る</button>
+                <button class="back-btn" @onclick="GoBack">← Back</button>
                 <h2>@battle.GroupName</h2>
                 <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
                 @if (!string.IsNullOrEmpty(battleResult))
                 {
-                    <span class="battle-result @(battleResult.Contains("勝利") ? "victory" : "defeat")">@battleResult</span>
+                    <span class="battle-result @(battleResult.Contains("Victory") ? "victory" : "defeat")">@battleResult</span>
                 }
             </div>
             <div class="header-right">
@@ -24,10 +24,10 @@
 
         <div class="client-management">
             <div class="section-header">
-                <h3>接続中のクライアント (@battle.ClientCount / 5)</h3>
+                <h3>Connected Clients (@battle.ClientCount / 5)</h3>
                 @if (battle.IsFull)
                 {
-                    <span class="full-indicator">✅ フル</span>
+                    <span class="full-indicator">✅ Full</span>
                 }
             </div>
 
@@ -43,7 +43,7 @@
                                 <button class="remove-btn" @onclick="() => RemoveClient(client)">×</button>
                             </div>
                             <div class="client-info">
-                                <div>👤 @(client.PlayerId ?? "匿名")</div>
+                                <div>👤 @(client.PlayerId ?? "Anonymous")</div>
                                 <div>🕒 @client.ConnectedAt.ToString("HH:mm:ss")</div>
                             </div>
                         </div>
@@ -52,8 +52,8 @@
                 else
                 {
                     <div class="no-clients">
-                        <p>まだクライアントが接続されていません</p>
-                        <p>下の+ボタンからクライアントを追加してください</p>
+                        <p>No clients are connected yet</p>
+                        <p>Please add clients using the + button below</p>
                     </div>
                 }
             </div>
@@ -61,13 +61,13 @@
             <div class="add-client-buttons">
                 <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@(battle.IsFull || isLoading)">
                     <div class="btn-icon">@(isLoading ? "⏳" : "+")</div>
-                    <div class="btn-text">@(isLoading ? "接続中..." : "SignalR追加")</div>
+                    <div class="btn-text">@(isLoading ? "Connecting..." : "Add SignalR")</div>
                     <div class="btn-subtitle">WebSocket</div>
                 </button>
 
                 <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(battle.IsFull || isLoading)">
                     <div class="btn-icon">@(isLoading ? "⏳" : "+")</div>
-                    <div class="btn-text">@(isLoading ? "接続中..." : "MagicOnion追加")</div>
+                    <div class="btn-text">@(isLoading ? "Connecting..." : "Add MagicOnion")</div>
                     <div class="btn-subtitle">gRPC-Web</div>
                 </button>
             </div>
@@ -87,7 +87,7 @@
         @if (battle.Clients.Any())
         {
             <div class="battle-fields">
-                <h3>バトルフィールド</h3>
+                <h3>Battle Fields</h3>
                 <div class="fields-grid">
                     @foreach (var client in battle.Clients)
                     {
@@ -100,9 +100,9 @@
     else
     {
         <div class="error-message">
-            <h2>バトルが見つかりません</h2>
-            <p>指定されたバトル（ID: @BattleId）は存在しません。</p>
-            <button class="btn-primary" @onclick="GoBack">ホームに戻る</button>
+            <h2>Battle Not Found</h2>
+            <p>The specified battle (ID: @BattleId) does not exist.</p>
+            <button class="btn-primary" @onclick="GoBack">Go Back to Home</button>
         </div>
     }
 </div>
@@ -152,16 +152,16 @@
 
             if (aliveEnemies == 0)
             {
-                battleResult = "🎉 勝利";
+                battleResult = "🎉 Victory";
             }
             else if (alivePlayers == 0)
             {
-                battleResult = "❌ 敗北";
+                battleResult = "❌ Defeat";
             }
             else
             {
                 // Use survivor count to determine result
-                battleResult = alivePlayers > aliveEnemies ? "🎉 勝利" : "❌ 敗北";
+                battleResult = alivePlayers > aliveEnemies ? "🎉 Victory" : "❌ Defeat";
             }
 
             InvokeAsync(StateHasChanged);
