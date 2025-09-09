@@ -6,6 +6,7 @@
 <div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px;">
     <div class="field-header">
         <span class="client-id">@Client.ConnectionId[..8]</span>
+        <span class="turn-number">@(lastTurn != -1 ? $"Turn {fieldData?.Turn}" : "")</span>
         <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
     </div>
 
