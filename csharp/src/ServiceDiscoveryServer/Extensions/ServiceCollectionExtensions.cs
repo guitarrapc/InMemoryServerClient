@@ -29,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBattleServerRegistry, BattleServerRegistry>();
         services.AddSingleton<ISessionManager, InmemorySessionManager>();
         services.AddSingleton<IGameLiftIntegration, GameLiftSessionManager>();
+        services.AddSingleton<IBattleServerNotifier, BattleServerNotifier>();
 
         // Background services (lifecycle management)
         services.AddHostedService<SessionCleanupService>();

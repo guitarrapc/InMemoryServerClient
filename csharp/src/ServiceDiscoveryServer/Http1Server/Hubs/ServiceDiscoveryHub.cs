@@ -130,6 +130,7 @@ public sealed class ServiceDiscoveryHub(ILogger<ServiceDiscoveryHub> logger, ISe
 
     /// <summary>
     /// Remove player from session (for connection cleanup)
+    /// Automatically decrements player count and handles session state management
     /// </summary>
     /// <param name="sessionId">Session ID</param>
     /// <returns>True if successfully removed</returns>
@@ -145,6 +146,89 @@ public sealed class ServiceDiscoveryHub(ILogger<ServiceDiscoveryHub> logger, ISe
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in RemovePlayerFromSessionAsync for session {SessionId}", sessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Get player count information for session
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>Player count information or null</returns>
+    public async Task<PlayerCountInfo?> GetPlayerCountAsync(string sessionId)
+    {
+        try
+        {
+            return await sessionManager.GetPlayerCountAsync(sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting player count for session {SessionId}", sessionId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Notify battle started (for BattleServer use)
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>True if successfully notified</returns>
+    public async Task<bool> NotifyBattleStartedAsync(string sessionId)
+    {
+        try
+        {
+            _logger.LogInformation("Battle started notification for session {SessionId} from connection {ConnectionId}",
+                sessionId, Context.ConnectionId);
+            return await sessionManager.NotifyBattleStartedAsync(sessionId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in NotifyBattleStartedAsync for session {SessionId}", sessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Notify battle completed (for BattleServer use)
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="result">Battle result</param>
+    /// <returns>True if successfully notified</returns>
+    public async Task<bool> NotifyBattleCompletedAsync(string sessionId, BattleResult result)
+    {
+        try
+        {
+            _logger.LogInformation("Battle completed notification for session {SessionId} with outcome {Outcome} from connection {ConnectionId}",
+                sessionId, result.Outcome, Context.ConnectionId);
+            return await sessionManager.NotifyBattleCompletedAsync(sessionId, result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in NotifyBattleCompletedAsync for session {SessionId}", sessionId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Notify session terminated (for BattleServer use)
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="reason">Termination reason</param>
+    /// <returns>True if successfully notified</returns>
+    public async Task<bool> NotifySessionTerminatedAsync(string sessionId, TerminationReason reason)
+    {
+        try
+        {
+            _logger.LogInformation("Session terminated notification for session {SessionId} with reason {Reason} from connection {ConnectionId}",
+                sessionId, reason, Context.ConnectionId);
+
+            // Update session status to terminated
+            await sessionManager.TerminateSessionAsync(sessionId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in NotifySessionTerminatedAsync for session {SessionId}", sessionId);
             return false;
         }
     }

@@ -193,6 +193,8 @@ public sealed class ServiceDiscoveryClientProvider(ILogger<ServiceDiscoveryClien
             var connected = await battleClient.ConnectAsync(serverUrl, groupName);
             if (!connected)
             {
+                // 接続失敗時はServiceDiscoveryのプレイヤー数を減算
+                // Note: sessionId needs to be passed from caller if needed for cleanup
                 throw new InvalidOperationException($"Failed to connect to BattleServer {connectionInfo.ServerId}");
             }
 

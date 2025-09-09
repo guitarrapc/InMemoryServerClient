@@ -49,11 +49,11 @@ graph TB
     Battle3[BattleServer #3]
     GameLift[GameLift Service]
 
-    Client -->|1. セッション要求| Discovery
-    Discovery -->|2. サーバー割り当て| Battle1
+    Client -->|1.セッション要求| Discovery
+    Discovery -->|2.サーバー割り当て| Battle1
     Discovery -->|GameLift統合| GameLift
     GameLift -->|GameSession管理| Battle1
-    Client -->|3. 直接接続| Battle1
+    Client -->|3.直接接続| Battle1
     Discovery -.->|ヘルスチェック| Battle2
     Discovery -.->|ヘルスチェック| Battle3
 ```
@@ -62,21 +62,30 @@ graph TB
 
 #### **統一フロー（GameLift/Direct共通）**
 1. **クライアント → ServiceDiscoveryServer**: セッション作成要求
-2. **ServiceDiscoveryServer**: 適切なBattleServerを選択・割り当て
+2. **ServiceDiscoveryServer**: 適切なBattleServerを選択・割り当て＋プレイヤー数カウント
 3. **ServiceDiscoveryServer → クライアント**: BattleServer接続情報を返却
 4. **クライアント → BattleServer**: 直接接続
-5. **クライアント → BattleServer**: JoinGroup実行（**重要**: この時点で実際のバトルメンバーとして登録）
-6. **BattleServer**: グループメンバー数が5人に達したらバトル開始
+5. **クライアント → BattleServer**: JoinGroup実行（実際のバトルメンバーとして登録）
+6. **ServiceDiscoveryServer**: プレイヤー数が最大に達した場合、BattleServerにバトル開始可能通知
+7. **BattleServer**: グループメンバーの最終確認後、バトル開始
 
-#### **重要な責任分離**
-- **Step 1-3**: ServiceDiscoveryの責任範囲（サーバー発見・セッション管理）
-- **Step 4-6**: BattleServerの責任範囲（グループ管理・バトル実行）
-- **プレイヤー数管理**: BattleServerのグループ参加時にのみ実施（ServiceDiscoveryではカウントしない）
+#### **重要な責任分離（ServiceDiscovery中心管理）**
+- **Step 1-3**: ServiceDiscoveryの責任範囲（サーバー発見・セッション管理・プレイヤー数管理）
+- **Step 4-7**: BattleServerの責任範囲（実際のグループメンバー管理・バトル実行）
+- **プレイヤー数管理**: ServiceDiscoveryでセッションレベル管理（GameLift同期のため）
+- **最終バトル判定**: BattleServerで実際の接続メンバー確認
 
 #### **なぜこの分離が重要か**
-- **単一責任原則**: ServiceDiscoveryはセッション割り当てのみ、BattleServerは実際のゲームロジックのみ
-- **故障隔離**: ServiceDiscovery故障でも既存バトルは継続実行
-- **負荷分散**: セッション管理とバトル処理の負荷を分離
+- **GameLift整合性**: ServiceDiscoveryがプレイヤー数を管理してGameLiftセッションと同期
+- **予約システム**: セッション作成時点でのプレイヤースロット予約
+- **故障隔離**: ServiceDiscovery故障時でも既存バトルは継続実行
+- **負荷分散**: セッション管理とバトル処理の負荷を適切に分離
+
+#### **ServiceDiscovery中心のプレイヤー数管理の理由**
+- **GameLift統合要件**: GameSessionのプレイヤー数をリアルタイム同期する必要
+- **一元管理**: セッション情報とプレイヤー数を同一箇所で管理
+- **整合性保証**: セッション作成時点でのプレイヤー予約とGameLift同期
+- **スケーラビリティ**: 複数BattleServer間での一貫したセッション管理
 
 #### **接続ライフサイクル管理**
 
@@ -122,14 +131,23 @@ public interface IServiceDiscoveryNotifier
     Task NotifyBattleCompletedAsync(string sessionId, BattleResult result);
     Task NotifySessionTerminatedAsync(string sessionId, TerminationReason reason);
 }
+
+// ServiceDiscoveryがBattleServerにバトル開始可能を通知
+public interface IBattleStartNotifier
+{
+    Task NotifyBattleReadyAsync(string sessionId, SessionInfo sessionInfo);
+}
 ```
 
 **具体的な通知タイミング**:
-1. **バトル開始時**: グループメンバー5人揃ってバトル開始
+1. **プレイヤー参加時**: セッション作成要求でプレイヤー数増加
+   - ServiceDiscovery: プレイヤー数カウント＋GameLift同期
+   - 満員時: `NotifyBattleReadyAsync(sessionId)` → BattleServerに開始通知
+2. **バトル開始時**: BattleServerが実際のメンバー確認後にバトル開始
    - `NotifyBattleStartedAsync(sessionId)` → セッション状態を`InBattle`に変更
-2. **バトル終了時**: 全クライアントのリプレイ視聴完了
+3. **バトル終了時**: 全クライアントのリプレイ視聴完了
    - `NotifyBattleCompletedAsync(sessionId, result)` → セッション状態を`Completed`に変更
-3. **異常終了時**: クライアント全断、サーバー故障等
+4. **異常終了時**: クライアント全断、サーバー故障等
    - `NotifySessionTerminatedAsync(sessionId, reason)` → セッション状態を`Terminated`に変更
 
 **実装済みの仕組み**:
@@ -148,15 +166,21 @@ public interface IServiceDiscoveryNotifier
 - **ポート設定**:
   - SignalR: `5010`
   - MagicOnion: `5011`
-  - Health Check: `5012`
 
 #### **責任範囲**
 - **セッション管理**:
   - グループ名ベースのGameSession作成・検索
   - **重要**: 同一グループに対して常に同一セッションを返却（GameLiftスタイル）
-  - セッション状態の追跡（Active/Completed/Terminated）
+  - セッション状態の追跡（Active/InBattle/Completed/Terminated）
   - セッション有効期限管理
-  - **注意**: プレイヤー数カウントは行わない（BattleServerのグループ管理に委譲）
+  - **プレイヤー数管理の責任分離**:
+    - セッション作成時にプレイヤー数を自動インクリメント＋GameLift同期
+    - クライアントからは`RemovePlayerFromSessionAsync`のみ受け付け
+    - プレイヤー数の増減はServiceDiscoveryが内部で完全制御
+    - クライアントが直接プレイヤー数を操作することは禁止
+- **バトル開始判定**:
+  - セッション満員時（プレイヤー数=最大数）にBattleServerへ開始通知
+  - GameLiftセッションのACTIVE状態への変更
 - **サーバー管理**:
   - 利用可能なBattleServerの登録・管理
   - サーバー負荷分散・割り当て
@@ -165,8 +189,9 @@ public interface IServiceDiscoveryNotifier
   - GameLift API経由でのGameSession管理（Anywhereモード）
   - Fleet管理・Compute管理
   - PlayerSession作成の代理実行
+  - リアルタイムプレイヤー数同期
 - **Direct接続サポート**:
-  - インメモリでのグループ管理（セッション情報のみ）
+  - インメモリでのセッション＋プレイヤー数管理
   - BattleServerとの直接通信による状態同期
 
 ### **BattleServer（改修）**
@@ -181,15 +206,18 @@ public interface IServiceDiscoveryNotifier
 - **バトル実行**: 既存のバトルロジックの実行
 - **グループ管理**:
   - JoinGroup実行時の実際のバトルメンバー登録
-  - **重要**: プレイヤー数カウントとバトル開始条件判定
+  - **実際の接続メンバー確認**: ServiceDiscoveryからの開始通知後の最終バトル判定
   - グループ状態管理（ConnectionsReady, BattleStarted等）
+- **ServiceDiscovery開始通知の処理**:
+  - ServiceDiscoveryからの「バトル開始可能」通知を受信
+  - 実際のグループメンバー数確認後にバトル開始実行
 - **サーバー登録**: ServiceDiscoveryServerへの登録・ヘルスレポート
 - **GameLift統合**: GameLift Server SDK統合（Anywhereモード時）
 - **Direct接続**: ServiceDiscoveryServerとの直接通信（Directモード時）
 
-#### **なぜBattleServerでグループ管理するのか**
+#### **なぜBattleServerで最終バトル判定するのか**
 - **リアルタイム性**: 接続断・再接続の即座の反映が必要
-- **バトル開始判定**: 実際に接続しているプレイヤーのみでバトル開始
+- **実際の接続確認**: ServiceDiscoveryのプレイヤー数予約と実際の接続の整合性確認
 - **故障隔離**: ServiceDiscovery故障時もバトル継続実行
 
 ## API仕様
@@ -207,6 +235,10 @@ public class ServiceDiscoveryHub : Hub
     Task<IReadOnlyList<SessionInfo>> ListActiveSessionsAsync();
     Task<bool> TerminateSessionAsync(string sessionId);
 
+    // プレイヤー管理API（プレイヤー数はServiceDiscoveryが内部管理）
+    Task<bool> RemovePlayerFromSessionAsync(string sessionId);
+    Task<PlayerCountInfo> GetPlayerCountAsync(string sessionId);
+
     // サーバー管理API
     Task<IReadOnlyList<BattleServerInfo>> ListAvailableServersAsync();
     Task<BattleServerInfo?> GetAssignedServerAsync(string sessionId);
@@ -215,6 +247,11 @@ public class ServiceDiscoveryHub : Hub
     Task<bool> RegisterServerAsync(BattleServerRegistration registration);
     Task<bool> UpdateServerStatusAsync(string serverId, BattleServerStatus status);
     Task UnregisterServerAsync(string serverId);
+
+    // バトル開始通知API（BattleServer向け）
+    Task NotifyBattleStartedAsync(string sessionId);
+    Task NotifyBattleCompletedAsync(string sessionId, BattleResult result);
+    Task NotifySessionTerminatedAsync(string sessionId, TerminationReason reason);
 }
 ```
 
@@ -229,6 +266,10 @@ public interface IServiceDiscoveryService : IService<IServiceDiscoveryService>
     UnaryResult<IReadOnlyList<SessionInfo>> ListActiveSessionsAsync();
     UnaryResult<bool> TerminateSessionAsync(string sessionId);
 
+    // プレイヤー管理API（プレイヤー数はServiceDiscoveryが内部管理）
+    UnaryResult<bool> RemovePlayerFromSessionAsync(string sessionId);
+    UnaryResult<PlayerCountInfo> GetPlayerCountAsync(string sessionId);
+
     // サーバー管理API
     UnaryResult<IReadOnlyList<BattleServerInfo>> ListAvailableServersAsync();
     UnaryResult<BattleServerInfo?> GetAssignedServerAsync(string sessionId);
@@ -237,6 +278,11 @@ public interface IServiceDiscoveryService : IService<IServiceDiscoveryService>
     UnaryResult<bool> RegisterServerAsync(BattleServerRegistration registration);
     UnaryResult<bool> UpdateServerStatusAsync(string serverId, BattleServerStatus status);
     UnaryResult<bool> UnregisterServerAsync(string serverId);
+
+    // バトル開始通知API（BattleServer向け）
+    UnaryResult<bool> NotifyBattleStartedAsync(string sessionId);
+    UnaryResult<bool> NotifyBattleCompletedAsync(string sessionId, BattleResult result);
+    UnaryResult<bool> NotifySessionTerminatedAsync(string sessionId, TerminationReason reason);
 }
 ```
 
@@ -316,6 +362,44 @@ public class BattleServerStatus
     public DateTime LastHeartbeat { get; set; }
 }
 
+// プレイヤー数情報（新規追加）
+public class PlayerCountInfo
+{
+    public string SessionId { get; set; } = string.Empty;
+    public int CurrentPlayers { get; set; }
+    public int MaxPlayers { get; set; }
+    public bool IsFull => CurrentPlayers >= MaxPlayers;
+    public DateTime LastUpdated { get; set; }
+}
+
+// バトル結果（新規追加）
+public class BattleResult
+{
+    public string SessionId { get; set; } = string.Empty;
+    public BattleOutcome Outcome { get; set; }
+    public TimeSpan Duration { get; set; }
+    public IReadOnlyList<PlayerResult> PlayerResults { get; set; } = Array.Empty<PlayerResult>();
+    public DateTime CompletedAt { get; set; }
+}
+
+// プレイヤー結果
+public class PlayerResult
+{
+    public string PlayerId { get; set; } = string.Empty;
+    public bool IsWinner { get; set; }
+    public int Score { get; set; }
+}
+
+// 終了理由
+public enum TerminationReason
+{
+    Normal,
+    PlayerDisconnect,
+    ServerError,
+    Timeout,
+    AdminAction
+}
+
 public enum SessionMode
 {
     Auto,    // サーバーが最適なモードを選択
@@ -340,6 +424,15 @@ public enum ServerHealth
     Unhealthy,
     Unknown
 }
+
+public enum BattleOutcome
+{
+    Victory,
+    Defeat,
+    Draw,
+    Aborted,
+    Error
+}
 ```
 
 ## 設定仕様
@@ -352,7 +445,6 @@ public enum ServerHealth
     "Server": {
       "SignalRPort": 5010,
       "MagicOnionPort": 5011,
-      "HealthCheckPort": 5012,
       "AllowedOrigins": ["*"]
     },
     "Session": {

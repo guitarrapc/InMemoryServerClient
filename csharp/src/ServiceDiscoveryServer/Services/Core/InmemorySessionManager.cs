@@ -3,10 +3,11 @@
 /// <summary>
 /// In-memory session management service
 /// </summary>
-public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logger, IOptions<ServiceDiscoveryOptions> options, IBattleServerRegistry serverRegistry) : ISessionManager, IDisposable
+public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logger, IOptions<ServiceDiscoveryOptions> options, IBattleServerRegistry serverRegistry, IBattleServerNotifier battleServerNotifier) : ISessionManager, IDisposable
 {
     private readonly ConcurrentDictionary<string, SessionInfo> _sessions = new();
     private readonly ConcurrentDictionary<string, List<string>> _groupSessions = new();
+    private readonly ConcurrentDictionary<string, int> _sessionPlayerCounts = new(); // スレッドセーフなプレイヤー数管理
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public async Task<SessionCreationResponse> CreateOrFindSessionAsync(SessionCreationRequest request)
@@ -21,26 +22,36 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
                 foreach (var sessionId in existingSessions.ToList())
                 {
                     if (_sessions.TryGetValue(sessionId, out var session) &&
-                        session.Status == SessionStatus.Active &&
-                        session.CurrentPlayers < session.MaxPlayers)
+                        session.Status == SessionStatus.Active)
                     {
-                        // Found existing session with available slots
-                        var connectionInfo = await GetConnectionInfoForSessionAsync(session);
-                        if (connectionInfo.HasValue)
+                        var currentPlayerCount = GetCurrentPlayerCount(sessionId);
+                        if (currentPlayerCount < session.MaxPlayers)
                         {
-                            // Increment current players count for reservation
-                            var updatedSession = session with { CurrentPlayers = session.CurrentPlayers + 1 };
-                            _sessions[sessionId] = updatedSession;
-
-                            logger.LogInformation("Found existing session {SessionId} for group {GroupName} (CurrentPlayers: {CurrentPlayers}/{MaxPlayers})",
-                                sessionId, request.GroupName, updatedSession.CurrentPlayers, updatedSession.MaxPlayers);
-
-                            return new SessionCreationResponse
+                            // Found existing session with available slots
+                            var connectionInfo = await GetConnectionInfoForSessionAsync(session);
+                            if (connectionInfo.HasValue)
                             {
-                                IsSuccess = true,
-                                Session = updatedSession,
-                                ConnectionInfo = connectionInfo
-                            };
+                                // Increment current players count using thread-safe operation
+                                var newPlayerCount = IncrementPlayerCount(sessionId);
+
+                                logger.LogInformation("Found existing session {SessionId} for group {GroupName} (CurrentPlayers: {CurrentPlayers}/{MaxPlayers})",
+                                    sessionId, request.GroupName, newPlayerCount, session.MaxPlayers);
+
+                                // Check if session is now full and notify BattleServer
+                                if (newPlayerCount >= session.MaxPlayers)
+                                {
+                                    logger.LogInformation("Session {SessionId} is now full, notifying BattleServer {ServerId}",
+                                        sessionId, session.AssignedServerId);
+                                    _ = Task.Run(async () => await battleServerNotifier.NotifyBattleReadyAsync(session.AssignedServerId, session));
+                                }
+
+                                return new SessionCreationResponse
+                                {
+                                    IsSuccess = true,
+                                    Session = session,
+                                    ConnectionInfo = connectionInfo
+                                };
+                            }
                         }
                     }
                 }
@@ -66,7 +77,7 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
                 Mode = request.Mode,
                 Status = SessionStatus.Creating,
                 AssignedServerId = availableServer.Value.ServerId,
-                CurrentPlayers = 1, // Reserve slot for this request
+                CurrentPlayers = 0, // プレイヤー数は別途管理
                 MaxPlayers = request.MaxPlayers,
                 CreatedAt = DateTime.UtcNow
             };
@@ -75,6 +86,9 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
             _groupSessions.AddOrUpdate(request.GroupName,
                 [newSessionId],
                 (key, existing) => [.. existing, newSessionId]);
+
+            // Initialize player count using thread-safe operation
+            var initialPlayerCount = IncrementPlayerCount(newSessionId);
 
             var newConnectionInfo = new BattleServerConnectionInfo
             {
@@ -90,7 +104,7 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
             _sessions[newSessionId] = activeSession;
 
             logger.LogInformation("Created new session {SessionId} for group {GroupName} on server {ServerId} (CurrentPlayers: {CurrentPlayers}/{MaxPlayers})",
-                newSessionId, request.GroupName, availableServer.Value.ServerId, activeSession.CurrentPlayers, activeSession.MaxPlayers);
+                newSessionId, request.GroupName, availableServer.Value.ServerId, initialPlayerCount, activeSession.MaxPlayers);
 
             return new SessionCreationResponse
             {
@@ -144,6 +158,9 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
 
         _sessions[sessionId] = terminatedSession;
 
+        // Remove player count information
+        _sessionPlayerCounts.TryRemove(sessionId, out _);
+
         // Remove from group sessions
         if (_groupSessions.TryGetValue(session.GroupName, out var groupSessions))
         {
@@ -191,8 +208,8 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
             return Task.FromResult(false);
         }
 
-        var updatedSession = session with { CurrentPlayers = playerCount };
-        _sessions[sessionId] = updatedSession;
+        // Update player count using thread-safe operation
+        SetPlayerCount(sessionId, playerCount);
 
         logger.LogDebug("Updated session {SessionId} player count to {PlayerCount}", sessionId, playerCount);
 
@@ -206,13 +223,65 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
             return Task.FromResult(false);
         }
 
-        var newPlayerCount = Math.Max(0, session.CurrentPlayers - 1);
-        var updatedSession = session with { CurrentPlayers = newPlayerCount };
-        _sessions[sessionId] = updatedSession;
+        // Use thread-safe decrement operation
+        var newPlayerCount = DecrementPlayerCount(sessionId);
 
         logger.LogDebug("Removed player from session {SessionId}, CurrentPlayers: {CurrentPlayers}",
             sessionId, newPlayerCount);
 
+        return Task.FromResult(true);
+    }
+
+    public Task<PlayerCountInfo?> GetPlayerCountAsync(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            return Task.FromResult<PlayerCountInfo?>(null);
+        }
+
+        // Get current player count using thread-safe operation
+        var currentPlayers = GetCurrentPlayerCount(sessionId);
+
+        var playerCountInfo = new PlayerCountInfo(
+            sessionId: session.SessionId,
+            currentPlayers: currentPlayers,
+            maxPlayers: session.MaxPlayers,
+            lastUpdated: DateTime.UtcNow);
+
+        return Task.FromResult<PlayerCountInfo?>(playerCountInfo);
+    }
+
+    public Task<bool> NotifyBattleStartedAsync(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            logger.LogWarning("Session {SessionId} not found for battle started notification", sessionId);
+            return Task.FromResult(false);
+        }
+
+        var updatedSession = session with { Status = SessionStatus.InBattle };
+        _sessions[sessionId] = updatedSession;
+
+        logger.LogInformation("Session {SessionId} battle started", sessionId);
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> NotifyBattleCompletedAsync(string sessionId, BattleResult result)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            logger.LogWarning("Session {SessionId} not found for battle completed notification", sessionId);
+            return Task.FromResult(false);
+        }
+
+        var updatedSession = session with
+        {
+            Status = SessionStatus.Completed,
+            CompletedAt = DateTime.UtcNow
+        };
+        _sessions[sessionId] = updatedSession;
+
+        logger.LogInformation("Session {SessionId} battle completed with outcome {Outcome}", sessionId, result.Outcome);
         return Task.FromResult(true);
     }
 
@@ -240,6 +309,9 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
             {
                 if (_sessions.TryRemove(sessionId, out var session))
                 {
+                    // Remove player count information
+                    _sessionPlayerCounts.TryRemove(sessionId, out _);
+
                     // Remove from group sessions
                     if (_groupSessions.TryGetValue(session.GroupName, out var groupSessions))
                     {
@@ -286,6 +358,46 @@ public sealed class InmemorySessionManager(ILogger<InmemorySessionManager> logge
             MagicOnionPort = serverInfo.Value.MagicOnionPort,
             SupportedTypes = BattleServerConnectionType.Both
         };
+    }
+
+    /// <summary>
+    /// Get current player count for session using thread-safe operations
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>Current player count</returns>
+    private int GetCurrentPlayerCount(string sessionId)
+    {
+        return _sessionPlayerCounts.TryGetValue(sessionId, out var count) ? count : 0;
+    }
+
+    /// <summary>
+    /// Increment player count for session using thread-safe operations
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>New player count</returns>
+    private int IncrementPlayerCount(string sessionId)
+    {
+        return _sessionPlayerCounts.AddOrUpdate(sessionId, 1, (key, currentCount) => currentCount + 1);
+    }
+
+    /// <summary>
+    /// Decrement player count for session using thread-safe operations
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>New player count (minimum 0)</returns>
+    private int DecrementPlayerCount(string sessionId)
+    {
+        return _sessionPlayerCounts.AddOrUpdate(sessionId, 0, (key, currentCount) => Math.Max(0, currentCount - 1));
+    }
+
+    /// <summary>
+    /// Set player count for session using thread-safe operations
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="count">Player count</param>
+    private void SetPlayerCount(string sessionId, int count)
+    {
+        _sessionPlayerCounts.AddOrUpdate(sessionId, count, (key, oldValue) => count);
     }
 
     public void Dispose()

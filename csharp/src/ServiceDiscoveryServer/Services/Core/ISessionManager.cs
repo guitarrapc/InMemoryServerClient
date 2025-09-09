@@ -56,6 +56,28 @@ public interface ISessionManager
     Task<bool> RemovePlayerFromSessionAsync(string sessionId);
 
     /// <summary>
+    /// Get player count information for session
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>Player count information or null if session not found</returns>
+    Task<PlayerCountInfo?> GetPlayerCountAsync(string sessionId);
+
+    /// <summary>
+    /// Notify battle started
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>True if successfully notified</returns>
+    Task<bool> NotifyBattleStartedAsync(string sessionId);
+
+    /// <summary>
+    /// Notify battle completed
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="result">Battle result</param>
+    /// <returns>True if successfully notified</returns>
+    Task<bool> NotifyBattleCompletedAsync(string sessionId, BattleResult result);
+
+    /// <summary>
     /// Cleanup expired sessions
     /// </summary>
     void CleanupExpiredSessions();
