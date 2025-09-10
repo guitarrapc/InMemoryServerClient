@@ -61,6 +61,14 @@
             {
                 <span class="replay-indicator">⏯️ Replay</span>
             }
+            else if (isRealtimePlayback)
+            {
+                <span class="realtime-playback-indicator">🎬 RT Play</span>
+            }
+            else
+            {
+                <span class="immediate-indicator">⚡ Live</span>
+            }
         </div>
     </div>
 
@@ -73,9 +81,13 @@
                 <input type="range" class="form-range" style="flex: 1;" @bind="Settings.ReplayFps" min="@Settings.MinReplayFps" max="@Settings.MaxReplayFps" />
                 <small class="text-muted" style="font-size: 0.7em; min-width: 60px;">@Settings.ReplayFps FPS (@Settings.ReplayFrameTimeMs ms間隔)</small>
             </div>
-            <div class="d-flex align-items-center gap-2" style="margin-bottom: 8px;">
+            <div class="d-flex align-items-center gap-2" style="margin-bottom: 5px;">
                 <label class="form-check-label" style="font-size: 0.75em; min-width: 30px;" for="autoPlayCheck-@Client.ConnectionId">Loop</label>
                 <input class="form-check-input" type="checkbox" @bind="Settings.AutoReplay" id="autoPlayCheck-@Client.ConnectionId">
+            </div>
+            <div class="d-flex align-items-center gap-2" style="margin-bottom: 8px;">
+                <label class="form-check-label" style="font-size: 0.75em; min-width: 50px;" for="realtimePlayback-@Client.ConnectionId">RT Play</label>
+                <input class="form-check-input" type="checkbox" @bind="isRealtimePlayback" @bind:event="onchange" id="realtimePlayback-@Client.ConnectionId">
             </div>
         </div>
 
@@ -85,7 +97,7 @@
             <div class="mt-2">
                 <div class="d-flex align-items-center gap-2 justify-content-center" style="margin-bottom: 5px;">
                     <!-- Realtime/Replay Mode Switch -->
-                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="EnableRealtimeMode" title="リアルタイム">
+                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="EnableRealtimeMode" disabled="@(isAutoPlaying)" title="リアルタイム">
                         🔄
                     </button>
 
@@ -104,11 +116,8 @@
                     }
 
                     <!-- Manual Navigation -->
-                    @if (!isAutoPlaying)
-                    {
-                        <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="GoToPreviousTurn" title="前のターン">⏪</button>
-                        <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="GoToNextTurn" title="次のターン">⏩</button>
-                    }
+                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="GoToPreviousTurn" disabled="@(isAutoPlaying)" title="前のターン">⏪</button>
+                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="GoToNextTurn" disabled="@(isAutoPlaying)" title="次のターン">⏩</button>
                 </div>
 
                 <!-- Turn Slider -->
@@ -151,6 +160,25 @@
     private Timer? autoPlayTimer;
     private readonly object autoPlayLock = new();
 
+    // Real-time playback functionality
+    private bool _isRealtimePlayback = true; // Default to real-time playback
+    private bool isRealtimePlayback
+    {
+        get => _isRealtimePlayback;
+        set
+        {
+            if (_isRealtimePlayback != value)
+            {
+                _isRealtimePlayback = value;
+                OnRealtimePlaybackChanged();
+            }
+        }
+    }
+    private Queue<BattleFieldData> pendingTurns = new();
+    private Timer? realtimeTimer;
+    private int displayedTurn = -1; // Currently displayed turn in real-time mode
+    private readonly object realtimeLock = new();
+
     private int SelectedTurn
     {
         get => selectedTurn;
@@ -192,25 +220,48 @@
             allTurnData.Sort((a, b) => a.Turn.CompareTo(b.Turn));
         }
 
-        // Check if turn has changed for visual feedback
-        if (fieldData != null && data.Turn != lastTurn)
+        // Handle real-time playback mode
+        if (isRealtimePlayback && !isReplayMode)
         {
-            turnChanged = true;
-            lastTurn = data.Turn;
-
-            // Reset turn change indicator after a short delay
-            _ = Task.Delay(500).ContinueWith(_ =>
+            lock (realtimeLock)
             {
-                turnChanged = false;
-                InvokeAsync(StateHasChanged);
-            });
-        }
+                // Add new turn to pending queue if it's ahead of currently displayed turn
+                if (data.Turn > displayedTurn)
+                {
+                    pendingTurns.Enqueue(data);
 
-        // If not in replay mode, show the latest data and update selectedTurn
-        if (!isReplayMode)
+                    // Start real-time timer if not already running
+                    if (realtimeTimer == null)
+                    {
+                        StartRealtimePlayback();
+                    }
+                }
+            }
+        }
+        else if (!isReplayMode)
         {
+            // Immediate display mode (original behavior)
             fieldData = data;
             selectedTurn = Math.Max(0, allTurnData.Count - 1);
+            displayedTurn = data.Turn;
+
+            // Check if turn has changed for visual feedback
+            if (lastTurn != -1 && data.Turn != lastTurn)
+            {
+                turnChanged = true;
+                lastTurn = data.Turn;
+
+                // Reset turn change indicator after a short delay
+                _ = Task.Delay(500).ContinueWith(_ =>
+                {
+                    turnChanged = false;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+            else
+            {
+                lastTurn = data.Turn;
+            }
         }
 
         InvokeAsync(StateHasChanged);
@@ -276,11 +327,16 @@
     private void EnableRealtimeMode()
     {
         isReplayMode = false;
+        isRealtimePlayback = true;
+        StopAutoPlay(); // Stop auto replay if running
+
         if (allTurnData.Any())
         {
             selectedTurn = allTurnData.Count - 1;
             fieldData = allTurnData[selectedTurn];
+            displayedTurn = allTurnData[selectedTurn].Turn;
         }
+
         StateHasChanged();
     }
 
@@ -313,6 +369,7 @@
 
             isAutoPlaying = true;
             isReplayMode = true;
+            StopRealtimePlayback(); // Stop real-time playback when entering replay mode
 
             // If we're at the end, start from the beginning
             if (selectedTurn >= allTurnData.Count - 1)
@@ -338,6 +395,69 @@
         }
 
         StateHasChanged();
+    }
+
+    private void StartRealtimePlayback()
+    {
+        if (realtimeTimer != null) return;
+
+        realtimeTimer = new Timer(RealtimePlaybackTick, null, 0, Settings.ReplayFrameTimeMs);
+    }
+
+    private void StopRealtimePlayback()
+    {
+        lock (realtimeLock)
+        {
+            realtimeTimer?.Dispose();
+            realtimeTimer = null;
+        }
+    }
+
+    private void RealtimePlaybackTick(object? state)
+    {
+        InvokeAsync(() =>
+        {
+            lock (realtimeLock)
+            {
+                if (!isRealtimePlayback || isReplayMode || !pendingTurns.Any())
+                {
+                    return;
+                }
+
+                // Get the next turn from the queue
+                var nextTurn = pendingTurns.Dequeue();
+                fieldData = nextTurn;
+                displayedTurn = nextTurn.Turn;
+                selectedTurn = Math.Max(0, allTurnData.FindIndex(t => t.Turn == nextTurn.Turn));
+
+                // Visual feedback for turn change
+                if (lastTurn != -1 && nextTurn.Turn != lastTurn)
+                {
+                    turnChanged = true;
+                    lastTurn = nextTurn.Turn;
+
+                    // Reset turn change indicator after a short delay
+                    _ = Task.Delay(500).ContinueWith(_ =>
+                    {
+                        turnChanged = false;
+                        InvokeAsync(StateHasChanged);
+                    });
+                }
+                else
+                {
+                    lastTurn = nextTurn.Turn;
+                }
+
+                // Stop timer if no more pending turns
+                if (!pendingTurns.Any())
+                {
+                    realtimeTimer?.Dispose();
+                    realtimeTimer = null;
+                }
+
+                StateHasChanged();
+            }
+        });
     }
 
     private void AutoPlayTick(object? state)
@@ -399,9 +519,34 @@
         _ => "❓"
     };
 
+    private void OnRealtimePlaybackChanged()
+    {
+        if (!isRealtimePlayback)
+        {
+            // Stop real-time playback and switch to immediate mode
+            StopRealtimePlayback();
+
+            // Clear pending turns and show the latest turn immediately
+            lock (realtimeLock)
+            {
+                pendingTurns.Clear();
+                if (allTurnData.Any() && !isReplayMode)
+                {
+                    var latestTurn = allTurnData.Last();
+                    fieldData = latestTurn;
+                    displayedTurn = latestTurn.Turn;
+                    selectedTurn = allTurnData.Count - 1;
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
     public void Dispose()
     {
         StopAutoPlay();
+        StopRealtimePlayback();
         Client.OnBattleFieldUpdated -= OnFieldUpdated;
         Client.OnBattleComplete -= OnBattleCompleted;
         PerformanceMonitor.RemoveField(Client.ConnectionId);
