@@ -1,4 +1,5 @@
 using WasmClient.Models;
+using Shared.Models;
 
 namespace WasmClient.Services;
 
@@ -9,7 +10,7 @@ namespace WasmClient.Services;
 public class MagicOnionConnection : IBattleConnection
 {
     public string ConnectionId => throw new NotImplementedException("MagicOnion connection not implemented yet");
-    public Models.ConnectionType Type => Models.ConnectionType.MagicOnion;
+    public Shared.Models.ConnectionType Type => Shared.Models.ConnectionType.MagicOnion;
     public ConnectionInfo Info { get; }
     public bool IsConnected => false; // TODO: Implement
 

@@ -2,10 +2,19 @@
 @inject BattleSessionManager SessionManager
 @inject NavigationManager Navigation
 @inject SettingsService Settings
+@inject BattleHistoryService HistoryService
 @implements IDisposable
 
 <div class="battle-detail-page">
-    @if (battle != null)
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="loading-spinner">⏳</div>
+            <h2>Loading @(isHistoricalMode ? "Historical Battle" : "Battle")...</h2>
+            <p>Please wait while we load the battle data.</p>
+        </div>
+    }
+    else if (battle != null)
     {
         <header class="battle-header">
             <div class="header-left">
@@ -15,6 +24,10 @@
                 @if (!string.IsNullOrEmpty(battleResult))
                 {
                     <span class="battle-result @(battleResult.Contains("Victory") ? "victory" : "defeat")">@battleResult</span>
+                }
+                @if (isHistoricalMode)
+                {
+                    <span class="historical-badge">Historical Replay</span>
                 }
             </div>
             <div class="header-right">
@@ -40,7 +53,10 @@
                             <div class="client-header">
                                 <span class="client-id">@client.ConnectionId[..8]</span>
                                 <span class="connection-type @client.Type.ToString().ToLower()">@client.Type</span>
-                                <button class="remove-btn" @onclick="() => RemoveClient(client)">×</button>
+                                @if (!isHistoricalMode)
+                                {
+                                    <button class="remove-btn" @onclick="() => RemoveClient(client)">×</button>
+                                }
                             </div>
                             <div class="client-info">
                                 <div>👤 @(client.PlayerId ?? "Anonymous")</div>
@@ -58,19 +74,22 @@
                 }
             </div>
 
-            <div class="add-client-buttons">
-                <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@(battle.IsFull || isLoading)">
-                    <div class="btn-icon">@(isLoading ? "⏳" : "+")</div>
-                    <div class="btn-text">@(isLoading ? "Connecting..." : "Add SignalR")</div>
-                    <div class="btn-subtitle">WebSocket</div>
-                </button>
+            @if (!isHistoricalMode)
+            {
+                <div class="add-client-buttons">
+                    <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@(battle.IsFull || isAddingSignalR)">
+                        <div class="btn-icon">@(isAddingSignalR ? "⏳" : "+")</div>
+                        <div class="btn-text">@(isAddingSignalR ? "Connecting..." : "Add SignalR")</div>
+                        <div class="btn-subtitle">WebSocket</div>
+                    </button>
 
-                <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(battle.IsFull || isLoading)">
-                    <div class="btn-icon">@(isLoading ? "⏳" : "+")</div>
-                    <div class="btn-text">@(isLoading ? "Connecting..." : "Add MagicOnion")</div>
-                    <div class="btn-subtitle">gRPC-Web</div>
-                </button>
-            </div>
+                    <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(battle.IsFull || isAddingMagicOnion)">
+                        <div class="btn-icon">@(isAddingMagicOnion ? "⏳" : "+")</div>
+                        <div class="btn-text">@(isAddingMagicOnion ? "Connecting..." : "Add MagicOnion")</div>
+                        <div class="btn-subtitle">gRPC</div>
+                    </button>
+                </div>
+            }
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
@@ -91,7 +110,7 @@
                 <div class="fields-grid d-flex flex-wrap">
                     @foreach (var client in battle.Clients)
                     {
-                        <BattleField Client="client" Size="Settings.FieldSize" />
+                        <BattleField Client="client" Size="Settings.FieldSize" IsHistoricalMode="isHistoricalMode" />
                     }
                 </div>
             </div>
@@ -111,11 +130,102 @@
     [Parameter] public string BattleId { get; set; } = string.Empty;
 
     private BattleSessionModel? battle;
+    private BattleHistory? battleHistory; // 履歴モード用
     private string? errorMessage;
     private bool isLoading;
+    private bool isAddingSignalR;
+    private bool isAddingMagicOnion;
     private string battleResult = "";
+    private bool isHistoricalMode => GetQueryParameter("mode") == "history";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
+    {
+        if (isHistoricalMode)
+        {
+            await LoadHistoricalBattle();
+        }
+        else
+        {
+            LoadActiveBattle();
+        }
+    }
+
+    private async Task LoadHistoricalBattle()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged(); // UI更新を強制
+
+            Console.WriteLine($"Loading historical battle: {BattleId}");
+            battleHistory = await HistoryService.GetBattleHistoryAsync(BattleId);
+
+            if (battleHistory != null)
+            {
+                Console.WriteLine($"Battle history loaded: {battleHistory.ReplayData.Count} chunks, {battleHistory.ReplayData.Sum(r => r.TurnData.Count)} total turns");
+
+                // 履歴データから直接BattleFieldに表示するためのクライアントを作成
+                // 実際の接続は不要、表示用のデータのみ
+                var mockClients = new List<BattleClient>();
+
+                // 履歴データの最初のリプレイチャンクから初期状態を取得
+                if (battleHistory.ReplayData.Any() && battleHistory.ReplayData[0].TurnData.Any())
+                {
+                    var firstTurn = battleHistory.ReplayData[0].TurnData[0];
+
+                    // プレイヤー数分のモッククライアントを作成
+                    var playerCount = firstTurn.Players.Count;
+                    Console.WriteLine($"Creating {Math.Min(playerCount, 5)} historical clients from {playerCount} players");
+
+                    // 接続タイプをSignalRとMagicOnionで交互に割り当て
+                    var connectionTypes = new[] { ConnectionType.SignalR, ConnectionType.MagicOnion };
+
+                    for (int i = 0; i < Math.Min(playerCount, 5); i++)
+                    {
+                        var connectionType = connectionTypes[i % connectionTypes.Length];
+                        var mockClient = BattleClient.CreateHistoricalClient(
+                            $"historical-client-{i}",
+                            battleHistory.GroupName,
+                            battleHistory.ReplayData,
+                            connectionType
+                        );
+                        mockClients.Add(mockClient);
+                        Console.WriteLine($"Created historical client {i} ({connectionType}) with field data: {mockClient.CurrentField != null}");
+                    }
+                }
+
+                // 履歴表示用のBattleSessionModelを作成
+                battle = BattleSessionModel.CreateHistorical(
+                    BattleId,
+                    battleHistory.GroupName,
+                    battleHistory.ServerUrl,
+                    mockClients,
+                    battleHistory.ReplayData
+                );
+
+                // 結果を設定
+                battleResult = battleHistory.Result.IsVictory ? "🎉 Victory" : "❌ Defeat";
+
+                Console.WriteLine($"Historical battle session created with {battle.ClientCount} clients");
+            }
+            else
+            {
+                Console.WriteLine("Battle history not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load battle history: {ex.Message}";
+            Console.WriteLine($"Failed to load battle history: {ex}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LoadActiveBattle()
     {
         battle = SessionManager.GetBattle(BattleId);
 
@@ -181,7 +291,12 @@
     {
         if (battle != null && !battle.IsFull)
         {
-            isLoading = true;
+            // 個別のローディング状態を設定
+            if (type == ConnectionType.SignalR)
+                isAddingSignalR = true;
+            else if (type == ConnectionType.MagicOnion)
+                isAddingMagicOnion = true;
+
             errorMessage = null;
             StateHasChanged();
 
@@ -209,7 +324,12 @@
             }
             finally
             {
-                isLoading = false;
+                // 個別のローディング状態をクリア
+                if (type == ConnectionType.SignalR)
+                    isAddingSignalR = false;
+                else if (type == ConnectionType.MagicOnion)
+                    isAddingMagicOnion = false;
+
                 StateHasChanged();
             }
         }
@@ -237,6 +357,13 @@
     private void GoBack()
     {
         Navigation.NavigateTo("/");
+    }
+
+    private string GetQueryParameter(string parameterName)
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        return query[parameterName] ?? string.Empty;
     }
 
     private string GetEnemyIcon(EntityType enemyType) => enemyType switch

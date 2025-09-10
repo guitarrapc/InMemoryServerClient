@@ -1,4 +1,4 @@
-using WasmClient.Models;
+﻿using WasmClient.Models;
 using Shared.Battle;
 using Shared.Models;
 
@@ -17,7 +17,7 @@ public interface IBattleConnection : IAsyncDisposable
     /// <summary>
     /// Connection type (SignalR or MagicOnion)
     /// </summary>
-    Models.ConnectionType Type { get; }
+    Shared.Models.ConnectionType Type { get; }
 
     /// <summary>
     /// Connection information

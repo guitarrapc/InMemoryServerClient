@@ -823,7 +823,7 @@ public class SettingsService
         <label>Connection Type:</label>
         <InputSelect @bind-Value="connectionInfo.Type">
             <option value="@ConnectionType.SignalR">SignalR (WebSocket)</option>
-            <option value="@ConnectionType.MagicOnion">MagicOnion (gRPC-Web)</option>
+            <option value="@ConnectionType.MagicOnion">MagicOnion (gRPC)</option>
         </InputSelect>
     </div>
 
@@ -2078,7 +2078,7 @@ WasmClient Application
 ## Implementation Notes
 
 - CliClientのConstants（BattleReplayDefines等）を共有して一貫性を保つ
-- SignalR接続はWebSocketsを、MagicOnion接続はgRPC-Webを使用
+- SignalR接続はWebSocketsを、MagicOnion接続はgRPCを使用
 - リプレイデータの蓄積と再生にはCliClientと同じフレームレート（5fps）を使用
 - 接続エラー処理とリトライロジックをCliClientから移植
 - IndexedDBを使用したバトル履歴の永続化により、ブラウザリロード後もデータアクセス可能

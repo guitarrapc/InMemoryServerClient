@@ -75,6 +75,7 @@
     <!-- Settings panel -->
     <div class="settings-panel mb-3" style="width: @(Size)px; background-color: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; border-radius: 5px; font-size: 0.8em;">
         <h6 style="margin: 0 0 8px 0; font-size: 0.9em;">⚙️ Replay Settings</h6>
+
         <div class="mt-2">
             <div class="d-flex align-items-center gap-2" style="margin-bottom: 5px;">
                 <label class="form-label" style="margin: 0; min-width: 30px; font-size: 0.75em;">FPS</label>
@@ -96,10 +97,13 @@
         {
             <div class="mt-2">
                 <div class="d-flex align-items-center gap-2 justify-content-center" style="margin-bottom: 5px;">
-                    <!-- Realtime/Replay Mode Switch -->
-                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="EnableRealtimeMode" disabled="@(isAutoPlaying)" title="リアルタイム">
-                        🔄
-                    </button>
+                    @if (!IsHistoricalMode)
+                    {
+                        <!-- Realtime/Replay Mode Switch (Live Mode only) -->
+                        <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="EnableRealtimeMode" disabled="@(isAutoPlaying)" title="リアルタイム">
+                            🔄
+                        </button>
+                    }
 
                     <!-- Auto Play Controls -->
                     @if (isAutoPlaying)
@@ -126,23 +130,25 @@
                         <label class="form-label mb-0" style="font-size: 0.7em; min-width: 30px;">Turn</label>
                         <div class="flex-grow-1">
                             <input type="range" class="form-range" style="height: 20px;"
-                                   @bind="SelectedTurn"
-                                   @bind:event="oninput"
-                                   @onkeydown="OnTurnSliderKeyDown"
-                                   min="0"
-                                   max="@(Math.Max(0, allTurnData.Count - 1))"
-                                   disabled="@isAutoPlaying" />
+                                    @bind="SelectedTurn"
+                                    @bind:event="oninput"
+                                    @onkeydown="OnTurnSliderKeyDown"
+                                    min="0"
+                                    max="@(Math.Max(0, allTurnData.Count - 1))"
+                                    disabled="@isAutoPlaying" />
                         </div>
                         <span class="badge bg-info" style="font-size: 0.6em; padding: 2px 6px;">@(selectedTurn + 1) / @allTurnData.Count</span>
                     </div>
                 </div>
             </div>
         }
+    </div>
 </div>
 
 @code {
     [Parameter] public BattleClient Client { get; set; } = null!;
     [Parameter] public int Size { get; set; } = 225;
+    [Parameter] public bool IsHistoricalMode { get; set; } = false;
 
     [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
 
@@ -199,8 +205,75 @@
 
     protected override void OnInitialized()
     {
-        Client.OnBattleFieldUpdated += OnFieldUpdated;
-        Client.OnBattleComplete += OnBattleCompleted;
+        // Only attach events for live battles (non-historical mode)
+        if (!IsHistoricalMode)
+        {
+            Client.OnBattleFieldUpdated += OnFieldUpdated;
+            Client.OnBattleComplete += OnBattleCompleted;
+        }
+        else
+        {
+            // For historical mode, initialize with replay-only functionality
+            isReplayMode = true;
+            isRealtimePlayback = false;
+
+            // Initialize allTurnData from client's current field data if available
+            InitializeHistoricalData();
+        }
+    }
+
+    /// <summary>
+    /// Initialize historical data from client
+    /// </summary>
+    private void InitializeHistoricalData()
+    {
+        if (IsHistoricalMode)
+        {
+            // Get historical turn data from client
+            var historicalData = Client.HistoricalTurnData?.ToList() ?? new List<BattleFieldData>();
+
+            if (historicalData.Any())
+            {
+                allTurnData = historicalData;
+                selectedTurn = 0;
+                fieldData = historicalData[0];
+                displayedTurn = historicalData[0].Turn;
+
+                Console.WriteLine($"BattleField: Initialized historical data with {allTurnData.Count} turns for client {Client.ConnectionId}");
+            }
+            else if (Client.CurrentField != null)
+            {
+                // Fallback: create single-turn data from current field
+                allTurnData = new List<BattleFieldData> { Client.CurrentField };
+                selectedTurn = 0;
+                fieldData = Client.CurrentField;
+                displayedTurn = Client.CurrentField.Turn;
+
+                Console.WriteLine($"BattleField: Initialized historical data (fallback) with {allTurnData.Count} turns for client {Client.ConnectionId}");
+            }
+            else
+            {
+                Console.WriteLine($"BattleField: No historical data available for client {Client.ConnectionId}");
+            }
+
+            StateHasChanged();
+        }
+    }    /// <summary>
+    /// Set replay data for historical mode
+    /// </summary>
+    public void SetReplayData(List<BattleFieldData> replayData)
+    {
+        if (IsHistoricalMode)
+        {
+            allTurnData = new List<BattleFieldData>(replayData);
+            selectedTurn = 0;
+            if (allTurnData.Any())
+            {
+                fieldData = allTurnData[0];
+                displayedTurn = allTurnData[0].Turn;
+            }
+            StateHasChanged();
+        }
     }
 
     private void OnFieldUpdated(BattleFieldData data)
@@ -547,9 +620,13 @@
     {
         StopAutoPlay();
         StopRealtimePlayback();
-        Client.OnBattleFieldUpdated -= OnFieldUpdated;
-        Client.OnBattleComplete -= OnBattleCompleted;
-        PerformanceMonitor.RemoveField(Client.ConnectionId);
+
+        // Only detach events if they were attached (non-historical mode)
+        if (!IsHistoricalMode)
+        {
+            Client.OnBattleFieldUpdated -= OnFieldUpdated;
+            Client.OnBattleComplete -= OnBattleCompleted;
+            PerformanceMonitor.RemoveField(Client.ConnectionId);
+        }
     }
 }
-</div> <!-- battle-field-container 終了タグ -->

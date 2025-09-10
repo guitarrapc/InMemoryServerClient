@@ -1,6 +1,7 @@
 @page "/options"
 @inject SettingsService Settings
 @inject NavigationManager Navigation
+@inject BattleHistoryService HistoryService
 
 <div class="options-page">
     <header class="page-header">
@@ -79,6 +80,45 @@
             </div>
         </div>
 
+        <div class="setting-group">
+            <h3>💾 Data Management</h3>
+            <div class="form-group">
+                <label>Battle History Storage:</label>
+                <div class="data-info">
+                    <div class="data-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Battles:</span>
+                            <span class="stat-value">@battleHistoryStats.TotalBattles</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Victories:</span>
+                            <span class="stat-value">@battleHistoryStats.TotalVictories</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Win Rate:</span>
+                            <span class="stat-value">@battleHistoryStats.WinRate.ToString("P1")</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Storage Used:</span>
+                            <span class="stat-value">@FormatDataSize(battleHistoryStats.TotalDataSize)</span>
+                        </div>
+                    </div>
+                </div>
+                <small class="form-hint">Battle history is stored locally in your browser using IndexedDB</small>
+            </div>
+            <div class="form-group">
+                <div class="danger-zone">
+                    <h4>⚠️ Danger Zone</h4>
+                    <p>These actions cannot be undone. All battle history will be permanently deleted.</p>
+                    <div class="danger-actions">
+                        <button @onclick="ShowClearConfirmDialog" class="btn-danger" disabled="@(battleHistoryStats.TotalBattles == 0)">
+                            🗑️ Clear All Battle History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button @onclick="SaveSettings" class="btn-primary">Save Settings</button>
             <button @onclick="ResetSettings" class="btn-secondary">Reset to Default</button>
@@ -91,7 +131,50 @@
                 ✅ Settings have been saved
             </div>
         }
+
+        @if (showClearMessage)
+        {
+            <div class="clear-message">
+                ✅ Battle history has been cleared
+            </div>
+        }
     </div>
+
+    <!-- Clear Confirmation Dialog -->
+    @if (showClearConfirmDialog)
+    {
+        <div class="dialog-overlay" @onclick="HideClearConfirmDialog">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialog-header">
+                    <h3>⚠️ Confirm Clear All Battle History</h3>
+                    <button class="close-btn" @onclick="HideClearConfirmDialog">×</button>
+                </div>
+                <div class="dialog-body">
+                    <p><strong>This action cannot be undone.</strong></p>
+                    <p>You are about to delete:</p>
+                    <ul>
+                        <li>@battleHistoryStats.TotalBattles battle records</li>
+                        <li>@FormatDataSize(battleHistoryStats.TotalDataSize) of stored data</li>
+                        <li>All replay data and statistics</li>
+                    </ul>
+                    <p>Are you sure you want to continue?</p>
+                </div>
+                <div class="dialog-footer">
+                    <button class="btn-secondary" @onclick="HideClearConfirmDialog">Cancel</button>
+                    <button class="btn-danger" @onclick="ClearAllBattleHistory" disabled="@isClearing">
+                        @if (isClearing)
+                        {
+                            <span>🔄 Clearing...</span>
+                        }
+                        else
+                        {
+                            <span>🗑️ Clear All</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 
     <div class="info-section">
         <h3>ℹ️ Information</h3>
@@ -334,6 +417,176 @@
     font-weight: 500;
 }
 
+.clear-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-top: 15px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.data-info {
+    margin: 10px 0;
+}
+
+.data-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.danger-zone {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    border-radius: 6px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.danger-zone h4 {
+    margin: 0 0 10px 0;
+    color: #c53030;
+    font-size: 1em;
+}
+
+.danger-zone p {
+    margin: 0 0 15px 0;
+    color: #744210;
+    font-size: 0.9em;
+}
+
+.danger-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #c82333;
+    transform: translateY(-1px);
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.dialog {
+    background: white;
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.dialog-header h3 {
+    margin: 0;
+    color: #c53030;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.close-btn:hover {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+.dialog-body {
+    padding: 20px;
+    color: #333;
+}
+
+.dialog-body p {
+    margin-bottom: 15px;
+}
+
+.dialog-body ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.dialog-body li {
+    margin-bottom: 5px;
+}
+
+.dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #eee;
+    background-color: #f8f9fa;
+}
+
 .info-section {
     background: white;
     border: 1px solid #ddd;
@@ -375,6 +628,29 @@
 
 @code {
     private bool showSaveMessage = false;
+    private bool showClearMessage = false;
+    private bool showClearConfirmDialog = false;
+    private bool isClearing = false;
+    private BattleHistoryStats battleHistoryStats = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBattleHistoryStats();
+    }
+
+    private async Task LoadBattleHistoryStats()
+    {
+        try
+        {
+            battleHistoryStats = await HistoryService.GetStorageStatsAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load battle history stats: {ex.Message}");
+            battleHistoryStats = new BattleHistoryStats();
+        }
+    }
 
     private async Task SaveSettings()
     {
@@ -400,6 +676,58 @@
     {
         // 将来実装: サーバー接続テスト
         await Task.CompletedTask;
+    }
+
+    private void ShowClearConfirmDialog()
+    {
+        showClearConfirmDialog = true;
+    }
+
+    private void HideClearConfirmDialog()
+    {
+        showClearConfirmDialog = false;
+    }
+
+    private async Task ClearAllBattleHistory()
+    {
+        if (isClearing) return;
+
+        isClearing = true;
+        try
+        {
+            await HistoryService.ClearAllBattleHistoryAsync();
+            await LoadBattleHistoryStats(); // 統計情報を更新
+
+            showClearConfirmDialog = false;
+            showClearMessage = true;
+
+            // 3秒後にメッセージを非表示にする
+            _ = Task.Delay(3000).ContinueWith(_ =>
+            {
+                showClearMessage = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to clear battle history: {ex.Message}");
+            // TODO: Show error message to user
+        }
+        finally
+        {
+            isClearing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatDataSize(long bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        else if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        else
+            return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 
     private void GoBack()

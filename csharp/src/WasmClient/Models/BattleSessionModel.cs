@@ -1,5 +1,6 @@
 ﻿using WasmClient.Services;
 using Shared.Battle;
+using Shared.Models;
 
 namespace WasmClient.Models;
 
@@ -14,6 +15,7 @@ public class BattleSessionModel : IAsyncDisposable
     private BattleStatus _status = BattleStatus.Waiting;
 
     public string Id { get; init; } = string.Empty;
+    public string BattleId => Id; // Alias for backwards compatibility
     public string GroupName { get; init; } = string.Empty;
     public string ServerUrl { get; init; } = string.Empty;
 
@@ -33,10 +35,23 @@ public class BattleSessionModel : IAsyncDisposable
     public DateTime CreatedAt { get; init; } = DateTime.Now;
     public IReadOnlyList<BattleClient> Clients => _clients.AsReadOnly();
 
+    // 履歴バトル用プロパティ
+    public bool IsHistoricalBattle { get; init; } = false;
+    public BattleHistory? BattleHistory { get; init; }
+
+    // バトル進行データ
+    public List<BattleReplayData> ReplayData { get; } = new();
+    public int TotalTurns => ReplayData.LastOrDefault().TurnData?.LastOrDefault()?.CurrentTurn ?? 0;
+
     /// <summary>
     /// Raised when battle status changes
     /// </summary>
     public event Action<BattleStatus>? OnStatusChanged;
+
+    /// <summary>
+    /// Raised when battle is completed
+    /// </summary>
+    public event Action<BattleSessionModel, BattleResult>? OnBattleCompleted;
 
     public int ClientCount => _clients.Count;
     public bool IsFull => _clients.Count >= 5;
@@ -48,12 +63,52 @@ public class BattleSessionModel : IAsyncDisposable
     }
 
     /// <summary>
+    /// Create historical battle session for replay viewing
+    /// </summary>
+    /// <param name="battleId">Battle ID</param>
+    /// <param name="groupName">Group name</param>
+    /// <param name="serverUrl">Server URL</param>
+    /// <param name="clients">Historical clients</param>
+    /// <param name="replayData">Replay data</param>
+    /// <returns>Historical battle session</returns>
+    public static BattleSessionModel CreateHistorical(
+        string battleId,
+        string groupName,
+        string serverUrl,
+        List<BattleClient> clients,
+        List<BattleReplayData> replayData)
+    {
+        var session = new BattleSessionModel(null!, null!)
+        {
+            Id = battleId,
+            GroupName = groupName,
+            ServerUrl = serverUrl,
+            IsHistoricalBattle = true,
+            Status = BattleStatus.Completed
+        };
+
+        // Add clients
+        foreach (var client in clients)
+        {
+            session._clients.Add(client);
+        }
+
+        // Add replay data
+        session.ReplayData.AddRange(replayData);
+
+        return session;
+    }
+
+    /// <summary>
     /// Add a client to this battle
     /// </summary>
     /// <param name="connectionInfo">Connection information</param>
     /// <returns>Created battle client</returns>
     public async Task<BattleClient> AddClientAsync(ConnectionInfo connectionInfo)
     {
+        if (IsHistoricalBattle)
+            throw new InvalidOperationException("Cannot add clients to historical battles");
+
         if (_clients.Count >= 5)
             throw new InvalidOperationException("Battle is full (max 5 clients)");
 
@@ -74,6 +129,25 @@ public class BattleSessionModel : IAsyncDisposable
             {
                 Status = BattleStatus.Completed;
                 _logger.LogInformation("Battle {BattleId} status updated to Completed", Id);
+
+                // Create battle result and trigger completion event
+                var result = new BattleResult
+                {
+                    IsVictory = true, // TODO: Extract from actual battle data
+                    PlayersSurvived = 0,   // TODO: Extract from actual battle data
+                    EnemiesKilled = 0,   // TODO: Extract from actual battle data
+                    VictoryCondition = "All enemies defeated" // TODO: Extract from actual battle data
+                };
+
+                OnBattleCompleted?.Invoke(this, result);
+            };
+
+            // Subscribe to replay data collection
+            client.OnReplayDataReceived += (replayData) =>
+            {
+                ReplayData.Add(replayData);
+                _logger.LogDebug("Added replay chunk {ChunkIndex} to battle {BattleId}",
+                    replayData.ChunkIndex, Id);
             };
 
             _clients.Add(client);
@@ -103,6 +177,9 @@ public class BattleSessionModel : IAsyncDisposable
     /// <param name="client">Client to remove</param>
     public async Task RemoveClientAsync(BattleClient client)
     {
+        if (IsHistoricalBattle)
+            return; // Cannot remove clients from historical battles
+
         if (_clients.Remove(client))
         {
             _logger.LogInformation("Removing client {ConnectionId} from battle {BattleId}",
@@ -122,7 +199,10 @@ public class BattleSessionModel : IAsyncDisposable
         await Task.WhenAll(disposeTasks);
         _clients.Clear();
 
-        Status = BattleStatus.Completed;
+        if (!IsHistoricalBattle)
+        {
+            Status = BattleStatus.Completed;
+        }
     }
 }
 
@@ -131,41 +211,118 @@ public class BattleSessionModel : IAsyncDisposable
 /// </summary>
 public class BattleClient : IAsyncDisposable
 {
-    private readonly IBattleConnection _connection;
-    private readonly ILogger _logger;
+    private readonly IBattleConnection? _connection;
+    private readonly ILogger? _logger;
+    private List<BattleFieldData> _historicalTurnData = new();
 
-    public string ConnectionId => _connection.ConnectionId;
-    public ConnectionType Type => _connection.Type;
+    public string ConnectionId => _connection?.ConnectionId ?? "historical";
+    public Shared.Models.ConnectionType Type => _connection?.Type ?? HistoricalConnectionType;
     public string? PlayerId { get; set; }
     public DateTime ConnectedAt { get; } = DateTime.Now;
-    public BattleFieldData? CurrentField { get; private set; }
+    public BattleFieldData? CurrentField { get; set; }
+
+    /// <summary>
+    /// Connection type for historical clients (when no real connection exists)
+    /// </summary>
+    public Shared.Models.ConnectionType HistoricalConnectionType { get; set; } = Shared.Models.ConnectionType.SignalR;
+
+    /// <summary>
+    /// Get all historical turn data (for historical clients only)
+    /// </summary>
+    public IReadOnlyList<BattleFieldData> HistoricalTurnData => _historicalTurnData.AsReadOnly();
 
     public event Action<BattleFieldData>? OnBattleFieldUpdated;
+    public event Action<BattleReplayData>? OnReplayDataReceived;
     public event Action? OnBattleComplete;
 
-    public BattleClient(IBattleConnection connection, ILogger logger)
+    public BattleClient(IBattleConnection? connection, ILogger? logger)
     {
         _connection = connection;
         _logger = logger;
 
         // Subscribe to battle replay data to update field visualization
-        _connection.OnBattleReplayReceived += HandleReplayReceived;
-        _connection.OnConnectionsReady += HandleConnectionsReady;
-        _connection.OnBattleStarted += HandleBattleStarted;
-        _connection.OnBattleComplete += HandleBattleComplete;
+        if (_connection != null)
+        {
+            _connection.OnBattleReplayReceived += HandleReplayReceived;
+            _connection.OnConnectionsReady += HandleConnectionsReady;
+            _connection.OnBattleStarted += HandleBattleStarted;
+            _connection.OnBattleComplete += HandleBattleComplete;
+        }
     }
 
-    private void HandleReplayReceived(BattleReplayData replayData)
+    /// <summary>
+    /// Create historical client for replay viewing (no real connection)
+    /// </summary>
+    /// <param name="playerId">Player ID</param>
+    /// <param name="groupName">Group name</param>
+    /// <param name="replayData">Replay data</param>
+    /// <param name="connectionType">Historical connection type for display</param>
+    /// <returns>Historical client</returns>
+    public static BattleClient CreateHistoricalClient(
+        string playerId,
+        string groupName,
+        List<BattleReplayData> replayData,
+        Shared.Models.ConnectionType connectionType = Shared.Models.ConnectionType.SignalR)
     {
-        _logger.LogInformation("Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns",
+        var client = new BattleClient(null!, null!)
+        {
+            PlayerId = playerId,
+            HistoricalConnectionType = connectionType
+        };
+
+        Console.WriteLine($"Creating historical client {playerId} ({connectionType}) with {replayData.Count} replay chunks");
+
+        // Convert all replay data to BattleFieldData for client
+        var allFieldData = new List<BattleFieldData>();
+
+        foreach (var chunk in replayData)
+        {
+            foreach (var turnData in chunk.TurnData)
+            {
+                var fieldData = client.ConvertToFieldData(turnData);
+                allFieldData.Add(fieldData);
+
+                // Update current field to latest turn
+                client.CurrentField = fieldData;
+            }
+        }
+
+        // Set all turn data for the client
+        client.SetHistoricalTurnData(allFieldData);
+
+        Console.WriteLine($"Historical client {playerId} initialized with {allFieldData.Count} turns");
+
+        // Set initial field data to the first turn for display
+        if (allFieldData.Any())
+        {
+            client.CurrentField = allFieldData[0];
+        }
+
+        return client;
+    }
+
+    /// <summary>
+    /// Set historical turn data for replay viewing
+    /// </summary>
+    /// <param name="turnData">All turn data for this battle</param>
+    public void SetHistoricalTurnData(List<BattleFieldData> turnData)
+    {
+        _historicalTurnData = new List<BattleFieldData>(turnData);
+        Console.WriteLine($"Set historical turn data: {_historicalTurnData.Count} turns");
+    }    private void HandleReplayReceived(BattleReplayData replayData)
+    {
+        _logger?.LogInformation("Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns",
             replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count);
+
+        // Fire replay data event for collection
+        OnReplayDataReceived?.Invoke(replayData);
 
         // Process each turn data individually for complete replay history
         foreach (var turnData in replayData.TurnData)
         {
             var fieldData = ConvertToFieldData(turnData);
 
-            _logger.LogDebug("Processing turn {Turn} with {EntityCount} entities",
+            _logger?.LogDebug("Processing turn {Turn} with {EntityCount} entities",
                 fieldData.Turn, fieldData.Entities.Count);
 
             // Always update current field for the latest turn
@@ -175,27 +332,27 @@ public class BattleClient : IAsyncDisposable
             OnBattleFieldUpdated?.Invoke(fieldData);
         }
 
-        _logger.LogInformation("Processed {TurnCount} turns from replay chunk {ChunkIndex}. Total chunks: {ChunkIndex}/{TotalChunks}",
+        _logger?.LogInformation("Processed {TurnCount} turns from replay chunk {ChunkIndex}. Total chunks: {ChunkIndex}/{TotalChunks}",
             replayData.TurnData.Count, replayData.ChunkIndex, replayData.ChunkIndex + 1, replayData.TotalChunks);
     }
 
     private void HandleConnectionsReady(Shared.Models.ConnectionsReadyData data)
     {
-        _logger.LogInformation("Battle {BattleId} connections ready - Seed: {Seed}", data.BattleId, data.Seed);
+        _logger?.LogInformation("Battle {BattleId} connections ready - Seed: {Seed}", data.BattleId, data.Seed);
     }
 
     private void HandleBattleStarted(Shared.Models.BattleStartedData data)
     {
-        _logger.LogInformation("Battle {BattleId} started with seed {Seed}", data.BattleId, data.Seed);
+        _logger?.LogInformation("Battle {BattleId} started with seed {Seed}", data.BattleId, data.Seed);
     }
 
     private void HandleBattleComplete(string message)
     {
-        _logger.LogInformation("Battle completed: {Message}", message);
+        _logger?.LogInformation("Battle completed: {Message}", message);
         OnBattleComplete?.Invoke();
     }
 
-    private BattleFieldData ConvertToFieldData(Shared.Battle.BattleStatus battleStatus)
+    public BattleFieldData ConvertToFieldData(Shared.Battle.BattleStatus battleStatus)
     {
         var allEntities = new List<EntityData>();
 
@@ -242,15 +399,18 @@ public class BattleClient : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _logger.LogInformation("Disposing battle client {ConnectionId}", ConnectionId);
+        _logger?.LogInformation("Disposing battle client {ConnectionId}", ConnectionId);
 
-        // Unsubscribe from events
-        _connection.OnBattleReplayReceived -= HandleReplayReceived;
-        _connection.OnConnectionsReady -= HandleConnectionsReady;
-        _connection.OnBattleStarted -= HandleBattleStarted;
-        _connection.OnBattleComplete -= HandleBattleComplete;
+        if (_connection != null)
+        {
+            // Unsubscribe from events
+            _connection.OnBattleReplayReceived -= HandleReplayReceived;
+            _connection.OnConnectionsReady -= HandleConnectionsReady;
+            _connection.OnBattleStarted -= HandleBattleStarted;
+            _connection.OnBattleComplete -= HandleBattleComplete;
 
-        await _connection.DisposeAsync();
+            await _connection.DisposeAsync();
+        }
     }
 }
 

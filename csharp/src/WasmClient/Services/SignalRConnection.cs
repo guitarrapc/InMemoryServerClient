@@ -15,7 +15,7 @@ public class SignalRConnection : IBattleConnection
     private HubConnection? _connection;
 
     public string ConnectionId => _connection?.ConnectionId ?? string.Empty;
-    public Models.ConnectionType Type => Models.ConnectionType.SignalR;
+    public Shared.Models.ConnectionType Type => Shared.Models.ConnectionType.SignalR;
     public ConnectionInfo Info { get; }
     public bool IsConnected => _connection?.State == HubConnectionState.Connected;
 
