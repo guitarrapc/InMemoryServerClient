@@ -13,5 +13,20 @@
         "DebugTarget": "InMemoryServer"
       }
     ]
+  },
+  {
+    "Name": "Server&Client (WASM)",
+    "Projects": [
+      {
+        "Path": "src\\InMemoryServer\\InMemoryServer.csproj",
+        "Action": "Start",
+        "DebugTarget": "InMemoryServer"
+      },
+      {
+        "Path": "src\\WasmClient\\WasmClient.csproj",
+        "Action": "Start",
+        "DebugTarget": "http"
+      }
+    ]
   }
 ]

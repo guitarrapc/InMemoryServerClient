@@ -1,5 +1,4 @@
-using WasmClient.Models;
-using Shared.Models;
+﻿using WasmClient.Models;
 
 namespace WasmClient.Services;
 

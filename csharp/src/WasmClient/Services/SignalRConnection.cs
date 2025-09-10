@@ -1,8 +1,5 @@
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using WasmClient.Models;
-using Shared.Battle;
-using Shared.Constants;
-using Shared.Models;
 
 namespace WasmClient.Services;
 

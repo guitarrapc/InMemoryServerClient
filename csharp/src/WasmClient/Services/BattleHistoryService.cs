@@ -1,5 +1,4 @@
-using Microsoft.JSInterop;
-using WasmClient.Models;
+﻿using WasmClient.Models;
 
 namespace WasmClient.Services;
 

@@ -1,6 +1,4 @@
-using Shared.Models;
-
-namespace WasmClient.Models;
+﻿namespace WasmClient.Models;
 
 /// <summary>
 /// バトル履歴の完全なデータモデル（IndexedDBに保存される）

@@ -1,8 +1,4 @@
-using CliClient.Services;
-using Microsoft.Extensions.Logging;
-using Shared.Battle;
-using Shared.Models;
-using Shared.Constants;
+﻿using CliClient.Services;
 using Shared.Common;
 
 namespace CliClient.Tests;

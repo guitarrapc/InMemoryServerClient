@@ -1,6 +1,4 @@
 ﻿using WasmClient.Models;
-using Shared.Battle;
-using Shared.Models;
 
 namespace WasmClient.Services;
 
