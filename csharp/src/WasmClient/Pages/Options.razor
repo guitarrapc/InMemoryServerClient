@@ -53,13 +53,29 @@
         </div>
 
         <div class="setting-group">
+            <h3>� Battle Replay Settings</h3>
+            <div class="form-group">
+                <label>Replay Frame Rate: <span class="field-size-value">@Settings.ReplayFps FPS</span></label>
+                <input type="range" @bind="Settings.ReplayFps" min="@Settings.MinReplayFps" max="@Settings.MaxReplayFps" class="range-input" />
+                <div class="range-labels">
+                    <span>Slow (@Settings.MinReplayFps FPS)</span>
+                    <span>Fast (@Settings.MaxReplayFps FPS)</span>
+                </div>
+                <small class="form-hint">Adjust the replay animation speed (@Settings.ReplayFrameTimeMs ms per frame)</small>
+            </div>
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="Settings.AutoReplay" />
+                    <span class="checkbox-text">Auto Loop Replay</span>
+                </label>
+                <small class="form-hint">Automatically restart replay when reaching the end</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
             <h3>🎮 Action Settings</h3>
             <div class="form-group">
-                <label>Replay Frame Rate:</label>
-                <select class="select-input" disabled>
-                    <option>5 FPS (Fixed)</option>
-                </select>
-                <small class="form-hint">Battle replay frame rate (currently fixed)</small>
+                <small class="form-hint">Additional action settings will be added in future updates</small>
             </div>
         </div>
 

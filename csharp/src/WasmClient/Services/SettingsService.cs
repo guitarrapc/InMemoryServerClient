@@ -1,4 +1,4 @@
-namespace WasmClient.Services;
+﻿namespace WasmClient.Services;
 
 public class SettingsService
 {
@@ -7,6 +7,34 @@ public class SettingsService
     public bool ShowDebugInfo { get; set; } = false;
     public bool ShowHealthBars { get; set; } = true;
     public int FieldSize { get; set; } = 200;
+
+    // Battle replay FPS settings
+    private int _replayFps = 5;
+    public int ReplayFps
+    {
+        get => _replayFps;
+        set
+        {
+            if (_replayFps != value)
+            {
+                _replayFps = value;
+                OnReplayFpsChanged?.Invoke(value);
+            }
+        }
+    }
+    public bool AutoReplay { get; set; } = false;
+    public int MinReplayFps { get; } = 1;
+    public int MaxReplayFps { get; } = 20;
+
+    /// <summary>
+    /// Event triggered when replay FPS changes
+    /// </summary>
+    public event Action<int>? OnReplayFpsChanged;
+
+    /// <summary>
+    /// Get replay frame time in milliseconds based on current FPS setting
+    /// </summary>
+    public int ReplayFrameTimeMs => 1000 / ReplayFps;
 
     public async Task LoadAsync()
     {
@@ -27,5 +55,7 @@ public class SettingsService
         ShowDebugInfo = false;
         ShowHealthBars = true;
         FieldSize = 200;
+        ReplayFps = 5;
+        AutoReplay = false;
     }
 }

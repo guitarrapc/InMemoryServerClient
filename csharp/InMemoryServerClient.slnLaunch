@@ -1,6 +1,6 @@
 [
   {
-    "Name": "Server&Client",
+    "Name": "Server&Client (CLI)",
     "Projects": [
       {
         "Path": "src\\CliClient\\CliClient.csproj",

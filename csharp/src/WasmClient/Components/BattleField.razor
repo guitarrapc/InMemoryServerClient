@@ -1,112 +1,174 @@
 @using WasmClient.Models
 @using WasmClient.Services
 @using WasmClient.Constants
+@using Shared.Constants
 @implements IDisposable
+@inject SettingsService Settings
 
-<div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px;">
-    <div class="field-header">
-        <span class="client-id">@Client.ConnectionId[..8]</span>
-        <span class="turn-number">@(lastTurn != -1 ? $"Turn {fieldData?.Turn}" : "")</span>
-        <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
-    </div>
+<div class="battle-field-container">
+    <!-- Field panel -->
+    <div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px;">
+        <div class="field-header">
+            <span class="client-id">@Client.ConnectionId[..8]</span>
+            <span class="turn-number">@(lastTurn != -1 ? $"Turn {fieldData?.Turn + 1}/{allTurnData.Count}" : "")</span>
+            <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
+        </div>
 
-    <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 48px);">
-        @if (fieldData != null)
-        {
-            @foreach (var entity in fieldData.Entities.Where(e => IsValidPosition(e.Position)))
+        <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 48px);">
+            @if (fieldData != null)
             {
-                <div class="entity @entity.Type.ToString().ToLower() @(entity.Health <= 0 ? "dead" : "") @(entity.Health < entity.MaxHealth * 0.3 ? "critical-health" : "")"
-                     style="position: absolute;
-                            left: @(entity.Position.X * scaleX)px;
-                            top: @(entity.Position.Y * scaleY)px;
-                            width: @entitySize px;
-                            height: @entitySize px;"
-                     title="@GetEntityTooltip(entity)">
-                    @* Entity health bar overlay *@
-                    @if (Settings.ShowHealthBars && entity.MaxHealth > 0)
-                    {
-                        <div class="health-bar">
-                            <div class="health-fill"
-                                 style="width: @(Math.Max(0, (double)entity.Health / entity.MaxHealth * 100))%"></div>
-                        </div>
-                    }
+                @foreach (var entity in fieldData.Entities.Where(e => IsValidPosition(e.Position)))
+                {
+                    <div class="entity @entity.Type.ToString().ToLower() @(entity.Health <= 0 ? "dead" : "") @(entity.Health < entity.MaxHealth * 0.3 ? "critical-health" : "")"
+                         style="position: absolute;
+                                left: @(entity.Position.X * scaleX)px;
+                                top: @(entity.Position.Y * scaleY)px;
+                                width: @entitySize px;
+                                height: @entitySize px;"
+                         title="@GetEntityTooltip(entity)">
+                        @* Entity health bar overlay *@
+                        @if (Settings.ShowHealthBars && entity.MaxHealth > 0)
+                        {
+                            <div class="health-bar">
+                                <div class="health-fill" style="width: @(Math.Max(0, (double)entity.Health / entity.MaxHealth * 100))%"></div>
+                            </div>
+                        }
 
-                    @* Entity type icon *@
-                    <div class="entity-icon">
-                        @(entity.Type == EntityType.Player ? "👤" : GetEnemyIcon(entity.Type))
+                        @* Entity type icon *@
+                        <div class="entity-icon">
+                            @(entity.Type == EntityType.Player ? "👤" : GetEnemyIcon(entity.Type))
+                        </div>
                     </div>
+                }
+            }
+            else
+            {
+                <div class="field-placeholder">
+                    <div class="placeholder-icon">🎮</div>
+                    <div class="placeholder-text">Receiving Data...</div>
                 </div>
             }
-        }
-        else
-        {
-            <div class="field-placeholder">
-                <div class="placeholder-icon">🎮</div>
-                <div class="placeholder-text">データ受信中...</div>
-            </div>
-        }
+        </div>
+
+        <div class="field-status @(turnChanged ? "turn-changed" : "")">
+            <span>Entities: @(fieldData?.Entities.Count(e => e.Health > 0 && IsValidPosition(e.Position)) ?? 0)</span>
+            @if (Settings.ShowDebugInfo)
+            {
+                <span>Scale: @scaleX.ToString("F1")</span>
+                <span>FPS: @(PerformanceMonitor.GetStats(Client.ConnectionId).CurrentFPS)</span>
+            }
+            @if (isReplayMode)
+            {
+                <span class="replay-indicator">⏯️ Replay</span>
+            }
+        </div>
     </div>
 
-    @* Turn navigation controls *@
-    @if (allTurnData.Any())
-    {
-        <div class="turn-controls">
-            <button @onclick="() => GoToPreviousTurn()"
-                    disabled="@(selectedTurn <= 0)"
-                    class="nav-btn">◀</button>
-            <input type="range"
-                   min="0"
-                   max="@(allTurnData.Count - 1)"
-                   step="1"
-                   @bind="selectedTurn"
-                   @bind:event="oninput"
-                   @onchange="OnTurnSliderBindChange"
-                   title="ターン @selectedTurn / @(allTurnData.Count - 1)"
-                   class="turn-slider-bind" />
-            <button @onclick="() => GoToNextTurn()"
-                    disabled="@(selectedTurn >= allTurnData.Count - 1)"
-                    class="nav-btn">▶</button>
-            <div class="turn-info">
-                <span>Turn: @(fieldData?.Turn ?? 0) / @(allTurnData.Count > 0 ? allTurnData.Last().Turn : 0)</span>
-                @if (isReplayMode)
-                {
-                    <button @onclick="EnableRealtimeMode" class="realtime-btn">🔴 Live</button>
-                }
+    <!-- Settings panel -->
+    <div class="settings-panel mb-3" style="background-color: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; border-radius: 5px;">
+        <h6>⚙️ Replay Settings</h6>
+        <div class="mt-3">
+            <div class="d-flex align-items-center gap-3">
+                <label class="form-label">FPS</label>
+                <input type="range" class="form-range" @bind="Settings.ReplayFps" min="@Settings.MinReplayFps" max="@Settings.MaxReplayFps" />
+                <small class="text-muted">@Settings.ReplayFps FPS (@Settings.ReplayFrameTimeMs ms間隔)</small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <label class="form-check-label" for="autoPlayCheck">Loop</label>
+                <input class="form-check-input" type="checkbox" @bind="Settings.AutoReplay" id="autoPlayCheck">
             </div>
         </div>
-    }
 
-    <div class="field-status @(turnChanged ? "turn-changed" : "")">
-        <span>Entities: @(fieldData?.Entities.Count(e => e.Health > 0 && IsValidPosition(e.Position)) ?? 0)</span>
-        @if (Settings.ShowDebugInfo)
+        <!-- Controls -->
+        @if (allTurnData.Any())
         {
-            <span>Scale: @scaleX.ToString("F1")</span>
-            <span>FPS: @(PerformanceMonitor.GetStats(Client.ConnectionId).CurrentFPS)</span>
+            <div class="mt-3">
+                <div class="d-flex align-items-center gap-3">
+                    <!-- Realtime/Replay Mode Switch -->
+                    <button class="btn btn-sm btn-secondary" @onclick="EnableRealtimeMode">
+                        🔄
+                    </button>
+
+                    <!-- Auto Play Controls -->
+                    <div class="d-flex align-items-center gap-2">
+                        @if (isAutoPlaying)
+                        {
+                            <button class="btn btn-sm btn-warning" @onclick="StopAutoPlay">
+                                ⏸️
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-primary" @onclick="StartAutoPlay" disabled="@(!allTurnData.Any())">
+                                ▶️
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Manual Navigation -->
+                    @if (!isAutoPlaying)
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <button class="btn btn-sm btn-secondary" @onclick="GoToPreviousTurn">⏪</button>
+                            <button class="btn btn-sm btn-secondary" @onclick="GoToNextTurn">⏩</button>
+                        </div>
+                    }
+                </div>
+
+                <!-- Turn Slider -->
+                <div class="mt-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <label class="form-label mb-0">Turn</label>
+                        <div class="flex-grow-1">
+                            <input type="range" class="form-range"
+                                   @bind="SelectedTurn"
+                                   @bind:event="oninput"
+                                   @onkeydown="OnTurnSliderKeyDown"
+                                   min="0"
+                                   max="@(Math.Max(0, allTurnData.Count - 1))"
+                                   disabled="@isAutoPlaying" />
+                        </div>
+                        <span class="badge bg-info">@(selectedTurn + 1) / @allTurnData.Count</span>
+                    </div>
+                </div>
+            </div>
         }
-        @if (isReplayMode)
-        {
-            <span class="replay-indicator">⏯️ Replay</span>
-        }
-    </div>
 </div>
 
 @code {
     [Parameter] public BattleClient Client { get; set; } = null!;
     [Parameter] public int Size { get; set; } = 200;
 
-    [Inject] private SettingsService Settings { get; set; } = null!;
     [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
 
     private BattleFieldData? fieldData;
     private int lastTurn = -1;
     private bool turnChanged = false;
 
-    // Battle replay data for turn navigation
+    // Replay functionality
     private List<BattleFieldData> allTurnData = new();
     private int selectedTurn = 0;
     private bool isReplayMode = false;
 
-    // Scale calculations based on 20x20 game field
+    // Auto play functionality
+    private bool isAutoPlaying = false;
+    private Timer? autoPlayTimer;
+    private readonly object autoPlayLock = new();
+
+    private int SelectedTurn
+    {
+        get => selectedTurn;
+        set
+        {
+            if (selectedTurn != value && !isAutoPlaying)
+            {
+                selectedTurn = value;
+                OnTurnSliderBindChange();
+            }
+        }
+    }
+
+    // Scale calculations based on game field size
     private double scaleX => (Size - 8) / (double)BattleReplayDefines.BattleFieldSize; // 8px margin for borders
     private double scaleY => (Size - 48) / (double)BattleReplayDefines.BattleFieldSize; // 48px for header + status + controls
     private int entitySize => Math.Max(6, (int)(scaleX * 0.7)); // Entity size with minimum
@@ -173,7 +235,7 @@
 
     private void OnTurnSliderBindChange()
     {
-        if (allTurnData.Any())
+        if (!isAutoPlaying && allTurnData.Any())
         {
             var clampedTurn = Math.Clamp(selectedTurn, 0, allTurnData.Count - 1);
             if (clampedTurn != selectedTurn)
@@ -245,6 +307,82 @@
         }
     }
 
+    private void StartAutoPlay()
+    {
+        if (isAutoPlaying || !allTurnData.Any()) return;
+
+        lock (autoPlayLock)
+        {
+            if (isAutoPlaying) return;
+
+            isAutoPlaying = true;
+            isReplayMode = true;
+
+            // If we're at the end, start from the beginning
+            if (selectedTurn >= allTurnData.Count - 1)
+            {
+                selectedTurn = 0;
+            }
+
+            autoPlayTimer = new Timer(AutoPlayTick, null, 0, Settings.ReplayFrameTimeMs);
+        }
+
+        StateHasChanged();
+    }
+
+    private void StopAutoPlay()
+    {
+        lock (autoPlayLock)
+        {
+            if (!isAutoPlaying) return;
+
+            isAutoPlaying = false;
+            autoPlayTimer?.Dispose();
+            autoPlayTimer = null;
+        }
+
+        StateHasChanged();
+    }
+
+    private void AutoPlayTick(object? state)
+    {
+        InvokeAsync(() =>
+        {
+            lock (autoPlayLock)
+            {
+                if (!isAutoPlaying || !allTurnData.Any())
+                {
+                    return;
+                }
+
+                // Move to the next turn
+                if (selectedTurn < allTurnData.Count - 1)
+                {
+                    selectedTurn++;
+                    fieldData = allTurnData[selectedTurn];
+                }
+                else
+                {
+                    // Reached the end
+                    if (Settings.AutoReplay)
+                    {
+                        // Loop back to the beginning if auto replay is enabled
+                        selectedTurn = 0;
+                        fieldData = allTurnData[selectedTurn];
+                    }
+                    else
+                    {
+                        // Stop at the end if auto replay is disabled
+                        StopAutoPlay();
+                        return;
+                    }
+                }
+
+                StateHasChanged();
+            }
+        });
+    }
+
     private bool IsValidPosition(Position position)
     {
         return position.X >= 0 && position.Y >= 0
@@ -267,8 +405,10 @@
 
     public void Dispose()
     {
+        StopAutoPlay();
         Client.OnBattleFieldUpdated -= OnFieldUpdated;
         Client.OnBattleComplete -= OnBattleCompleted;
         PerformanceMonitor.RemoveField(Client.ConnectionId);
     }
 }
+</div> <!-- battle-field-container 終了タグ -->
