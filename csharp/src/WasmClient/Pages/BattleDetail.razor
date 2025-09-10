@@ -88,7 +88,7 @@
         {
             <div class="battle-fields">
                 <h3>Battle Fields</h3>
-                <div class="fields-grid">
+                <div class="fields-grid d-flex flex-wrap">
                     @foreach (var client in battle.Clients)
                     {
                         <BattleField Client="client" Size="Settings.FieldSize" />
