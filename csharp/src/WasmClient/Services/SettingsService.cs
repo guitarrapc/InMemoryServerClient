@@ -6,7 +6,7 @@ public class SettingsService
     public string MagicOnionUrl { get; set; } = "http://localhost:5001";
     public bool ShowDebugInfo { get; set; } = false;
     public bool ShowHealthBars { get; set; } = true;
-    public int FieldSize { get; set; } = 200;
+    public int FieldSize { get; set; } = 225;
 
     // Battle replay FPS settings
     private int _replayFps = 5;
@@ -54,7 +54,7 @@ public class SettingsService
         MagicOnionUrl = "http://localhost:5001";
         ShowDebugInfo = false;
         ShowHealthBars = true;
-        FieldSize = 200;
+        FieldSize = 225;
         ReplayFps = 5;
         AutoReplay = false;
     }

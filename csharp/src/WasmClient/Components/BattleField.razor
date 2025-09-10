@@ -79,11 +79,11 @@
             <div class="d-flex align-items-center gap-2" style="margin-bottom: 5px;">
                 <label class="form-label" style="margin: 0; min-width: 30px; font-size: 0.75em;">FPS</label>
                 <input type="range" class="form-range" style="flex: 1;" @bind="Settings.ReplayFps" min="@Settings.MinReplayFps" max="@Settings.MaxReplayFps" />
-                <small class="text-muted" style="font-size: 0.7em; min-width: 60px;">@Settings.ReplayFps FPS (@Settings.ReplayFrameTimeMs ms間隔)</small>
+                <small class="text-muted" style="font-size: 0.7em; min-width: 60px;">@(Settings.ReplayFps)fps (@(Settings.ReplayFrameTimeMs)ms)</small>
             </div>
-            <div class="d-flex align-items-center gap-2" style="margin-bottom: 5px;">
-                <label class="form-check-label" style="font-size: 0.75em; min-width: 30px;" for="autoPlayCheck-@Client.ConnectionId">Loop</label>
-                <input class="form-check-input" type="checkbox" @bind="Settings.AutoReplay" id="autoPlayCheck-@Client.ConnectionId">
+            <div class="d-flex align-items-center gap-2" style="margin-bottom: 8px;">
+                <label class="form-check-label" style="font-size: 0.75em; min-width: 50px;" for="autoPlayCheck-@Client.ConnectionId">Loop</label>
+                <input class="form-check-input" type="checkbox" @bind="Settings.AutoReplay" @bind:event="onchange" id="autoPlayCheck-@Client.ConnectionId">
             </div>
             <div class="d-flex align-items-center gap-2" style="margin-bottom: 8px;">
                 <label class="form-check-label" style="font-size: 0.75em; min-width: 50px;" for="realtimePlayback-@Client.ConnectionId">RT Play</label>
@@ -142,7 +142,7 @@
 
 @code {
     [Parameter] public BattleClient Client { get; set; } = null!;
-    [Parameter] public int Size { get; set; } = 200;
+    [Parameter] public int Size { get; set; } = 225;
 
     [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
 
