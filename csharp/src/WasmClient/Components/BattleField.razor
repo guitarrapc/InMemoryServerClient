@@ -4,6 +4,7 @@
 @using Shared.Constants
 @implements IDisposable
 @inject SettingsService Settings
+@inject ILogger<BattleField> Logger
 
 <div class="battle-field-container" style="width: @(Size)px; display: flex; flex-direction: column; align-items: center; margin: 5px;">
     <!-- Field panel -->
@@ -239,26 +240,18 @@
                 fieldData = historicalData[0];
                 displayedTurn = historicalData[0].Turn;
 
-                Console.WriteLine($"BattleField: Initialized historical data with {allTurnData.Count} turns for client {Client.ConnectionId}");
-            }
-            else if (Client.CurrentField != null)
-            {
-                // Fallback: create single-turn data from current field
-                allTurnData = new List<BattleFieldData> { Client.CurrentField };
-                selectedTurn = 0;
-                fieldData = Client.CurrentField;
-                displayedTurn = Client.CurrentField.Turn;
-
-                Console.WriteLine($"BattleField: Initialized historical data (fallback) with {allTurnData.Count} turns for client {Client.ConnectionId}");
+                Logger.LogDebug($"BattleField: Initialized historical data with {allTurnData.Count} turns for client {Client.ConnectionId}");
             }
             else
             {
-                Console.WriteLine($"BattleField: No historical data available for client {Client.ConnectionId}");
+                Logger.LogInformation($"BattleField: No historical data available for client {Client.ConnectionId}");
             }
 
             StateHasChanged();
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Set replay data for historical mode
     /// </summary>
     public void SetReplayData(List<BattleFieldData> replayData)
@@ -577,7 +570,9 @@
         return position.X >= 0 && position.Y >= 0
                && position.X < BattleReplayDefines.BattleFieldSize
                && position.Y < BattleReplayDefines.BattleFieldSize;
-    }    private string GetEntityTooltip(EntityData entity)
+    }
+
+    private string GetEntityTooltip(EntityData entity)
     {
         var status = entity.Health <= 0 ? " [DEAD]" : "";
         var healthPercent = entity.MaxHealth > 0 ? (entity.Health * 100 / entity.MaxHealth) : 0;

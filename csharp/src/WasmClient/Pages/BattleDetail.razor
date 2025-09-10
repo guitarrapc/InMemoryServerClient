@@ -3,6 +3,7 @@
 @inject NavigationManager Navigation
 @inject SettingsService Settings
 @inject BattleHistoryService HistoryService
+@inject ILogger<BattleDetail> Logger
 @implements IDisposable
 
 <div class="battle-detail-page">
@@ -157,12 +158,12 @@
             isLoading = true;
             StateHasChanged(); // UI更新を強制
 
-            Console.WriteLine($"Loading historical battle: {BattleId}");
+            Logger.LogInformation($"Loading historical battle: {BattleId}");
             battleHistory = await HistoryService.GetBattleHistoryAsync(BattleId);
 
             if (battleHistory != null)
             {
-                Console.WriteLine($"Battle history loaded: {battleHistory.ReplayData.Count} chunks, {battleHistory.ReplayData.Sum(r => r.TurnData.Count)} total turns");
+                Logger.LogDebug($"Battle history loaded: {battleHistory.ReplayData.Count} chunks, {battleHistory.ReplayData.Sum(r => r.TurnData.Count)} total turns");
 
                 // 履歴データから直接BattleFieldに表示するためのクライアントを作成
                 // 実際の接続は不要、表示用のデータのみ
@@ -175,7 +176,6 @@
 
                     // プレイヤー数分のモッククライアントを作成
                     var playerCount = firstTurn.Players.Count;
-                    Console.WriteLine($"Creating {Math.Min(playerCount, 5)} historical clients from {playerCount} players");
 
                     // 接続タイプをSignalRとMagicOnionで交互に割り当て
                     var connectionTypes = new[] { ConnectionType.SignalR, ConnectionType.MagicOnion };
@@ -183,14 +183,8 @@
                     for (int i = 0; i < Math.Min(playerCount, 5); i++)
                     {
                         var connectionType = connectionTypes[i % connectionTypes.Length];
-                        var mockClient = BattleClient.CreateHistoricalClient(
-                            $"historical-client-{i}",
-                            battleHistory.GroupName,
-                            battleHistory.ReplayData,
-                            connectionType
-                        );
+                        var mockClient = BattleClient.CreateHistoricalClient($"historical-client-{i}", battleHistory.GroupName, battleHistory.ReplayData, connectionType);
                         mockClients.Add(mockClient);
-                        Console.WriteLine($"Created historical client {i} ({connectionType}) with field data: {mockClient.CurrentField != null}");
                     }
                 }
 
@@ -205,18 +199,16 @@
 
                 // 結果を設定
                 battleResult = battleHistory.Result.IsVictory ? "🎉 Victory" : "❌ Defeat";
-
-                Console.WriteLine($"Historical battle session created with {battle.ClientCount} clients");
             }
             else
             {
-                Console.WriteLine("Battle history not found");
+                Logger.LogInformation("Battle history not found");
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Failed to load battle history: {ex.Message}";
-            Console.WriteLine($"Failed to load battle history: {ex}");
+            Logger.LogError(ex, $"Failed to load battle history");
         }
         finally
         {
@@ -319,8 +311,8 @@
             }
             catch (Exception ex)
             {
+                Logger.LogError(ex, $"Failed to add client");
                 errorMessage = $"Failed to add {type} client: {ex.Message}";
-                Console.WriteLine($"Failed to add client: {ex}");
             }
             finally
             {
@@ -347,8 +339,8 @@
             }
             catch (Exception ex)
             {
+                Logger.LogError(ex, $"Failed to remove client");
                 errorMessage = $"Failed to remove client: {ex.Message}";
-                Console.WriteLine($"Failed to remove client: {ex}");
                 StateHasChanged();
             }
         }

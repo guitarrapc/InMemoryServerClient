@@ -268,8 +268,6 @@ public class BattleClient : IAsyncDisposable
             HistoricalConnectionType = connectionType
         };
 
-        Console.WriteLine($"Creating historical client {playerId} ({connectionType}) with {replayData.Count} replay chunks");
-
         // Convert all replay data to BattleFieldData for client
         var allFieldData = new List<BattleFieldData>();
 
@@ -288,8 +286,6 @@ public class BattleClient : IAsyncDisposable
         // Set all turn data for the client
         client.SetHistoricalTurnData(allFieldData);
 
-        Console.WriteLine($"Historical client {playerId} initialized with {allFieldData.Count} turns");
-
         // Set initial field data to the first turn for display
         if (allFieldData.Any())
         {
@@ -306,8 +302,9 @@ public class BattleClient : IAsyncDisposable
     public void SetHistoricalTurnData(List<BattleFieldData> turnData)
     {
         _historicalTurnData = new List<BattleFieldData>(turnData);
-        Console.WriteLine($"Set historical turn data: {_historicalTurnData.Count} turns");
-    }    private void HandleReplayReceived(BattleReplayData replayData)
+    }
+
+    private void HandleReplayReceived(BattleReplayData replayData)
     {
         _logger?.LogInformation("Received replay chunk {ChunkIndex}/{TotalChunks} with {TurnCount} turns",
             replayData.ChunkIndex, replayData.TotalChunks, replayData.TurnData.Count);

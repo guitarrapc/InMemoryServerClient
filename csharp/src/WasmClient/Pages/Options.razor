@@ -2,6 +2,7 @@
 @inject SettingsService Settings
 @inject NavigationManager Navigation
 @inject BattleHistoryService HistoryService
+@inject ILogger<Options> Logger
 
 <div class="options-page">
     <header class="page-header">
@@ -647,7 +648,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load battle history stats: {ex.Message}");
+            Logger.LogError(ex, $"Failed to load battle history stats");
             battleHistoryStats = new BattleHistoryStats();
         }
     }
@@ -710,7 +711,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to clear battle history: {ex.Message}");
+            Logger.LogError(ex, $"Failed to clear battle history");
             // TODO: Show error message to user
         }
         finally

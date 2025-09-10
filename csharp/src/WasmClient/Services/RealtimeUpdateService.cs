@@ -1,4 +1,4 @@
-using System.Timers;
+﻿using System.Timers;
 
 namespace WasmClient.Services;
 
@@ -10,15 +10,17 @@ public class RealtimeUpdateService : IDisposable
     private readonly SettingsService _settings;
     private readonly System.Timers.Timer _updateTimer;
     private readonly List<Action> _updateCallbacks = new();
+    private readonly ILogger<RealtimeUpdateService> _logger;
 
     public event Action? OnUpdateTick;
 
-    public RealtimeUpdateService(SettingsService settings)
+    public RealtimeUpdateService(SettingsService settings, ILogger<RealtimeUpdateService> logger)
     {
         _settings = settings;
         _updateTimer = new System.Timers.Timer(_settings.ReplayFrameTimeMs);
         _updateTimer.Elapsed += OnTimerElapsed;
         _updateTimer.AutoReset = true;
+        _logger = logger;
 
         // Subscribe to FPS changes
         _settings.OnReplayFpsChanged += OnReplayFpsChanged;
@@ -98,7 +100,7 @@ public class RealtimeUpdateService : IDisposable
             catch (Exception ex)
             {
                 // Log error but continue processing other callbacks
-                Console.WriteLine($"Error in update callback: {ex.Message}");
+                _logger.LogError(ex, $"Error in update callback");
             }
         }
     }

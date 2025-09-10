@@ -1,8 +1,9 @@
-﻿@page "/"
+@page "/"
 @inject BattleSessionManager SessionManager
 @inject NavigationManager Navigation
 @inject SettingsService Settings
 @inject BattleHistoryService HistoryService
+@inject ILogger<Home> Logger
 
 <div class="battle-list-page">
     <header class="page-header">
@@ -516,7 +517,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to load battle histories: {ex.Message}");
+            Logger.LogError(ex, $"Failed to load battle histories");
         }
     }
 
@@ -551,7 +552,7 @@
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to create battle: {ex.Message}");
+                Logger.LogError(ex, $"Failed to create battle");
                 // TODO: Show error message to user
             }
         }
@@ -578,7 +579,7 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to delete battle history: {ex.Message}");
+            Logger.LogError(ex, $"Failed to delete battle history");
             // TODO: Show error message to user
         }
     }
