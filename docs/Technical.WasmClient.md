@@ -20,12 +20,409 @@ WasmClient/
 │   ├── ConnectionFactory.cs        # 接続ファクトリー実装
 │   ├── IBattleConnection.cs        # 統一接続インターフェイス
 │   ├── SignalRConnection.cs        # SignalR接続実装
-│   └── MagicOnionConnection.cs     # MagicOnion接続実装
+│   ├── MagicOnionConnection.cs     # MagicOnion接続実装
+│   └── BattleHistoryService.cs     # IndexedDBバトル履歴管理
 ├── Models/
 │   ├── BattleSessionModel.cs       # バトルセッション管理
-│   └── ConnectionInfo.cs           # 接続情報
+│   ├── ConnectionInfo.cs           # 接続情報
+│   └── BattleHistoryModel.cs       # バトル履歴データモデル
 └── Constants/
     └── BattleReplayDefines.cs      # リプレイ定数
+```
+
+## IndexedDB Data Persistence
+
+### Battle History Management
+
+ブラウザリロード後もバトル履歴を保持するため、IndexedDBを使用したデータ永続化を実装します。
+
+### Battle History Service
+
+C#側でIndexedDBとのやり取りを管理するサービス。JSInteropを使用してJavaScript側のIndexedDB操作を呼び出します。
+
+```csharp
+public class BattleHistoryService
+{
+    private readonly IJSRuntime _jsRuntime;
+    private readonly ILogger<BattleHistoryService> _logger;
+
+    public BattleHistoryService(IJSRuntime jsRuntime, ILogger<BattleHistoryService> logger)
+    {
+        _jsRuntime = jsRuntime;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// バトル完了時に履歴を保存
+    /// </summary>
+    public async Task SaveBattleHistoryAsync(BattleHistory battleHistory)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync("battleStorage.saveBattle", battleHistory);
+            _logger.LogInformation("Battle history {BattleId} saved to IndexedDB", battleHistory.BattleId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save battle history {BattleId}", battleHistory.BattleId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 指定したバトルIDの完全な履歴を取得
+    /// </summary>
+    public async Task<BattleHistory?> GetBattleHistoryAsync(string battleId)
+    {
+        try
+        {
+            return await _jsRuntime.InvokeAsync<BattleHistory?>("battleStorage.getBattle", battleId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to retrieve battle history {BattleId}", battleId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// バトル履歴の一覧を取得（新しい順、サマリー情報のみ）
+    /// </summary>
+    public async Task<List<BattleHistorySummary>> GetBattleHistoryListAsync(int limit = 50)
+    {
+        try
+        {
+            return await _jsRuntime.InvokeAsync<List<BattleHistorySummary>>("battleStorage.getBattleList", limit);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to retrieve battle history list");
+            return new List<BattleHistorySummary>();
+        }
+    }
+
+    /// <summary>
+    /// 指定したバトル履歴を削除
+    /// </summary>
+    public async Task DeleteBattleHistoryAsync(string battleId)
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync("battleStorage.deleteBattle", battleId);
+            _logger.LogInformation("Battle history {BattleId} deleted from IndexedDB", battleId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete battle history {BattleId}", battleId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// IndexedDBを完全にクリアして再初期化
+    /// </summary>
+    public async Task ClearAllBattleHistoryAsync()
+    {
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync("battleStorage.clearAllBattles");
+            _logger.LogInformation("All battle history cleared from IndexedDB");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear IndexedDB");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 保存されているバトル数とディスク使用量を取得
+    /// </summary>
+    public async Task<BattleHistoryStats> GetStorageStatsAsync()
+    {
+        try
+        {
+            return await _jsRuntime.InvokeAsync<BattleHistoryStats>("battleStorage.getStorageStats");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to retrieve storage stats");
+            return new BattleHistoryStats();
+        }
+    }
+}
+```
+
+### Battle History Data Models
+
+バトル履歴データを管理するためのモデル定義。
+
+```csharp
+public record BattleHistory
+{
+    public string BattleId { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime CompletedAt { get; init; }
+    public string GroupName { get; init; } = string.Empty;
+    public string ServerUrl { get; init; } = string.Empty;
+    public int TotalTurns { get; init; }
+    public List<BattleReplayData> ReplayData { get; init; } = new();
+    public BattleResult Result { get; init; } = new();
+    public List<string> ParticipatingClients { get; init; } = new();
+    public int DataSizeBytes { get; init; }
+}
+
+public record BattleHistorySummary
+{
+    public string BattleId { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime CompletedAt { get; init; }
+    public string GroupName { get; init; } = string.Empty;
+    public string ServerUrl { get; init; } = string.Empty;
+    public int TotalTurns { get; init; }
+    public bool IsPlayerVictory { get; init; }
+    public int DataSizeKB { get; init; }
+    public int ClientCount { get; init; }
+    public TimeSpan BattleDuration => CompletedAt - CreatedAt;
+}
+
+public record BattleResult
+{
+    public bool IsPlayerVictory { get; init; }
+    public int RemainingPlayers { get; init; }
+    public int RemainingEnemies { get; init; }
+    public string VictoryCondition { get; init; } = string.Empty;
+}
+
+public record BattleHistoryStats
+{
+    public int TotalBattles { get; init; }
+    public long TotalSizeBytes { get; init; }
+    public DateTime? OldestBattle { get; init; }
+    public DateTime? NewestBattle { get; init; }
+    public double AverageBattleSizeKB => TotalBattles > 0 ? (TotalSizeBytes / 1024.0) / TotalBattles : 0;
+}
+```
+
+### JavaScript IndexedDB Implementation
+
+IndexedDBを操作するJavaScript実装（`wwwroot/js/battleStorage.js`）。
+
+```javascript
+// バトル履歴管理用IndexedDB操作
+window.battleStorage = {
+    dbName: 'WasmBattleClientDB',
+    dbVersion: 1,
+    storeName: 'battleHistory',
+
+    // データベース初期化
+    async initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+
+            request.onerror = () => {
+                console.error('IndexedDB initialization failed:', request.error);
+                reject(request.error);
+            };
+
+            request.onsuccess = () => {
+                console.log('IndexedDB initialized successfully');
+                resolve(request.result);
+            };
+
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+
+                // バトル履歴テーブル作成
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    const store = db.createObjectStore(this.storeName, { keyPath: 'battleId' });
+
+                    // インデックス作成
+                    store.createIndex('createdAt', 'createdAt', { unique: false });
+                    store.createIndex('groupName', 'groupName', { unique: false });
+                    store.createIndex('serverUrl', 'serverUrl', { unique: false });
+                    store.createIndex('completedAt', 'completedAt', { unique: false });
+
+                    console.log('Battle history object store created with indexes');
+                }
+            };
+        });
+    },
+
+    // バトル履歴保存
+    async saveBattle(battleHistoryData) {
+        const db = await this.initDB();
+        const transaction = db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+
+        // データサイズを計算
+        const serializedData = JSON.stringify(battleHistoryData);
+        const dataSize = new Blob([serializedData]).size;
+        battleHistoryData.dataSizeBytes = dataSize;
+
+        return new Promise((resolve, reject) => {
+            const request = store.put(battleHistoryData);
+            request.onsuccess = () => {
+                console.log(`Battle ${battleHistoryData.battleId} saved (${(dataSize/1024).toFixed(1)}KB)`);
+                resolve();
+            };
+            request.onerror = () => {
+                console.error('Failed to save battle:', request.error);
+                reject(request.error);
+            };
+        });
+    },
+
+    // バトル履歴取得
+    async getBattle(battleId) {
+        const db = await this.initDB();
+        const transaction = db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+
+        return new Promise((resolve, reject) => {
+            const request = store.get(battleId);
+            request.onsuccess = () => {
+                const result = request.result || null;
+                if (result) {
+                    console.log(`Battle ${battleId} retrieved (${(result.dataSizeBytes/1024).toFixed(1)}KB)`);
+                }
+                resolve(result);
+            };
+            request.onerror = () => {
+                console.error('Failed to retrieve battle:', request.error);
+                reject(request.error);
+            };
+        });
+    },
+
+    // バトル履歴一覧取得（軽量なサマリー情報のみ）
+    async getBattleList(limit = 50) {
+        const db = await this.initDB();
+        const transaction = db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+        const index = store.index('completedAt');
+
+        return new Promise((resolve, reject) => {
+            const battles = [];
+            const request = index.openCursor(null, 'prev'); // 新しい順
+
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor && battles.length < limit) {
+                    const battle = cursor.value;
+
+                    // 軽量なサマリーデータのみ抽出
+                    battles.push({
+                        battleId: battle.battleId,
+                        createdAt: battle.createdAt,
+                        completedAt: battle.completedAt,
+                        groupName: battle.groupName,
+                        serverUrl: battle.serverUrl,
+                        totalTurns: battle.totalTurns,
+                        isPlayerVictory: battle.result?.isPlayerVictory || false,
+                        dataSizeKB: Math.round((battle.dataSizeBytes || 0) / 1024),
+                        clientCount: battle.participatingClients?.length || 0
+                    });
+
+                    cursor.continue();
+                } else {
+                    console.log(`Retrieved ${battles.length} battle summaries`);
+                    resolve(battles);
+                }
+            };
+
+            request.onerror = () => {
+                console.error('Failed to retrieve battle list:', request.error);
+                reject(request.error);
+            };
+        });
+    },
+
+    // バトル履歴削除
+    async deleteBattle(battleId) {
+        const db = await this.initDB();
+        const transaction = db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+
+        return new Promise((resolve, reject) => {
+            const request = store.delete(battleId);
+            request.onsuccess = () => {
+                console.log(`Battle ${battleId} deleted`);
+                resolve();
+            };
+            request.onerror = () => {
+                console.error('Failed to delete battle:', request.error);
+                reject(request.error);
+            };
+        });
+    },
+
+    // 全バトル履歴削除
+    async clearAllBattles() {
+        const db = await this.initDB();
+        const transaction = db.transaction([this.storeName], 'readwrite');
+        const store = transaction.objectStore(this.storeName);
+
+        return new Promise((resolve, reject) => {
+            const request = store.clear();
+            request.onsuccess = () => {
+                console.log('All battle history cleared');
+                resolve();
+            };
+            request.onerror = () => {
+                console.error('Failed to clear battle history:', request.error);
+                reject(request.error);
+            };
+        });
+    },
+
+    // ストレージ統計情報取得
+    async getStorageStats() {
+        const db = await this.initDB();
+        const transaction = db.transaction([this.storeName], 'readonly');
+        const store = transaction.objectStore(this.storeName);
+
+        return new Promise((resolve, reject) => {
+            let totalSize = 0;
+            let totalCount = 0;
+            let oldestDate = null;
+            let newestDate = null;
+
+            const request = store.openCursor();
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const battle = cursor.value;
+                    totalSize += battle.dataSizeBytes || 0;
+                    totalCount++;
+
+                    const completedAt = new Date(battle.completedAt);
+                    if (!oldestDate || completedAt < oldestDate) oldestDate = completedAt;
+                    if (!newestDate || completedAt > newestDate) newestDate = completedAt;
+
+                    cursor.continue();
+                } else {
+                    resolve({
+                        totalBattles: totalCount,
+                        totalSizeBytes: totalSize,
+                        oldestBattle: oldestDate?.toISOString(),
+                        newestBattle: newestDate?.toISOString()
+                    });
+                }
+            };
+
+            request.onerror = () => {
+                console.error('Failed to calculate storage stats:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+};
+
+// ページロード時に初期化
+document.addEventListener('DOMContentLoaded', () => {
+    window.battleStorage.initDB().catch(console.error);
+});
 ```
 
 ### Connection Factory Pattern
@@ -90,17 +487,23 @@ public class BattleSessionManager
 {
     private readonly Dictionary<string, Battle> _battles = new();
     private readonly IConnectionFactory _connectionFactory;
+    private readonly BattleHistoryService _battleHistory;
     private readonly ILogger<BattleSessionManager> _logger;
 
-    public BattleSessionManager(IConnectionFactory connectionFactory, ILogger<BattleSessionManager> logger)
+    public BattleSessionManager(
+        IConnectionFactory connectionFactory,
+        BattleHistoryService battleHistory,
+        ILogger<BattleSessionManager> logger)
     {
         _connectionFactory = connectionFactory;
+        _battleHistory = battleHistory;
         _logger = logger;
     }
 
     public async Task<Battle> CreateBattleAsync(string groupName, string serverUrl)
     {
         var battle = new Battle(Guid.NewGuid().ToString(), groupName, serverUrl, _connectionFactory);
+        battle.OnBattleCompleted += OnBattleCompleted;
         _battles[battle.Id] = battle;
 
         _logger.LogInformation("Created battle {BattleId} with group {GroupName}", battle.Id, groupName);
@@ -113,6 +516,7 @@ public class BattleSessionManager
     {
         if (_battles.TryGetValue(battleId, out var battle))
         {
+            battle.OnBattleCompleted -= OnBattleCompleted;
             await battle.DisposeAsync();
             _battles.Remove(battleId);
             _logger.LogInformation("Removed battle {BattleId}", battleId);
@@ -120,6 +524,74 @@ public class BattleSessionManager
     }
 
     public IReadOnlyList<Battle> ActiveBattles => _battles.Values.ToList();
+
+    /// <summary>
+    /// IndexedDBから過去のバトル履歴一覧を取得
+    /// </summary>
+    public async Task<List<BattleHistorySummary>> GetBattleHistoryAsync(int limit = 50)
+    {
+        return await _battleHistory.GetBattleHistoryListAsync(limit);
+    }
+
+    /// <summary>
+    /// 指定したバトル履歴を読み込み専用バトルとして復元
+    /// </summary>
+    public async Task<Battle?> LoadBattleFromHistoryAsync(string battleId)
+    {
+        var history = await _battleHistory.GetBattleHistoryAsync(battleId);
+        if (history == null)
+        {
+            _logger.LogWarning("Battle history {BattleId} not found", battleId);
+            return null;
+        }
+
+        var battle = new Battle(history.BattleId, history.GroupName, history.ServerUrl, _connectionFactory)
+        {
+            IsHistoricalBattle = true,
+            BattleHistory = history
+        };
+
+        _battles[battle.Id] = battle;
+        _logger.LogInformation("Loaded historical battle {BattleId}", battleId);
+        return battle;
+    }
+
+    /// <summary>
+    /// バトル履歴を削除
+    /// </summary>
+    public async Task DeleteBattleHistoryAsync(string battleId)
+    {
+        await _battleHistory.DeleteBattleHistoryAsync(battleId);
+        _logger.LogInformation("Deleted battle history {BattleId}", battleId);
+    }
+
+    /// <summary>
+    /// バトル完了時にIndexedDBに保存
+    /// </summary>
+    private async void OnBattleCompleted(Battle battle, BattleResult result)
+    {
+        try
+        {
+            var history = new BattleHistory
+            {
+                BattleId = battle.Id,
+                CreatedAt = battle.CreatedAt,
+                CompletedAt = DateTime.UtcNow,
+                GroupName = battle.GroupName,
+                ServerUrl = battle.ServerUrl,
+                TotalTurns = battle.TotalTurns,
+                ReplayData = battle.ReplayData.ToList(),
+                Result = result,
+                ParticipatingClients = battle.Clients.Select(c => c.ConnectionId).ToList()
+            };
+
+            await _battleHistory.SaveBattleHistoryAsync(history);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save battle history for {BattleId}", battle.Id);
+        }
+    }
 }
 
 public class Battle : IAsyncDisposable
@@ -130,8 +602,20 @@ public class Battle : IAsyncDisposable
     public string Id { get; }
     public string GroupName { get; }
     public string ServerUrl { get; }
+    public DateTime CreatedAt { get; } = DateTime.UtcNow;
     public BattleStatus Status { get; private set; } = BattleStatus.Waiting;
     public IReadOnlyList<BattleClient> Clients => _clients.AsReadOnly();
+
+    // 履歴バトル用プロパティ
+    public bool IsHistoricalBattle { get; init; } = false;
+    public BattleHistory? BattleHistory { get; init; }
+
+    // バトル進行データ
+    public List<BattleReplayData> ReplayData { get; } = new();
+    public int TotalTurns => ReplayData.LastOrDefault()?.BattleData?.LastOrDefault()?.CurrentTurn ?? 0;
+
+    // イベント
+    public event Action<Battle, BattleResult>? OnBattleCompleted;
 
     public Battle(string id, string groupName, string serverUrl, IConnectionFactory connectionFactory)
     {
@@ -364,7 +848,7 @@ public class SettingsService
 
 ### Battle List Page
 
-ホーム画面でバトル一覧を表示し、新規バトル作成を管理するコンポーネント。
+ホーム画面でバトル一覧を表示し、新規バトル作成を管理するコンポーネント。アクティブなバトルと過去のバトル履歴を統合表示します。
 
 ```razor
 @page "/"
@@ -379,17 +863,44 @@ public class SettingsService
         </nav>
     </header>
 
-    <div class="battle-grid">
-        @foreach (var battle in SessionManager.ActiveBattles)
-        {
-            <BattleCard Battle="battle" OnSelect="NavigateToBattle" />
-        }
+    <div class="battle-sections">
+        <!-- アクティブなバトル -->
+        <div class="active-battles-section">
+            <h2>実行中のバトル</h2>
+            <div class="battle-grid">
+                @foreach (var battle in SessionManager.ActiveBattles)
+                {
+                    <BattleCard Battle="battle" OnSelect="NavigateToBattle" OnDelete="RemoveBattle" IsHistorical="false" />
+                }
 
-        <div class="add-battle-card">
-            <button class="add-battle-btn" @onclick="ShowCreateBattleDialog">
-                <span class="plus-icon">+</span>
-                <span>新規バトル作成</span>
-            </button>
+                <div class="add-battle-card">
+                    <button class="add-battle-btn" @onclick="ShowCreateBattleDialog">
+                        <span class="plus-icon">+</span>
+                        <span>新規バトル作成</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 過去のバトル履歴 -->
+        <div class="battle-history-section">
+            <h2>バトル履歴</h2>
+            @if (battleHistory.Any())
+            {
+                <div class="battle-grid">
+                    @foreach (var historyItem in battleHistory)
+                    {
+                        <BattleHistoryCard
+                            HistoryData="historyItem"
+                            OnSelect="LoadHistoricalBattle"
+                            OnDelete="DeleteBattleHistory" />
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="no-history">保存されたバトル履歴はありません</p>
+            }
         </div>
     </div>
 
@@ -401,6 +912,18 @@ public class SettingsService
 
 @code {
     private bool showCreateDialog;
+    private List<BattleHistorySummary> battleHistory = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBattleHistoryAsync();
+    }
+
+    private async Task LoadBattleHistoryAsync()
+    {
+        battleHistory = await SessionManager.GetBattleHistoryAsync();
+        StateHasChanged();
+    }
 
     private void ShowCreateBattleDialog() => showCreateDialog = true;
     private void HideCreateBattleDialog() => showCreateDialog = false;
@@ -416,49 +939,208 @@ public class SettingsService
     {
         Navigation.NavigateTo($"/battle/{battle.Id}");
     }
+
+    private async Task RemoveBattle(Battle battle)
+    {
+        await SessionManager.RemoveBattleAsync(battle.Id);
+        StateHasChanged();
+    }
+
+    private async Task LoadHistoricalBattle(BattleHistorySummary historyItem)
+    {
+        var battle = await SessionManager.LoadBattleFromHistoryAsync(historyItem.BattleId);
+        if (battle != null)
+        {
+            Navigation.NavigateTo($"/battle/{battle.Id}");
+        }
+    }
+
+    private async Task DeleteBattleHistory(BattleHistorySummary historyItem)
+    {
+        await SessionManager.DeleteBattleHistoryAsync(historyItem.BattleId);
+        await LoadBattleHistoryAsync(); // 履歴を再読み込み
+    }
+}
+```
+
+### Battle History Card Component
+
+過去のバトル履歴を表示するためのカードコンポーネント。
+
+```razor
+<div class="battle-history-card">
+    <div class="card-header">
+        <h4>@HistoryData.GroupName</h4>
+        <span class="battle-date">@HistoryData.CompletedAt.ToString("MM/dd HH:mm")</span>
+        <button class="delete-btn" @onclick="DeleteHistory" title="削除">×</button>
+    </div>
+
+    <div class="card-body">
+        <div class="battle-stats">
+            <div class="stat-item">
+                <span class="label">ターン数:</span>
+                <span class="value">@HistoryData.TotalTurns</span>
+            </div>
+            <div class="stat-item">
+                <span class="label">結果:</span>
+                <span class="value @(HistoryData.IsPlayerVictory ? "victory" : "defeat")">
+                    @(HistoryData.IsPlayerVictory ? "勝利" : "敗北")
+                </span>
+            </div>
+            <div class="stat-item">
+                <span class="label">データサイズ:</span>
+                <span class="value">@HistoryData.DataSizeKB KB</span>
+            </div>
+            <div class="stat-item">
+                <span class="label">クライアント数:</span>
+                <span class="value">@HistoryData.ClientCount</span>
+            </div>
+            <div class="stat-item">
+                <span class="label">バトル時間:</span>
+                <span class="value">@HistoryData.BattleDuration.ToString(@"mm\:ss")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer">
+        <button class="view-replay-btn" @onclick="ViewReplay">リプレイを見る</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public BattleHistorySummary HistoryData { get; set; } = null!;
+    [Parameter] public EventCallback<BattleHistorySummary> OnSelect { get; set; }
+    [Parameter] public EventCallback<BattleHistorySummary> OnDelete { get; set; }
+
+    private async Task ViewReplay()
+    {
+        await OnSelect.InvokeAsync(HistoryData);
+    }
+
+    private async Task DeleteHistory()
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"バトル履歴「{HistoryData.GroupName}」を削除しますか？"))
+        {
+            await OnDelete.InvokeAsync(HistoryData);
+        }
+    }
 }
 ```
 
 ### Battle Detail Page
 
-個別のバトル詳細を表示し、クライアント管理を行うコンポーネント。
+個別のバトル詳細を表示し、クライアント管理を行うコンポーネント。履歴バトルの場合は読み取り専用のリプレイモードで表示します。
 
 ```razor
 @page "/battle/{BattleId}"
 @inject BattleSessionManager SessionManager
 @inject IConnectionFactory ConnectionFactory
+@inject NavigationManager Navigation
 
 <div class="battle-detail-page">
     <header class="battle-header">
-        <h2>@battle.GroupName</h2>
-        <span class="battle-status">@battle.Status</span>
-    </header>
-
-    <div class="client-management">
-        <div class="connected-clients">
-            @foreach (var client in battle.Clients)
+        <div class="battle-info">
+            <h2>@battle.GroupName</h2>
+            <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
+            @if (battle.IsHistoricalBattle)
             {
-                <ClientCard Client="client" OnRemove="RemoveClient" />
+                <span class="historical-badge">履歴</span>
             }
         </div>
-
-        <div class="add-client-buttons">
-            <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)">
-                <span class="plus-icon">+</span>
-                <span>SignalR追加</span>
-            </button>
-
-            <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)">
-                <span class="plus-icon">+</span>
-                <span>MagicOnion追加</span>
-            </button>
+        <div class="battle-actions">
+            @if (battle.IsHistoricalBattle)
+            {
+                <button class="btn-secondary" @onclick="GoBackToHome">
+                    ← バトル一覧に戻る
+                </button>
+            }
+            else
+            {
+                <button class="btn-danger" @onclick="RemoveBattle">
+                    バトルを削除
+                </button>
+            }
         </div>
-    </div>
+    </header>
 
+    @if (battle.IsHistoricalBattle)
+    {
+        <!-- 履歴バトル用のリプレイ表示 -->
+        <div class="historical-battle-info">
+            <div class="battle-stats">
+                <div class="stat-item">
+                    <span class="label">開始時刻:</span>
+                    <span class="value">@battle.BattleHistory!.CreatedAt.ToString("yyyy/MM/dd HH:mm:ss")</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">完了時刻:</span>
+                    <span class="value">@battle.BattleHistory!.CompletedAt.ToString("yyyy/MM/dd HH:mm:ss")</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">バトル時間:</span>
+                    <span class="value">@((battle.BattleHistory!.CompletedAt - battle.BattleHistory.CreatedAt).ToString(@"mm\:ss"))</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">総ターン数:</span>
+                    <span class="value">@battle.BattleHistory!.TotalTurns</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">結果:</span>
+                    <span class="value @(battle.BattleHistory!.Result.IsPlayerVictory ? "victory" : "defeat")">
+                        @(battle.BattleHistory!.Result.IsPlayerVictory ? "勝利" : "敗北")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- リプレイコントロール -->
+        <HistoricalBattleReplayControl
+            BattleHistory="battle.BattleHistory!"
+            @bind-CurrentFrame="currentReplayFrame"
+            @bind-IsPlaying="isReplayPlaying" />
+    }
+    else
+    {
+        <!-- アクティブバトル用のクライアント管理 -->
+        <div class="client-management">
+            <div class="connected-clients">
+                @foreach (var client in battle.Clients)
+                {
+                    <ClientCard Client="client" OnRemove="RemoveClient" />
+                }
+            </div>
+
+            <div class="add-client-buttons">
+                <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)">
+                    <span class="plus-icon">+</span>
+                    <span>SignalR追加</span>
+                </button>
+
+                <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)">
+                    <span class="plus-icon">+</span>
+                    <span>MagicOnion追加</span>
+                </button>
+            </div>
+        </div>
+    }
+
+    <!-- バトルフィールド表示 -->
     <div class="battle-fields">
-        @foreach (var client in battle.Clients)
+        @if (battle.IsHistoricalBattle)
         {
-            <BattleField Client="client" Size="100" />
+            <!-- 履歴バトル用のリプレイフィールド -->
+            <HistoricalBattleFieldGrid
+                BattleHistory="battle.BattleHistory!"
+                CurrentFrame="currentReplayFrame"
+                FieldSize="200" />
+        }
+        else
+        {
+            <!-- アクティブバトル用のリアルタイムフィールド -->
+            @foreach (var client in battle.Clients)
+            {
+                <BattleField Client="client" Size="100" />
+            }
         }
     </div>
 </div>
@@ -467,15 +1149,30 @@ public class SettingsService
     [Parameter] public string BattleId { get; set; } = string.Empty;
 
     private Battle battle = null!;
+    private int currentReplayFrame = 0;
+    private bool isReplayPlaying = false;
 
     protected override async Task OnInitializedAsync()
     {
-        battle = SessionManager.GetBattle(BattleId) ??
-                 throw new InvalidOperationException($"Battle {BattleId} not found");
+        battle = SessionManager.GetBattle(BattleId);
+
+        if (battle == null)
+        {
+            // バトルが見つからない場合、履歴から読み込みを試行
+            battle = await SessionManager.LoadBattleFromHistoryAsync(BattleId);
+
+            if (battle == null)
+            {
+                Navigation.NavigateTo("/");
+                return;
+            }
+        }
     }
 
     private async Task AddClient(ConnectionType type)
     {
+        if (battle.IsHistoricalBattle) return; // 履歴バトルでは無効
+
         var connectionInfo = new ConnectionInfo
         {
             ServerUrl = battle.ServerUrl,
@@ -489,8 +1186,353 @@ public class SettingsService
 
     private async Task RemoveClient(BattleClient client)
     {
+        if (battle.IsHistoricalBattle) return; // 履歴バトルでは無効
+
         await battle.RemoveClientAsync(client);
         StateHasChanged();
+    }
+
+    private async Task RemoveBattle()
+    {
+        if (battle.IsHistoricalBattle) return; // 履歴バトルでは無効
+
+        await SessionManager.RemoveBattleAsync(battle.Id);
+        Navigation.NavigateTo("/");
+    }
+
+    private void GoBackToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+```
+
+### Historical Battle Replay Components
+
+履歴バトルのリプレイ表示に特化したコンポーネント群。
+
+#### Historical Battle Replay Control
+
+履歴バトルのリプレイを制御するコンポーネント。再生・停止・シークバーを提供します。
+
+```razor
+@using CliClient.Constants
+@implements IDisposable
+
+<div class="replay-control-panel">
+    <div class="replay-controls">
+        <button class="play-pause-btn" @onclick="TogglePlayPause">
+            <span class="@(IsPlaying ? "pause-icon" : "play-icon")">
+                @(IsPlaying ? "⏸️" : "▶️")
+            </span>
+        </button>
+
+        <button class="step-btn" @onclick="StepBackward" disabled="@(IsPlaying || CurrentFrame <= 0)">
+            ⏮️
+        </button>
+
+        <button class="step-btn" @onclick="StepForward" disabled="@(IsPlaying || CurrentFrame >= MaxFrame)">
+            ⏭️
+        </button>
+
+        <button class="reset-btn" @onclick="ResetToStart" disabled="@IsPlaying">
+            ⏪
+        </button>
+    </div>
+
+    <div class="replay-timeline">
+        <input type="range"
+               class="timeline-slider"
+               @bind="CurrentFrame"
+               @oninput="OnTimelineChanged"
+               min="0"
+               max="@MaxFrame"
+               disabled="@IsPlaying" />
+
+        <div class="timeline-info">
+            <span class="current-time">@FormatFrameTime(CurrentFrame)</span>
+            <span class="separator">/</span>
+            <span class="total-time">@FormatFrameTime(MaxFrame)</span>
+            <span class="frame-info">(@CurrentFrame/@MaxFrame frames)</span>
+        </div>
+    </div>
+
+    <div class="playback-speed">
+        <label>再生速度:</label>
+        <select @bind="PlaybackSpeed">
+            <option value="0.25">0.25x</option>
+            <option value="0.5">0.5x</option>
+            <option value="1.0" selected>1.0x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2.0">2.0x</option>
+        </select>
+    </div>
+</div>
+
+@code {
+    [Parameter] public BattleHistory BattleHistory { get; set; } = null!;
+    [Parameter] public int CurrentFrame { get; set; }
+    [Parameter] public EventCallback<int> CurrentFrameChanged { get; set; }
+    [Parameter] public bool IsPlaying { get; set; }
+    [Parameter] public EventCallback<bool> IsPlayingChanged { get; set; }
+
+    private Timer? playbackTimer;
+    private double playbackSpeed = 1.0;
+
+    private int MaxFrame => Math.Max(0, BattleHistory.ReplayData.Count - 1);
+
+    private double PlaybackSpeed
+    {
+        get => playbackSpeed;
+        set
+        {
+            playbackSpeed = value;
+            if (IsPlaying)
+            {
+                RestartTimer(); // 新しい速度でタイマーを再開
+            }
+        }
+    }
+
+    private async Task TogglePlayPause()
+    {
+        IsPlaying = !IsPlaying;
+        await IsPlayingChanged.InvokeAsync(IsPlaying);
+
+        if (IsPlaying)
+        {
+            StartPlayback();
+        }
+        else
+        {
+            StopPlayback();
+        }
+    }
+
+    private async Task StepForward()
+    {
+        if (CurrentFrame < MaxFrame)
+        {
+            CurrentFrame++;
+            await CurrentFrameChanged.InvokeAsync(CurrentFrame);
+        }
+    }
+
+    private async Task StepBackward()
+    {
+        if (CurrentFrame > 0)
+        {
+            CurrentFrame--;
+            await CurrentFrameChanged.InvokeAsync(CurrentFrame);
+        }
+    }
+
+    private async Task ResetToStart()
+    {
+        CurrentFrame = 0;
+        await CurrentFrameChanged.InvokeAsync(CurrentFrame);
+    }
+
+    private async Task OnTimelineChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var frame))
+        {
+            CurrentFrame = Math.Clamp(frame, 0, MaxFrame);
+            await CurrentFrameChanged.InvokeAsync(CurrentFrame);
+        }
+    }
+
+    private void StartPlayback()
+    {
+        var interval = (int)(BattleReplayDefines.ReplayFrameTimeMs / playbackSpeed);
+        playbackTimer = new Timer(OnTimerTick, null, 0, interval);
+    }
+
+    private void StopPlayback()
+    {
+        playbackTimer?.Dispose();
+        playbackTimer = null;
+    }
+
+    private void RestartTimer()
+    {
+        StopPlayback();
+        StartPlayback();
+    }
+
+    private async void OnTimerTick(object? state)
+    {
+        await InvokeAsync(async () =>
+        {
+            if (CurrentFrame < MaxFrame)
+            {
+                CurrentFrame++;
+                await CurrentFrameChanged.InvokeAsync(CurrentFrame);
+                StateHasChanged();
+            }
+            else
+            {
+                // 最後まで到達したら自動停止
+                await TogglePlayPause();
+            }
+        });
+    }
+
+    private string FormatFrameTime(int frame)
+    {
+        var seconds = frame * BattleReplayDefines.ReplayFrameTimeMs / 1000.0;
+        return TimeSpan.FromSeconds(seconds).ToString(@"mm\:ss\.f");
+    }
+
+    public void Dispose()
+    {
+        playbackTimer?.Dispose();
+    }
+}
+```
+
+#### Historical Battle Field Grid
+
+履歴バトル用のフィールド表示コンポーネント。指定されたフレームのバトル状況を表示します。
+
+```razor
+@using CliClient.Constants
+
+<div class="historical-battle-field-grid">
+    @if (currentFrameData != null && currentFrameData.BattleData?.Any() == true)
+    {
+        @foreach (var (battleData, index) in currentFrameData.BattleData.Select((data, i) => (data, i)))
+        {
+            <div class="field-container" style="margin: 5px;">
+                <HistoricalBattleField
+                    BattleData="battleData"
+                    FieldSize="FieldSize"
+                    ClientIndex="index"
+                    Turn="battleData.CurrentTurn" />
+            </div>
+        }
+    }
+    else
+    {
+        <div class="no-data-message">
+            このフレームにはバトルデータがありません
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public BattleHistory BattleHistory { get; set; } = null!;
+    [Parameter] public int CurrentFrame { get; set; }
+    [Parameter] public int FieldSize { get; set; } = 200;
+
+    private BattleReplayData? currentFrameData;
+
+    protected override void OnParametersSet()
+    {
+        UpdateCurrentFrameData();
+    }
+
+    private void UpdateCurrentFrameData()
+    {
+        if (BattleHistory.ReplayData.Count > 0 && CurrentFrame >= 0 && CurrentFrame < BattleHistory.ReplayData.Count)
+        {
+            currentFrameData = BattleHistory.ReplayData[CurrentFrame];
+        }
+        else
+        {
+            currentFrameData = null;
+        }
+    }
+}
+```
+
+#### Historical Battle Field
+
+単一のバトルフィールドを履歴データから表示するコンポーネント。
+
+```razor
+<div class="historical-battle-field"
+     style="width: @(FieldSize)px; height: @(FieldSize)px; border: 1px solid #ccc; position: relative; background: #f5f5f5;">
+
+    <div class="field-header" style="font-size: 10px; padding: 2px; background: #e0e0e0;">
+        <span class="client-info">クライアント #@(ClientIndex + 1)</span>
+        <span class="turn-info">Turn: @Turn</span>
+    </div>
+
+    <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 20px);">
+        @if (BattleData?.AllEntities?.Any() == true)
+        {
+            @foreach (var entity in BattleData.AllEntities)
+            {
+                <div class="entity @GetEntityCssClass(entity)"
+                     style="position: absolute;
+                            left: @(entity.Position.X * scaleX)px;
+                            top: @(entity.Position.Y * scaleY)px;
+                            width: @entitySize px;
+                            height: @entitySize px;
+                            border-radius: 50%;"
+                     title="@GetEntityTooltip(entity)">
+                </div>
+            }
+        }
+    </div>
+
+    <div class="field-footer" style="font-size: 8px; position: absolute; bottom: 2px; left: 2px; right: 2px;">
+        <span>Entities: @(BattleData?.AllEntities?.Count ?? 0)</span>
+        <span class="players">Players: @GetPlayerCount()</span>
+        <span class="enemies">Enemies: @GetEnemyCount()</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public object BattleData { get; set; } = null!; // BattleStatus from replay data
+    [Parameter] public int FieldSize { get; set; } = 200;
+    [Parameter] public int ClientIndex { get; set; }
+    [Parameter] public int Turn { get; set; }
+
+    private double scaleX => (FieldSize - 4) / 20.0; // 20x20座標を指定サイズにスケール
+    private double scaleY => (FieldSize - 24) / 20.0; // ヘッダー・フッター分を考慮
+    private int entitySize => Math.Max(4, (int)(scaleX * 0.8));
+
+    private string GetEntityCssClass(object entity)
+    {
+        // entity の IsPlayer プロパティを動的に取得
+        var isPlayerProperty = entity.GetType().GetProperty("IsPlayer");
+        var isPlayer = isPlayerProperty?.GetValue(entity) as bool? ?? false;
+
+        return isPlayer ? "player" : "enemy";
+    }
+
+    private string GetEntityTooltip(object entity)
+    {
+        // 動的にプロパティを取得してツールチップを構築
+        var entityType = entity.GetType();
+        var entityId = entityType.GetProperty("EntityId")?.GetValue(entity)?.ToString() ?? "Unknown";
+        var currentHp = entityType.GetProperty("CurrentHp")?.GetValue(entity)?.ToString() ?? "0";
+        var maxHp = entityType.GetProperty("MaxHp")?.GetValue(entity)?.ToString() ?? "0";
+        var position = entityType.GetProperty("Position")?.GetValue(entity);
+        var posX = position?.GetType().GetProperty("X")?.GetValue(position)?.ToString() ?? "0";
+        var posY = position?.GetType().GetProperty("Y")?.GetValue(position)?.ToString() ?? "0";
+
+        return $"ID: {entityId} - HP: {currentHp}/{maxHp} - Pos: ({posX}, {posY})";
+    }
+
+    private int GetPlayerCount()
+    {
+        if (BattleData?.GetType().GetProperty("AllEntities")?.GetValue(BattleData) is not IEnumerable<object> entities)
+            return 0;
+
+        return entities.Count(entity =>
+            entity.GetType().GetProperty("IsPlayer")?.GetValue(entity) as bool? ?? false);
+    }
+
+    private int GetEnemyCount()
+    {
+        if (BattleData?.GetType().GetProperty("AllEntities")?.GetValue(BattleData) is not IEnumerable<object> entities)
+            return 0;
+
+        return entities.Count(entity =>
+            !(entity.GetType().GetProperty("IsPlayer")?.GetValue(entity) as bool? ?? true));
     }
 }
 ```
@@ -575,11 +1617,12 @@ public class SettingsService
 
 ### Options Page
 
-サーバーURL設定を管理するページ。
+サーバーURL設定とIndexedDB管理を行うページ。
 
 ```razor
 @page "/options"
 @inject SettingsService Settings
+@inject BattleHistoryService BattleHistory
 @inject NavigationManager Navigation
 
 <div class="options-page">
@@ -622,6 +1665,51 @@ public class SettingsService
             </div>
         </div>
 
+        <!-- IndexedDB管理設定 -->
+        <div class="setting-group">
+            <h3>データ管理</h3>
+
+            @if (storageStats != null)
+            {
+                <div class="storage-info">
+                    <div class="info-item">
+                        <span class="label">保存済みバトル数:</span>
+                        <span class="value">@storageStats.TotalBattles</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">データ使用量:</span>
+                        <span class="value">@((storageStats.TotalSizeBytes / 1024.0 / 1024.0).ToString("F2")) MB</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">平均バトルサイズ:</span>
+                        <span class="value">@(storageStats.AverageBattleSizeKB.ToString("F1")) KB</span>
+                    </div>
+                    @if (storageStats.OldestBattle.HasValue && storageStats.NewestBattle.HasValue)
+                    {
+                        <div class="info-item">
+                            <span class="label">データ期間:</span>
+                            <span class="value">@storageStats.OldestBattle.Value.ToString("MM/dd") - @storageStats.NewestBattle.Value.ToString("MM/dd")</span>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="form-group">
+                <button class="btn-warning" @onclick="RefreshStorageStats">
+                    ストレージ情報を更新
+                </button>
+            </div>
+
+            <div class="form-group">
+                <button class="btn-danger" @onclick="ClearIndexedDB" disabled="@isClearingData">
+                    @(isClearingData ? "削除中..." : "全バトル履歴を削除")
+                </button>
+                <p class="help-text">
+                    ⚠️ この操作は取り消せません。保存された全てのバトル履歴が削除されます。
+                </p>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button @onclick="SaveSettings" class="btn-primary">設定を保存</button>
             <button @onclick="ResetSettings" class="btn-secondary">デフォルトに戻す</button>
@@ -630,6 +1718,14 @@ public class SettingsService
 </div>
 
 @code {
+    private BattleHistoryStats? storageStats;
+    private bool isClearingData = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStorageStats();
+    }
+
     private async Task SaveSettings()
     {
         await Settings.SaveAsync();
@@ -641,6 +1737,49 @@ public class SettingsService
         Settings.Reset();
         await Settings.SaveAsync();
         StateHasChanged();
+    }
+
+    private async Task RefreshStorageStats()
+    {
+        try
+        {
+            storageStats = await BattleHistory.GetStorageStatsAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            // Handle error - could show toast notification
+            Console.WriteLine($"Failed to load storage stats: {ex.Message}");
+        }
+    }
+
+    private async Task ClearIndexedDB()
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm",
+            "全てのバトル履歴を削除します。この操作は取り消せません。続行しますか？"))
+        {
+            return;
+        }
+
+        isClearingData = true;
+        StateHasChanged();
+
+        try
+        {
+            await BattleHistory.ClearAllBattleHistoryAsync();
+            await RefreshStorageStats(); // 統計情報を更新
+            // Success notification
+        }
+        catch (Exception ex)
+        {
+            // Error notification
+            Console.WriteLine($"Failed to clear battle history: {ex.Message}");
+        }
+        finally
+        {
+            isClearingData = false;
+            StateHasChanged();
+        }
     }
 
     private void GoBack()
@@ -803,6 +1942,8 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 // Services registration
 builder.Services.AddSingleton<IConnectionFactory, ConnectionFactory>();
 builder.Services.AddSingleton<BattleSessionManager>();
+builder.Services.AddSingleton<BattleHistoryService>();
+builder.Services.AddSingleton<SettingsService>();
 
 // Logging
 builder.Services.AddLogging(logging =>
@@ -929,6 +2070,10 @@ WasmClient Application
 6. **Real-time Updates**: WebAssemblyの高いパフォーマンスでリアルタイム更新
 7. **Intuitive UI**: GUIベースの直感的な操作インターフェース
 8. **Real-time Field Visualization**: 200px四方のフィールドで複数バトルを同時監視
+9. **Persistent Battle History**: IndexedDBによるブラウザリロード後もアクセス可能なバトル履歴
+10. **Battle History Management**: 過去のバトルの詳細確認、削除、統計情報表示機能
+11. **Historical Battle Replay**: 保存されたバトル履歴の完全なリプレイ再生機能
+12. **Advanced Replay Controls**: 再生速度調整、フレーム単位のシーク、一時停止・再開機能
 
 ## Implementation Notes
 
@@ -936,4 +2081,10 @@ WasmClient Application
 - SignalR接続はWebSocketsを、MagicOnion接続はgRPC-Webを使用
 - リプレイデータの蓄積と再生にはCliClientと同じフレームレート（5fps）を使用
 - 接続エラー処理とリトライロジックをCliClientから移植
-- セッション管理
+- IndexedDBを使用したバトル履歴の永続化により、ブラウザリロード後もデータアクセス可能
+- JSInteropを使用してC#からIndexedDB操作を行い、型安全性を維持
+- 350KB程度/バトルの大容量データを効率的に管理するためのチャンク処理
+- バトル履歴の削除・統計表示機能により、ストレージ容量の管理が可能
+- 履歴バトルのリプレイ機能では、読み取り専用モードで完全な戦闘再現が可能
+- リプレイコントロールによる柔軟な再生操作（再生速度調整、フレーム単位の制御）
+- 動的プロパティアクセスによる型安全でない部分の最小化と例外処理の充実
