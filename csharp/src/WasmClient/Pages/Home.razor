@@ -7,15 +7,15 @@
 
 <div class="home-page battle-list-page">
     <header class="page-header">
-        <h1>バトル一覧</h1>
+        <h1>Battle List</h1>
         <nav class="nav-menu">
             <button class="tab-btn @(currentTab == "active" ? "active" : "")" @onclick="@(() => SetTab("active"))">
-                進行中 (@SessionManager.ActiveBattles.Count)
+                Running (@SessionManager.ActiveBattles.Count)
             </button>
             <button class="tab-btn @(currentTab == "history" ? "active" : "")" @onclick="@(() => SetTab("history"))">
-                履歴 (@battleHistories.Count)
+                History (@battleHistories.Count)
             </button>
-            <a href="/options" class="nav-link">オプション</a>
+            <a href="/options" class="nav-link">Options</a>
         </nav>
     </header>
 
@@ -49,7 +49,7 @@
             <div class="add-battle-card">
                 <button class="add-battle-btn" @onclick="ShowCreateBattleDialog">
                     <div class="plus-icon">+</div>
-                    <div class="add-text">新規バトル作成</div>
+                    <div class="add-text">Create New Battle</div>
                 </button>
             </div>
         }
@@ -63,7 +63,7 @@
                         <div class="battle-card-header">
                             <h3>@history.GroupName</h3>
                             <span class="battle-result @(history.Result.IsVictory ? "victory" : "defeat")">
-                                @(history.Result.IsVictory ? "勝利" : "敗北")
+                                @(history.Result.IsVictory ? "Victory" : "Defeat")
                             </span>
                         </div>
                         <div class="battle-card-body">
@@ -73,15 +73,15 @@
                             </div>
                             <div class="battle-duration">
                                 <span class="icon">⏱️</span>
-                                <span>@history.BattleDuration.TotalMinutes.ToString("F1") 分</span>
+                                <span>@history.BattleDuration.TotalMinutes.ToString("F1") Min</span>
                             </div>
                             <div class="battle-turns">
                                 <span class="icon">🔄</span>
-                                <span>@history.Result.TotalTurns ターン</span>
+                                <span>@history.Result.TotalTurns Turns</span>
                             </div>
                             <div class="players-survived">
                                 <span class="icon">💪</span>
-                                <span>@history.Result.PlayersSurvived / 5 生存</span>
+                                <span>@(history.Result.PlayersSurvived)/5 Survivors</span>
                             </div>
                         </div>
                         <div class="battle-card-actions">
@@ -96,8 +96,8 @@
             {
                 <div class="empty-message">
                     <div class="empty-icon">📊</div>
-                    <h3>バトル履歴がありません</h3>
-                    <p>バトルを完了すると、ここに履歴が表示されます。</p>
+                    <h3>No Battle History</h3>
+                    <p>Battle history will be displayed here once battles are completed.</p>
                 </div>
             }
         }
@@ -108,22 +108,22 @@
         <div class="dialog-overlay" @onclick="HideCreateBattleDialog">
             <div class="dialog" @onclick:stopPropagation="true">
                 <div class="dialog-header">
-                    <h3>新規バトル作成</h3>
+                    <h3>Create New Battle</h3>
                     <button class="close-btn" @onclick="HideCreateBattleDialog">×</button>
                 </div>
                 <div class="dialog-body">
                     <div class="form-group">
-                        <label>グループ名:</label>
+                        <label>Group Name:</label>
                         <input @bind="newBattleGroupName" placeholder="battle-group-1" />
                     </div>
                     <div class="form-group">
-                        <label>サーバーURL:</label>
+                        <label>Server URL:</label>
                         <input @bind="newBattleServerUrl" placeholder="@Settings.SignalRUrl" />
                     </div>
                 </div>
                 <div class="dialog-footer">
-                    <button class="btn-secondary" @onclick="HideCreateBattleDialog">キャンセル</button>
-                    <button class="btn-primary" @onclick="CreateBattle" disabled="@string.IsNullOrWhiteSpace(newBattleGroupName)">作成</button>
+                    <button class="btn-secondary" @onclick="HideCreateBattleDialog">Cancel</button>
+                    <button class="btn-primary" @onclick="CreateBattle" disabled="@string.IsNullOrWhiteSpace(newBattleGroupName)">Create</button>
                 </div>
             </div>
         </div>
