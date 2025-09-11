@@ -1,7 +1,6 @@
 ﻿// Global using directives for WasmClient project
 
 global using Microsoft.AspNetCore.Components.Web;
-global using Microsoft.Extensions.Logging;
 global using Microsoft.JSInterop;
 
 // Shared project references

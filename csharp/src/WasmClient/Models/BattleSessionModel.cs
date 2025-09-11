@@ -12,8 +12,19 @@ public class BattleSessionModel : IAsyncDisposable
     private readonly ILogger _logger;
     private BattleStatus _status = BattleStatus.Waiting;
 
-    public string Id { get; init; } = string.Empty;
-    public string BattleId => Id; // Alias for backwards compatibility
+    /// <summary>
+    /// Session ID (client-generated UUID for this battle session)
+    /// </summary>
+    public string SessionId { get; init; } = string.Empty;
+    /// <summary>
+    /// Battle ID provided by the server
+    /// </summary>
+    public string BattleId { get; private set; } = string.Empty;
+    /// <summary>
+    /// Gets the battle seed for reproducibility
+    /// </summary>
+    public int Seed { get; private set; }
+
     public string GroupName { get; init; } = string.Empty;
     public string ServerUrl { get; init; } = string.Empty;
 
@@ -70,13 +81,20 @@ public class BattleSessionModel : IAsyncDisposable
     {
         var session = new BattleSessionModel(null!, null!)
         {
-            Id = battleHistory.BattleId,
+            SessionId = battleHistory.SessionId, // Note: battleHistory.BattleId is actually the session ID
+            BattleId = battleHistory.BattleId,
             GroupName = battleHistory.GroupName,
             ServerUrl = battleHistory.ServerUrl,
             IsHistoricalBattle = true,
             Status = BattleStatus.Completed,
             BattleHistory = battleHistory
         };
+
+        // Set seed if available in battle history
+        if (battleHistory.Seed != 0)
+        {
+            session.Seed = battleHistory.Seed;
+        }
 
         // Create historical clients based on stored client history
         foreach (var clientHistory in battleHistory.ParticipatingClients)
@@ -123,11 +141,35 @@ public class BattleSessionModel : IAsyncDisposable
             // Set player ID if not already set
             client.PlayerId = Shared.Common.PlayerNameGenerator.GenerateShortName();
 
+            // Subscribe to connection events to capture server battle data
+            client.OnConnectionsReady += (data) =>
+            {
+                BattleId = data.BattleId.ToString();
+                Seed = data.Seed;
+                _logger.LogInformation("Session {SessionId}: Received server BattleId: {ServerBattleId}, Seed: {Seed}",
+                    SessionId, BattleId, Seed);
+            };
+
+            client.OnBattleStarted += (data) =>
+            {
+                // Backup assignment if not set in ConnectionsReady
+                if (string.IsNullOrEmpty(BattleId))
+                {
+                    BattleId = data.BattleId.ToString();
+                }
+                if (Seed == 0)
+                {
+                    Seed = data.Seed;
+                }
+                _logger.LogInformation("Session {SessionId}: Battle started with BattleId: {ServerBattleId}, Seed: {Seed}",
+                    SessionId, BattleId, Seed);
+            };
+
             // Subscribe to battle completion events
             client.OnBattleComplete += () =>
             {
                 Status = BattleStatus.Completed;
-                _logger.LogInformation("Battle {BattleId} status updated to Completed", Id);
+                _logger.LogInformation("Battle session {SessionId} status updated to Completed", SessionId);
 
                 // Create battle result and trigger completion event
                 var result = new BattleResult
@@ -154,27 +196,27 @@ public class BattleSessionModel : IAsyncDisposable
                         return;
 
                     ReplayData.Add(replayData);
-                    _logger.LogDebug("Added replay chunk {ChunkIndex} to battle {BattleId}", replayData.ChunkIndex, Id);
+                    _logger.LogDebug("Added replay chunk {ChunkIndex} to battle session {SessionId}", replayData.ChunkIndex, SessionId);
                 }
             };
 
             _clients.Add(client);
 
-            _logger.LogInformation("Added client {ConnectionId} ({Type}) to battle {BattleId}",
-                connection.ConnectionId, connection.Type, Id);
+            _logger.LogInformation("Added client {ConnectionId} ({Type}) to battle session {SessionId}",
+                connection.ConnectionId, connection.Type, SessionId);
 
             // Check if battle should start (5 clients connected)
             if (_clients.Count == 5 && Status == BattleStatus.Waiting)
             {
                 Status = BattleStatus.InProgress;
-                _logger.LogInformation("Battle {BattleId} is starting with 5 clients", Id);
+                _logger.LogInformation("Battle session {SessionId} is starting with 5 clients", SessionId);
             }
 
             return client;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add client to battle {BattleId}", Id);
+            _logger.LogError(ex, "Failed to add client to battle session {SessionId}", SessionId);
             throw;
         }
     }
@@ -190,8 +232,8 @@ public class BattleSessionModel : IAsyncDisposable
 
         if (_clients.Remove(client))
         {
-            _logger.LogInformation("Removing client {ConnectionId} from battle {BattleId}",
-                client.ConnectionId, Id);
+            _logger.LogInformation("Removing client {ConnectionId} from battle session {SessionId}",
+                client.ConnectionId, SessionId);
             await client.DisposeAsync();
         }
     }
@@ -201,7 +243,7 @@ public class BattleSessionModel : IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        _logger.LogInformation("Disposing battle {BattleId} with {ClientCount} clients", Id, _clients.Count);
+        _logger.LogInformation("Disposing battle session {SessionId} with {ClientCount} clients", SessionId, _clients.Count);
 
         var disposeTasks = _clients.Select(c => c.DisposeAsync().AsTask());
         await Task.WhenAll(disposeTasks);
@@ -211,6 +253,28 @@ public class BattleSessionModel : IAsyncDisposable
         {
             Status = BattleStatus.Completed;
         }
+    }
+
+    private void HandleConnectionsReady(Shared.Models.ConnectionsReadyData data)
+    {
+        Seed = data.Seed; // Save seed for history
+        _logger?.LogInformation("Battle {BattleId} connections ready - Seed: {Seed}", data.BattleId, data.Seed);
+    }
+
+    private void HandleBattleStarted(Shared.Models.BattleStartedData data)
+    {
+        // Update seed if it wasn't set in ConnectionsReady (backup)
+        if (Seed == 0)
+        {
+            Seed = data.Seed;
+        }
+        _logger?.LogInformation("Battle {BattleId} started with seed {Seed}", data.BattleId, data.Seed);
+    }
+
+    private void HandleBattleComplete(string message)
+    {
+        _logger?.LogInformation("Battle completed: {Message}", message);
+        // This is handled at the session level, not individual client level
     }
 }
 
@@ -242,6 +306,10 @@ public class BattleClient : IAsyncDisposable
     public event Action<BattleFieldData>? OnBattleFieldUpdated;
     public event Action<BattleReplayData>? OnReplayDataReceived;
     public event Action? OnBattleComplete;
+
+    // Events for server data
+    public event Action<Shared.Models.ConnectionsReadyData>? OnConnectionsReady;
+    public event Action<Shared.Models.BattleStartedData>? OnBattleStarted;
 
     public BattleClient(IBattleConnection? connection, ILogger? logger)
     {
@@ -370,17 +438,25 @@ public class BattleClient : IAsyncDisposable
 
     private void HandleConnectionsReady(Shared.Models.ConnectionsReadyData data)
     {
-        _logger?.LogInformation("Battle {BattleId} connections ready - Seed: {Seed}", data.BattleId, data.Seed);
+        // Simple log - parent session manages seed
+        _logger?.LogInformation("Battle client connections ready - BattleId: {BattleId}, Seed: {Seed}", data.BattleId, data.Seed);
+
+        // Fire event for parent session to capture
+        OnConnectionsReady?.Invoke(data);
     }
 
     private void HandleBattleStarted(Shared.Models.BattleStartedData data)
     {
-        _logger?.LogInformation("Battle {BattleId} started with seed {Seed}", data.BattleId, data.Seed);
+        // Simple log - parent session manages seed
+        _logger?.LogInformation("Battle client started - BattleId: {BattleId}, Seed: {Seed}", data.BattleId, data.Seed);
+
+        // Fire event for parent session to capture
+        OnBattleStarted?.Invoke(data);
     }
 
     private void HandleBattleComplete(string message)
     {
-        _logger?.LogInformation("Battle completed: {Message}", message);
+        _logger?.LogInformation("Battle client completed: {Message}", message);
         OnBattleComplete?.Invoke();
     }
 

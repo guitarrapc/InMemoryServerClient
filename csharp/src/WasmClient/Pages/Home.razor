@@ -24,7 +24,7 @@
         {
             @foreach (var battle in SessionManager.ActiveBattles)
             {
-                <div class="battle-card" @onclick="() => NavigateToBattle(battle.Id)">
+                <div class="battle-card" @onclick="() => NavigateToBattle(battle.SessionId)">
                     <div class="battle-card-header">
                         <h3>@battle.GroupName</h3>
                         <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
@@ -548,7 +548,7 @@
                 var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.SignalRUrl : newBattleServerUrl;
                 var battle = await SessionManager.CreateBattleAsync(newBattleGroupName, serverUrl);
                 HideCreateBattleDialog();
-                Navigation.NavigateTo($"/battle/{battle.Id}");
+                Navigation.NavigateTo($"/battle/{battle.SessionId}");
             }
             catch (Exception ex)
             {

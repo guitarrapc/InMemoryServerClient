@@ -20,18 +20,37 @@
         <header class="battle-header">
             <div class="header-left">
                 <button class="back-btn" @onclick="GoBack">← Back</button>
-                <h2>@battle.GroupName</h2>
-                <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
-                @if (!string.IsNullOrEmpty(battleResult))
-                {
-                    <span class="battle-result @(battleResult.Contains("Victory") ? "victory" : "defeat")">@battleResult</span>
-                }
-                @if (isHistoricalMode)
-                {
-                    <span class="historical-badge">Historical Replay</span>
-                }
+                <div class="battle-title-section">
+                    <h2>@battle.GroupName</h2>
+                    <div class="battle-metadata">
+                        <span class="session-id">Session ID: @battle.SessionId</span>
+                        @if (!string.IsNullOrEmpty(battle.BattleId))
+                        {
+                            <span class="server-battle-id">Battle ID: @battle.BattleId</span>
+                        }
+                        @if (isHistoricalMode && battleHistory is not null && battleHistory.Seed != 0)
+                        {
+                            <span class="battle-seed">Seed: @battleHistory.Seed</span>
+                        }
+                        else if (!isHistoricalMode && battle.Seed != 0)
+                        {
+                            <span class="battle-seed">Seed: @battle.Seed</span>
+                        }
+                    </div>
+                </div>
             </div>
             <div class="header-right">
+                <div class="status-badges">
+                    <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
+                    @if (!string.IsNullOrEmpty(battleResult))
+                    {
+                        <span class="battle-result @(battleResult.Contains("Victory") ? "victory" : "defeat")">@battleResult</span>
+                    }
+                    @if (isHistoricalMode)
+                    {
+                        <span class="historical-badge">Historical Replay</span>
+                    }
+                </div>
                 <span class="server-info">📡 @battle.ServerUrl</span>
             </div>
         </header>

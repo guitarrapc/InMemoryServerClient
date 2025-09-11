@@ -32,7 +32,7 @@ public class BattleSessionManager
             _connectionFactory,
             _logger)
         {
-            Id = Guid.NewGuid().ToString(),
+            SessionId = Guid.NewGuid().ToString(),
             GroupName = groupName,
             ServerUrl = serverUrl ?? _settings.SignalRUrl,
             Status = BattleStatus.Waiting,
@@ -42,21 +42,21 @@ public class BattleSessionManager
         // バトル完了イベントを購読
         battle.OnBattleCompleted += OnBattleCompleted;
 
-        _battles[battle.Id] = battle;
-        _logger.LogInformation("Created battle {BattleId} with group {GroupName}", battle.Id, groupName);
+        _battles[battle.SessionId] = battle;
+        _logger.LogInformation("Created battle session {SessionId} with group {GroupName}", battle.SessionId, groupName);
         return battle;
     }
 
-    public BattleSessionModel? GetBattle(string battleId) => _battles.TryGetValue(battleId, out var battle) ? battle : null;
+    public BattleSessionModel? GetBattle(string sessionId) => _battles.TryGetValue(sessionId, out var battle) ? battle : null;
 
-    public async Task RemoveBattleAsync(string battleId)
+    public async Task RemoveBattleAsync(string sessionId)
     {
-        if (_battles.TryGetValue(battleId, out var battle))
+        if (_battles.TryGetValue(sessionId, out var battle))
         {
             battle.OnBattleCompleted -= OnBattleCompleted;
             await battle.DisposeAsync();
-            _battles.Remove(battleId);
-            _logger.LogInformation("Removed battle {BattleId}", battleId);
+            _battles.Remove(sessionId);
+            _logger.LogInformation("Removed battle session {SessionId}", sessionId);
         }
     }
 
@@ -84,7 +84,7 @@ public class BattleSessionManager
 
         var battle = new BattleSessionModel(_connectionFactory, _logger)
         {
-            Id = history.BattleId,
+            SessionId = history.SessionId, // Note: battleHistory.BattleId is actually the session ID
             GroupName = history.GroupName,
             ServerUrl = history.ServerUrl,
             Status = BattleStatus.Completed,
@@ -93,8 +93,8 @@ public class BattleSessionManager
             BattleHistory = history
         };
 
-        _battles[battle.Id] = battle;
-        _logger.LogInformation("Loaded historical battle {BattleId}", battleId);
+        _battles[battle.SessionId] = battle;
+        _logger.LogInformation("Loaded historical battle session {SessionId}", battle.SessionId);
         return battle;
     }
 
@@ -114,13 +114,18 @@ public class BattleSessionManager
     {
         try
         {
+            _logger.LogInformation("Saving battle history - SessionId: {SessionId}, ServerBattleId: {ServerBattleId}, Seed: {Seed}",
+                battle.SessionId, battle.BattleId ?? "(null)", battle.Seed);
+
             var history = new BattleHistory
             {
-                BattleId = battle.Id,
+                SessionId = battle.SessionId,
+                BattleId = battle.BattleId!,
                 CreatedAt = battle.CreatedAt,
                 CompletedAt = DateTime.UtcNow,
                 GroupName = battle.GroupName,
                 ServerUrl = battle.ServerUrl,
+                Seed = battle.Seed,
                 TotalTurns = battle.TotalTurns,
                 ReplayData = battle.ReplayData.ToList(),
                 Result = result,
@@ -134,11 +139,12 @@ public class BattleSessionManager
             };
 
             await _battleHistory.SaveBattleHistoryAsync(history);
-            _logger.LogInformation("Battle history saved for {BattleId}", battle.Id);
+            _logger.LogInformation("Battle history saved for session {SessionId} with server battle ID {ServerBattleId}",
+                battle.SessionId, battle.BattleId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save battle history for {BattleId}", battle.Id);
+            _logger.LogError(ex, "Failed to save battle history for session {SessionId}", battle.SessionId);
         }
     }
 
@@ -149,19 +155,19 @@ public class BattleSessionManager
     {
         try
         {
-            _logger.LogInformation("Loading historical battle {BattleId}", battleHistory.BattleId);
+            _logger.LogInformation("Loading historical battle {BattleId}", battleHistory.SessionId);
 
             // Create historical battle session with proper client information
             var historicalSession = BattleSessionModel.CreateHistorical(battleHistory);
 
             _logger.LogInformation("Historical battle {BattleId} loaded with {ClientCount} clients",
-                battleHistory.BattleId, historicalSession.Clients.Count);
+                battleHistory.SessionId, historicalSession.Clients.Count);
 
             return historicalSession;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load historical battle {BattleId}", battleHistory.BattleId);
+            _logger.LogError(ex, "Failed to load historical battle {BattleId}", battleHistory.SessionId);
             return null;
         }
     }

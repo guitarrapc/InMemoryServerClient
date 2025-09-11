@@ -5,17 +5,18 @@
 /// </summary>
 public record BattleHistory
 {
-    public string BattleId { get; init; } = string.Empty;
-    public DateTime CreatedAt { get; init; }
-    public DateTime CompletedAt { get; init; }
-    public string GroupName { get; init; } = string.Empty;
-    public string ServerUrl { get; init; } = string.Empty;
-    public int TotalTurns { get; init; }
+    public required string SessionId { get; init; } // Session ID (client-generated)
+    public required string BattleId { get; init; } // battle ID (Server-generated)
+    public required int Seed { get; init; } // Seed (Server-generated)
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime CompletedAt { get; init; }
+    public required string GroupName { get; init; }
+    public required string ServerUrl { get; init; }
+    public required int TotalTurns { get; init; }
     public List<BattleReplayData> ReplayData { get; init; } = new();
     public BattleResult Result { get; init; } = new();
     public List<BattleClientHistory> ParticipatingClients { get; init; } = new();
     public long DataSize { get; init; } // Changed from DataSizeBytes
-    public string BattleSeed { get; init; } = string.Empty;
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
 }
 

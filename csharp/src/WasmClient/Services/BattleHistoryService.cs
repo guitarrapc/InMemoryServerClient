@@ -24,11 +24,11 @@ public class BattleHistoryService
         try
         {
             await _jsRuntime.InvokeVoidAsync("battleStorage.saveBattle", battleHistory);
-            _logger.LogInformation("Battle history {BattleId} saved to IndexedDB", battleHistory.BattleId);
+            _logger.LogInformation("Battle history {BattleId} saved to IndexedDB", battleHistory.SessionId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save battle history {BattleId}", battleHistory.BattleId);
+            _logger.LogError(ex, "Failed to save battle history {BattleId}", battleHistory.SessionId);
             throw;
         }
     }
