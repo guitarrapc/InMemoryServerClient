@@ -124,7 +124,13 @@ public class BattleSessionManager
                 TotalTurns = battle.TotalTurns,
                 ReplayData = battle.ReplayData.ToList(),
                 Result = result,
-                ParticipatingClients = battle.Clients.Select(c => c.ConnectionId).ToList()
+                ParticipatingClients = battle.Clients.Select(c => new BattleClientHistory
+                {
+                    ConnectionId = c.ConnectionId,
+                    PlayerId = c.PlayerId ?? "Unknown",
+                    ConnectionType = c.Type,
+                    ConnectedAt = c.ConnectedAt
+                }).ToList()
             };
 
             await _battleHistory.SaveBattleHistoryAsync(history);
@@ -143,10 +149,15 @@ public class BattleSessionManager
     {
         try
         {
-            // 現段階では簡易的な実装
-            // TODO: 履歴専用のBattleSessionModelを作成する完全な実装
-            await Task.CompletedTask;
-            return null;
+            _logger.LogInformation("Loading historical battle {BattleId}", battleHistory.BattleId);
+
+            // Create historical battle session with proper client information
+            var historicalSession = BattleSessionModel.CreateHistorical(battleHistory);
+
+            _logger.LogInformation("Historical battle {BattleId} loaded with {ClientCount} clients",
+                battleHistory.BattleId, historicalSession.Clients.Count);
+
+            return historicalSession;
         }
         catch (Exception ex)
         {

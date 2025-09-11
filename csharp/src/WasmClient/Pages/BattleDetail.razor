@@ -167,35 +167,8 @@
 
                 // 履歴データから直接BattleFieldに表示するためのクライアントを作成
                 // 実際の接続は不要、表示用のデータのみ
-                var mockClients = new List<BattleClient>();
-
-                // 履歴データの最初のリプレイチャンクから初期状態を取得
-                if (battleHistory.ReplayData.Any() && battleHistory.ReplayData[0].TurnData.Any())
-                {
-                    var firstTurn = battleHistory.ReplayData[0].TurnData[0];
-
-                    // プレイヤー数分のモッククライアントを作成
-                    var playerCount = firstTurn.Players.Count;
-
-                    // 接続タイプをSignalRとMagicOnionで交互に割り当て
-                    var connectionTypes = new[] { ConnectionType.SignalR, ConnectionType.MagicOnion };
-
-                    for (int i = 0; i < Math.Min(playerCount, 5); i++)
-                    {
-                        var connectionType = connectionTypes[i % connectionTypes.Length];
-                        var mockClient = BattleClient.CreateHistoricalClient($"historical-client-{i}", battleHistory.GroupName, battleHistory.ReplayData, connectionType);
-                        mockClients.Add(mockClient);
-                    }
-                }
-
-                // 履歴表示用のBattleSessionModelを作成
-                battle = BattleSessionModel.CreateHistorical(
-                    BattleId,
-                    battleHistory.GroupName,
-                    battleHistory.ServerUrl,
-                    mockClients,
-                    battleHistory.ReplayData
-                );
+                // 履歴データからBattleSessionModelを作成
+                battle = BattleSessionModel.CreateHistorical(battleHistory);
 
                 // 結果を設定
                 battleResult = battleHistory.Result.IsVictory ? "🎉 Victory" : "❌ Defeat";
@@ -283,11 +256,11 @@
     {
         if (battle != null && !battle.IsFull)
         {
+
             // 個別のローディング状態を設定
-            if (type == ConnectionType.SignalR)
-                isAddingSignalR = true;
-            else if (type == ConnectionType.MagicOnion)
-                isAddingMagicOnion = true;
+
+            isAddingSignalR = type == ConnectionType.SignalR;
+            isAddingMagicOnion = type == ConnectionType.MagicOnion;
 
             errorMessage = null;
             StateHasChanged();
@@ -298,8 +271,7 @@
                 {
                     ServerUrl = battle.ServerUrl,
                     GroupName = battle.GroupName,
-                    Type = type,
-                    PlayerId = $"player-{Random.Shared.Next(100, 999):D3}"
+                    Type = type
                 };
 
                 var client = await battle.AddClientAsync(connectionInfo);
@@ -316,11 +288,11 @@
             }
             finally
             {
+
                 // 個別のローディング状態をクリア
-                if (type == ConnectionType.SignalR)
-                    isAddingSignalR = false;
-                else if (type == ConnectionType.MagicOnion)
-                    isAddingMagicOnion = false;
+
+                isAddingSignalR = false;
+                isAddingMagicOnion = false;
 
                 StateHasChanged();
             }

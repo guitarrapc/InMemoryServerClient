@@ -13,10 +13,21 @@ public record BattleHistory
     public int TotalTurns { get; init; }
     public List<BattleReplayData> ReplayData { get; init; } = new();
     public BattleResult Result { get; init; } = new();
-    public List<string> ParticipatingClients { get; init; } = new();
+    public List<BattleClientHistory> ParticipatingClients { get; init; } = new();
     public long DataSize { get; init; } // Changed from DataSizeBytes
     public string BattleSeed { get; init; } = string.Empty;
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
+}
+
+/// <summary>
+/// バトルに参加したクライアントの履歴情報
+/// </summary>
+public record BattleClientHistory
+{
+    public string ConnectionId { get; init; } = string.Empty;
+    public string PlayerId { get; init; } = string.Empty;
+    public Shared.Models.ConnectionType ConnectionType { get; init; }
+    public DateTime ConnectedAt { get; init; }
 }
 
 /// <summary>

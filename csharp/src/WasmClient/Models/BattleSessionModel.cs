@@ -64,36 +64,33 @@ public class BattleSessionModel : IAsyncDisposable
     /// <summary>
     /// Create historical battle session for replay viewing
     /// </summary>
-    /// <param name="battleId">Battle ID</param>
-    /// <param name="groupName">Group name</param>
-    /// <param name="serverUrl">Server URL</param>
-    /// <param name="clients">Historical clients</param>
-    /// <param name="replayData">Replay data</param>
+    /// <param name="battleHistory">Battle history from IndexedDB</param>
     /// <returns>Historical battle session</returns>
-    public static BattleSessionModel CreateHistorical(
-        string battleId,
-        string groupName,
-        string serverUrl,
-        List<BattleClient> clients,
-        List<BattleReplayData> replayData)
+    public static BattleSessionModel CreateHistorical(BattleHistory battleHistory)
     {
         var session = new BattleSessionModel(null!, null!)
         {
-            Id = battleId,
-            GroupName = groupName,
-            ServerUrl = serverUrl,
+            Id = battleHistory.BattleId,
+            GroupName = battleHistory.GroupName,
+            ServerUrl = battleHistory.ServerUrl,
             IsHistoricalBattle = true,
-            Status = BattleStatus.Completed
+            Status = BattleStatus.Completed,
+            BattleHistory = battleHistory
         };
 
-        // Add clients
-        foreach (var client in clients)
+        // Create historical clients based on stored client history
+        foreach (var clientHistory in battleHistory.ParticipatingClients)
         {
+            var client = BattleClient.CreateHistoricalClient(
+                clientHistory.PlayerId,
+                clientHistory.ConnectionId,
+                battleHistory.GroupName,
+                battleHistory.ReplayData,
+                clientHistory.ConnectionType,
+                clientHistory.ConnectedAt);
+
             session._clients.Add(client);
         }
-
-        // Add replay data
-        session.ReplayData.AddRange(replayData);
 
         return session;
     }
@@ -122,6 +119,9 @@ public class BattleSessionModel : IAsyncDisposable
             };
 
             var client = new BattleClient(connection, _logger);
+
+            // Set player ID if not already set
+            client.PlayerId = Shared.Common.PlayerNameGenerator.GenerateShortName();
 
             // Subscribe to battle completion events
             client.OnBattleComplete += () =>
@@ -223,16 +223,26 @@ public class BattleClient : IAsyncDisposable
     private readonly ILogger? _logger;
     private List<BattleFieldData> _historicalTurnData = new();
 
-    public string ConnectionId => _connection?.ConnectionId ?? "historical";
+    public string ConnectionId => _connection?.ConnectionId ?? HistoricalConnectionId;
     public Shared.Models.ConnectionType Type => _connection?.Type ?? HistoricalConnectionType;
     public string? PlayerId { get; set; }
-    public DateTime ConnectedAt { get; } = DateTime.Now;
+    public DateTime ConnectedAt => _connection != null ? DateTime.Now : HistoricalConnectedAt;
     public BattleFieldData? CurrentField { get; set; }
 
     /// <summary>
     /// Connection type for historical clients (when no real connection exists)
     /// </summary>
     public Shared.Models.ConnectionType HistoricalConnectionType { get; set; } = Shared.Models.ConnectionType.SignalR;
+
+    /// <summary>
+    /// Connection ID for historical clients (when no real connection exists)
+    /// </summary>
+    public string HistoricalConnectionId { get; set; } = "historical";
+
+    /// <summary>
+    /// Connected time for historical clients (when no real connection exists)
+    /// </summary>
+    public DateTime HistoricalConnectedAt { get; set; } = DateTime.Now;
 
     /// <summary>
     /// Get all historical turn data (for historical clients only)
@@ -262,20 +272,26 @@ public class BattleClient : IAsyncDisposable
     /// Create historical client for replay viewing (no real connection)
     /// </summary>
     /// <param name="playerId">Player ID</param>
+    /// <param name="connectionId">Connection ID</param>
     /// <param name="groupName">Group name</param>
     /// <param name="replayData">Replay data</param>
     /// <param name="connectionType">Historical connection type for display</param>
+    /// <param name="connectedAt">Original connection time</param>
     /// <returns>Historical client</returns>
     public static BattleClient CreateHistoricalClient(
         string playerId,
+        string connectionId,
         string groupName,
         List<BattleReplayData> replayData,
-        Shared.Models.ConnectionType connectionType = Shared.Models.ConnectionType.SignalR)
+        Shared.Models.ConnectionType connectionType = Shared.Models.ConnectionType.SignalR,
+        DateTime connectedAt = default)
     {
         var client = new BattleClient(null!, null!)
         {
             PlayerId = playerId,
-            HistoricalConnectionType = connectionType
+            HistoricalConnectionType = connectionType,
+            HistoricalConnectionId = connectionId,
+            HistoricalConnectedAt = connectedAt == default ? DateTime.Now : connectedAt
         };
 
         // Convert all replay data to BattleFieldData for client
