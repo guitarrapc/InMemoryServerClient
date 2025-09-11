@@ -55,7 +55,7 @@ public class BattleStateTests
         Assert.True(status.Enemies.Count <= BattleSystemDefines.EnemyCount.Max);
         Assert.Equal(BattleSystemDefines.BattleFieldSize, status.FieldSize);
         // Battle should not have a result when just initialized
-        Assert.Null(status.IsPlayerVictory);
+        Assert.Null(status.IsVictory);
         Assert.True(status.IsInProgress);
     }
 
@@ -76,10 +76,10 @@ public class BattleStateTests
 
         // Assert
         Assert.False(status.IsInProgress); // Battle should be completed
-        Assert.NotNull(status.IsPlayerVictory); // Should have a victory result
-        Assert.True(status.IsPlayerVictory == true || status.IsPlayerVictory == false); // Should be either true or false
+        Assert.NotNull(status.IsVictory); // Should have a victory result
+        Assert.True(status.IsVictory == true || status.IsVictory == false); // Should be either true or false
 
-        Console.WriteLine($"Battle result, IsPlayerVictory: {status.IsPlayerVictory}, Players alive: {status.Players.Count(p => p.IsAlive)}, Enemies alive: {status.Enemies.Count(e => e.IsAlive)}, TotalTurns: {status.TotalTurns}");
+        Console.WriteLine($"Battle result, IsVictory: {status.IsVictory}, Players alive: {status.Players.Count(p => p.IsAlive)}, Enemies alive: {status.Enemies.Count(e => e.IsAlive)}, TotalTurns: {status.TotalTurns}");
 
         // Debug: Log detailed information about the battle result
         int alivePlayers = status.Players.Count(p => p.IsAlive);
@@ -101,7 +101,7 @@ public class BattleStateTests
         }
 
         // Additional checks based on the result
-        if (status.IsPlayerVictory == true)
+        if (status.IsVictory == true)
         {
             // For player victory, either all enemies are dead OR players have more survivors (turn limit case)
             Assert.True(status.Players.Any(p => p.IsAlive), "If players won, at least one player should be alive");
@@ -404,7 +404,7 @@ public class BattleStateTests
         var finalStatus2 = battle2.GetStatus();
         Assert.Equal(finalStatus1.IsInProgress, finalStatus2.IsInProgress);
         Assert.Equal(finalStatus1.TotalTurns, finalStatus2.TotalTurns);
-        Assert.Equal(finalStatus1.IsPlayerVictory, finalStatus2.IsPlayerVictory); // Battle outcomes should be identical
+        Assert.Equal(finalStatus1.IsVictory, finalStatus2.IsVictory); // Battle outcomes should be identical
     }
 
     [Theory]

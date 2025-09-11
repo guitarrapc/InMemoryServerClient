@@ -1,4 +1,4 @@
-﻿using WasmClient.Services;
+using WasmClient.Services;
 
 namespace WasmClient.Models;
 

@@ -80,7 +80,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
             Enemies = frame.Enemies.ToList(),
             FieldSize = frame.FieldSize,
             RecentLogs = frame.RecentLogs.ToList(),
-            IsPlayerVictory = frame.IsPlayerVictory
+            IsVictory = frame.IsVictory
         };
 
         _frames.Add(frameCopy);
@@ -106,7 +106,7 @@ internal class MemoryBattleReplayWriter : IBattleReplayWriter
                 Enemies = frame.Enemies.ToList(),
                 FieldSize = frame.FieldSize,
                 RecentLogs = frame.RecentLogs.ToList(),
-                IsPlayerVictory = frame.IsPlayerVictory
+                IsVictory = frame.IsVictory
             };
 
             _frames.Add(frameCopy);

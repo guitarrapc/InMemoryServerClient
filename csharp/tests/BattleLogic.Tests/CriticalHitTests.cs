@@ -104,7 +104,7 @@ public class CriticalHitTests
 
         // バトルが完了している
         Assert.False(status.IsInProgress);
-        Assert.NotNull(status.IsPlayerVictory);
+        Assert.NotNull(status.IsVictory);
 
         // クリティカルヒットのログがあることを確認（統計的に発生する可能性が高い）
         var allLogs = allTurnData.SelectMany(turn => turn.RecentLogs).ToList();

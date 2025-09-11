@@ -30,7 +30,7 @@ public record BattleHistorySummary
     public string GroupName { get; init; } = string.Empty;
     public string ServerUrl { get; init; } = string.Empty;
     public int TotalTurns { get; init; }
-    public BattleResult Result { get; init; } = new(); // Changed from IsPlayerVictory
+    public BattleResult Result { get; init; } = new(); // Changed from IsVictory
     public int DataSizeKB { get; init; }
     public int ClientCount { get; init; }
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
@@ -41,7 +41,7 @@ public record BattleHistorySummary
 /// </summary>
 public record BattleResult
 {
-    public bool IsVictory { get; init; } // Changed from IsPlayerVictory
+    public bool IsVictory { get; init; } // Changed from IsVictory
     public int PlayersSurvived { get; init; } // Changed from RemainingPlayers
     public int EnemiesKilled { get; init; } // Changed from RemainingEnemies
     public int TotalTurns { get; init; } // Added for consistency

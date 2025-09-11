@@ -40,7 +40,7 @@ public class BattleFormulaWinRateTests(ITestOutputHelper output)
                 var status = battle.GetStatus();
 
                 totalBattles++;
-                if (status.IsPlayerVictory == true)
+                if (status.IsVictory == true)
                 {
                     wins++;
                 }
@@ -117,12 +117,12 @@ public class BattleFormulaWinRateTests(ITestOutputHelper output)
 
         // Assert
         Assert.True(status.CurrentTurn > 0, $"Formula {formula} should complete at least one turn");
-        Assert.NotNull(status.IsPlayerVictory);
+        Assert.NotNull(status.IsVictory);
         Assert.True(status.CurrentTurn <= BattleSystemDefines.BattleTurns.Max,
             $"Formula {formula} should not exceed maximum turns");
 
         _output.WriteLine($"Formula {formula}: {status.CurrentTurn} turns, " +
-                         $"Result: {(status.IsPlayerVictory == true ? "Victory" : "Defeat")}");
+                         $"Result: {(status.IsVictory == true ? "Victory" : "Defeat")}");
     }
 
     [Fact]
@@ -147,12 +147,12 @@ public class BattleFormulaWinRateTests(ITestOutputHelper output)
 
         // Assert
         Assert.Equal(status1.CurrentTurn, status2.CurrentTurn);
-        Assert.Equal(status1.IsPlayerVictory, status2.IsPlayerVictory);
+        Assert.Equal(status1.IsVictory, status2.IsVictory);
         Assert.Equal(status1.Players.Count, status2.Players.Count);
         Assert.Equal(status1.Enemies.Count, status2.Enemies.Count);
 
         _output.WriteLine($"Consistency test passed: {status1.CurrentTurn} turns, " +
-                         $"Result: {(status1.IsPlayerVictory == true ? "Victory" : "Defeat")}");
+                         $"Result: {(status1.IsVictory == true ? "Victory" : "Defeat")}");
     }
 
     private static IBattleGroupContext CreateMockGroup()
