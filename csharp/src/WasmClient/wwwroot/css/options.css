@@ -1,0 +1,427 @@
+/* Options Page Styles */
+.options-page {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.options-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.options-page .header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.options-page .back-btn {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+}
+
+.options-page .back-btn:hover {
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.options-page .page-header h1 {
+    margin: 0;
+    color: #333;
+    font-size: 1.8em;
+}
+
+.options-page .settings-form {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 30px;
+    margin-bottom: 30px;
+}
+
+.options-page .setting-group {
+    margin-bottom: 35px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.options-page .setting-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.options-page .setting-group h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.options-page .form-group {
+    margin-bottom: 20px;
+}
+
+.options-page .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.options-page .form-group input[type="text"],
+.options-page .form-group input[type="url"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.options-page .form-group input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.options-page .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.options-page .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-weight: normal !important;
+}
+
+.options-page .checkbox-text {
+    font-size: 14px;
+}
+
+.options-page .range-input {
+    width: 100%;
+    margin: 8px 0;
+}
+
+.options-page .field-size-value {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.options-page .range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 4px;
+}
+
+.options-page .select-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    background: white;
+}
+
+.options-page .select-input:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.options-page .form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
+}
+
+.options-page .form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid #f0f0f0;
+    flex-wrap: wrap;
+}
+
+.options-page .btn-primary,
+.options-page .btn-secondary,
+.options-page .btn-outline {
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+}
+
+.options-page .btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.options-page .btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+.options-page .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.options-page .btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.options-page .btn-outline {
+    background-color: transparent;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.options-page .btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.options-page .btn-outline:hover:not(:disabled) {
+    background-color: #007bff;
+    color: white;
+}
+
+.options-page .save-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-top: 15px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.options-page .clear-message {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-top: 15px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.options-page .data-info {
+    margin: 10px 0;
+}
+
+.options-page .data-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+}
+
+.options-page .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.options-page .stat-label {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.options-page .stat-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.options-page .danger-zone {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    border-radius: 6px;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.options-page .danger-zone h4 {
+    margin: 0 0 10px 0;
+    color: #c53030;
+    font-size: 1em;
+}
+
+.options-page .danger-zone p {
+    margin: 0 0 15px 0;
+    color: #744210;
+    font-size: 0.9em;
+}
+
+.options-page .danger-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.options-page .btn-danger {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.options-page .btn-danger:hover:not(:disabled) {
+    background-color: #c82333;
+    transform: translateY(-1px);
+}
+
+.options-page .btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.options-page .dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.options-page .dialog {
+    background: white;
+    border-radius: 8px;
+    width: 500px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.options-page .dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.options-page .dialog-header h3 {
+    margin: 0;
+    color: #c53030;
+}
+
+.options-page .close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.options-page .close-btn:hover {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+.options-page .dialog-body {
+    padding: 20px;
+    color: #333;
+}
+
+.options-page .dialog-body p {
+    margin-bottom: 15px;
+}
+
+.options-page .dialog-body ul {
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.options-page .dialog-body li {
+    margin-bottom: 5px;
+}
+
+.options-page .dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #eee;
+    background-color: #f8f9fa;
+}
+
+.options-page .info-section {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+}
+
+.options-page .info-section h3 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.options-page .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.options-page .info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.options-page .info-item:last-child {
+    border-bottom: none;
+}
+
+.options-page .info-item strong {
+    color: #333;
+}
+
+.options-page .info-item span {
+    color: #666;
+}
