@@ -223,26 +223,16 @@ public class BattleClient : IAsyncDisposable
     private readonly ILogger? _logger;
     private List<BattleFieldData> _historicalTurnData = new();
 
-    public string ConnectionId => _connection?.ConnectionId ?? HistoricalConnectionId;
-    public Shared.Models.ConnectionType Type => _connection?.Type ?? HistoricalConnectionType;
+    // Unified connection information (used for both real and historical connections)
+    private readonly string _connectionId;
+    private readonly Shared.Models.ConnectionType _connectionType;
+    private readonly DateTime _connectedAt;
+
+    public string ConnectionId => _connectionId;
+    public Shared.Models.ConnectionType Type => _connectionType;
     public string? PlayerId { get; set; }
-    public DateTime ConnectedAt => _connection != null ? DateTime.Now : HistoricalConnectedAt;
+    public DateTime ConnectedAt => _connectedAt;
     public BattleFieldData? CurrentField { get; set; }
-
-    /// <summary>
-    /// Connection type for historical clients (when no real connection exists)
-    /// </summary>
-    public Shared.Models.ConnectionType HistoricalConnectionType { get; set; } = Shared.Models.ConnectionType.SignalR;
-
-    /// <summary>
-    /// Connection ID for historical clients (when no real connection exists)
-    /// </summary>
-    public string HistoricalConnectionId { get; set; } = "historical";
-
-    /// <summary>
-    /// Connected time for historical clients (when no real connection exists)
-    /// </summary>
-    public DateTime HistoricalConnectedAt { get; set; } = DateTime.Now;
 
     /// <summary>
     /// Get all historical turn data (for historical clients only)
@@ -258,6 +248,11 @@ public class BattleClient : IAsyncDisposable
         _connection = connection;
         _logger = logger;
 
+        // Initialize connection information for real connections
+        _connectionId = _connection?.ConnectionId ?? "unknown";
+        _connectionType = _connection?.Type ?? Shared.Models.ConnectionType.SignalR;
+        _connectedAt = DateTime.Now;
+
         // Subscribe to battle replay data to update field visualization
         if (_connection != null)
         {
@@ -266,6 +261,22 @@ public class BattleClient : IAsyncDisposable
             _connection.OnBattleStarted += HandleBattleStarted;
             _connection.OnBattleComplete += HandleBattleComplete;
         }
+    }
+
+    /// <summary>
+    /// Private constructor for historical clients
+    /// </summary>
+    private BattleClient(
+        string connectionId,
+        Shared.Models.ConnectionType connectionType,
+        DateTime connectedAt,
+        ILogger? logger = null)
+    {
+        _connection = null;
+        _logger = logger;
+        _connectionId = connectionId;
+        _connectionType = connectionType;
+        _connectedAt = connectedAt;
     }
 
     /// <summary>
@@ -286,12 +297,12 @@ public class BattleClient : IAsyncDisposable
         Shared.Models.ConnectionType connectionType = Shared.Models.ConnectionType.SignalR,
         DateTime connectedAt = default)
     {
-        var client = new BattleClient(null!, null!)
+        var client = new BattleClient(
+            connectionId,
+            connectionType,
+            connectedAt == default ? DateTime.Now : connectedAt)
         {
-            PlayerId = playerId,
-            HistoricalConnectionType = connectionType,
-            HistoricalConnectionId = connectionId,
-            HistoricalConnectedAt = connectedAt == default ? DateTime.Now : connectedAt
+            PlayerId = playerId
         };
 
         // Convert all replay data to BattleFieldData for client
