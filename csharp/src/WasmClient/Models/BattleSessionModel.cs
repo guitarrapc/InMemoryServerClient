@@ -1,4 +1,4 @@
-using WasmClient.Services;
+﻿using WasmClient.Services;
 
 namespace WasmClient.Models;
 
@@ -39,7 +39,8 @@ public class BattleSessionModel : IAsyncDisposable
 
     // バトル進行データ
     public List<BattleReplayData> ReplayData { get; } = new();
-    public int TotalTurns => ReplayData.LastOrDefault().TurnData?.LastOrDefault()?.CurrentTurn ?? 0;
+    public int TotalTurns { get; }
+    private Lock _replayDataLock = new ();
 
     /// <summary>
     /// Raised when battle status changes
@@ -143,9 +144,18 @@ public class BattleSessionModel : IAsyncDisposable
             // Subscribe to replay data collection
             client.OnReplayDataReceived += (replayData) =>
             {
-                ReplayData.Add(replayData);
-                _logger.LogDebug("Added replay chunk {ChunkIndex} to battle {BattleId}",
-                    replayData.ChunkIndex, Id);
+                lock (_replayDataLock)
+                {
+                    var count = ReplayData.Count;
+                    if (count == replayData.TotalChunks)
+                        return;
+
+                    if (replayData.ChunkIndex + 1 == count)
+                        return;
+
+                    ReplayData.Add(replayData);
+                    _logger.LogDebug("Added replay chunk {ChunkIndex} to battle {BattleId}", replayData.ChunkIndex, Id);
+                }
             };
 
             _clients.Add(client);
