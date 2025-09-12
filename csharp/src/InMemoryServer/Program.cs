@@ -35,6 +35,20 @@ public class Program
             options.StreamBufferCapacity = 50;
         });
         builder.Services.AddMagicOnion();
+        builder.Services.AddGrpc(); // for gRPC-web
+
+        // Add CORS for WasmClient
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("WasmClientPolicy", policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .WithExposedHeaders("Grpc-Status", "Grpc-Message", "Grpc-Encoding", "Grpc-Accept-Encoding"); // Required for SignalR
+            });
+        });
+
         builder.Services.AddSingleton<InMemoryState>();
         builder.Services.AddSingleton<ConnectionManager>();
 
@@ -53,11 +67,19 @@ public class Program
         // Build the app
         var app = builder.Build();
 
+        // Configure CORS (must be before MapHub and MapMagicOnionService)
+        app.UseCors("WasmClientPolicy");
+
+        // Configure gRPC-Web (required for browser clients)
+        app.UseGrpcWeb(new GrpcWebOptions { DefaultEnabled = true });
+
         // Configure the SignalR endpoint (HTTP/1)
         app.MapHub<SignalRBattleHub>(SystemDefines.HubRoute);
 
         // Configure MagicOnion endpoint (HTTP/2)
-        app.MapMagicOnionService();
+        app.MapMagicOnionService()
+            .EnableGrpcWeb()
+            .RequireCors("WasmClientPolicy");
 
         // Add a basic health check endpoint
         app.MapGet("/health", () => "Healthy");

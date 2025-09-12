@@ -6,13 +6,18 @@
   <ItemGroup>
     <!-- Server -->
     <PackageVersion Include="MagicOnion.Server" Version="7.0.5" />
-    <!-- Client -->
+    <PackageVersion Include="Grpc.AspNetCore.Web" Version="2.71.0" />
+    <!-- Client (CLI) -->
     <PackageVersion Include="ConsoleAppFramework" Version="5.5.0" />
     <PackageVersion Include="MagicOnion.Client" Version="7.0.5" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.7" />
+    <!-- Client (WASM) -->
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.6" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.6" />
+    <PackageVersion Include="Grpc.Net.Client.Web" Version="2.71.0" />
     <!-- Server/Client -->
     <PackageVersion Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <!-- Shared -->

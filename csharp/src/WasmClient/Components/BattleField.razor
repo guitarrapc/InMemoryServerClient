@@ -1,0 +1,627 @@
+@using WasmClient.Models
+@using WasmClient.Services
+@using WasmClient.Constants
+@using Shared.Constants
+@implements IDisposable
+@inject SettingsService Settings
+@inject ILogger<BattleField> Logger
+
+<div class="battle-field-container" style="width: @(Size)px; display: flex; flex-direction: column; align-items: center; margin: 5px;">
+    <!-- Field panel -->
+    <div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px; margin-bottom: 5px;">
+        <div class="field-header">
+            <span class="client-id">@Client.ConnectionId[..8]</span>
+            <span class="turn-number">@(lastTurn != -1 ? $"Turn {fieldData?.Turn + 1}/{allTurnData.Count}" : "")</span>
+            <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
+        </div>
+
+        <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 48px);">
+            @if (fieldData != null)
+            {
+                @foreach (var entity in fieldData.Entities.Where(e => IsValidPosition(e.Position)))
+                {
+                    <div class="entity @entity.Type.ToString().ToLower() @(entity.Health <= 0 ? "dead" : "") @(entity.Health < entity.MaxHealth * 0.3 ? "critical-health" : "")"
+                         style="position: absolute;
+                                left: @(entity.Position.X * scaleX)px;
+                                top: @(entity.Position.Y * scaleY)px;
+                                width: @entitySize px;
+                                height: @entitySize px;"
+                         title="@GetEntityTooltip(entity)">
+                        @* Entity health bar overlay *@
+                        @if (Settings.ShowHealthBars && entity.MaxHealth > 0)
+                        {
+                            <div class="health-bar">
+                                <div class="health-fill" style="width: @(Math.Max(0, (double)entity.Health / entity.MaxHealth * 100))%"></div>
+                            </div>
+                        }
+
+                        @* Entity type icon *@
+                        <div class="entity-icon">
+                            @(entity.Type == EntityType.Player ? "👤" : GetEnemyIcon(entity.Type))
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="field-placeholder">
+                    <div class="placeholder-icon">🎮</div>
+                    <div class="placeholder-text">Receiving Data...</div>
+                </div>
+            }
+        </div>
+
+        <div class="field-status @(turnChanged ? "turn-changed" : "")">
+            <span>Entities: @(fieldData?.Entities.Count(e => e.Health > 0 && IsValidPosition(e.Position)) ?? 0)</span>
+            @if (Settings.ShowDebugInfo)
+            {
+                <span>Scale: @scaleX.ToString("F1")</span>
+                <span>FPS: @(PerformanceMonitor.GetStats(Client.ConnectionId).CurrentFPS)</span>
+            }
+            @if (isReplayMode)
+            {
+                <span class="replay-indicator">⏯️ Replay</span>
+            }
+            else if (isRealtimePlayback)
+            {
+                <span class="realtime-playback-indicator">🎬 RT Play</span>
+            }
+            else
+            {
+                <span class="immediate-indicator">⚡ Live</span>
+            }
+        </div>
+    </div>
+
+    <!-- Settings panel -->
+    <div class="settings-panel mb-3" style="width: @(Size)px; background-color: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; border-radius: 5px; font-size: 0.8em;">
+        <h6 style="margin: 0 0 8px 0; font-size: 0.9em;">⚙️ Replay Settings</h6>
+
+        <div class="mt-2">
+            <div class="d-flex align-items-center gap-2" style="margin-bottom: 5px;">
+                <label class="form-label" style="margin: 0; min-width: 30px; font-size: 0.75em;">FPS</label>
+                <input type="range" class="form-range" style="flex: 1;" @bind="Settings.ReplayFps" min="@Settings.MinReplayFps" max="@Settings.MaxReplayFps" />
+                <small class="text-muted" style="font-size: 0.7em; min-width: 60px;">@(Settings.ReplayFps)fps (@(Settings.ReplayFrameTimeMs)ms)</small>
+            </div>
+            <div class="d-flex align-items-center gap-2" style="margin-bottom: 8px;">
+                <label class="form-check-label" style="font-size: 0.75em; min-width: 50px;" for="autoPlayCheck-@Client.ConnectionId">Loop</label>
+                <input class="form-check-input" type="checkbox" @bind="Settings.AutoReplay" @bind:event="onchange" id="autoPlayCheck-@Client.ConnectionId">
+            </div>
+            <div class="d-flex align-items-center gap-2" style="margin-bottom: 8px;">
+                <label class="form-check-label" style="font-size: 0.75em; min-width: 50px;" for="realtimePlayback-@Client.ConnectionId">RT Play</label>
+                <input class="form-check-input" type="checkbox" @bind="isRealtimePlayback" @bind:event="onchange" id="realtimePlayback-@Client.ConnectionId">
+            </div>
+        </div>
+
+        <!-- Controls -->
+        @if (allTurnData.Any())
+        {
+            <div class="mt-2">
+                <div class="d-flex align-items-center gap-2 justify-content-center" style="margin-bottom: 5px;">
+                    @if (!IsHistoricalMode)
+                    {
+                        <!-- Realtime/Replay Mode Switch (Live Mode only) -->
+                        <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="EnableRealtimeMode" disabled="@(isAutoPlaying)" title="リアルタイム">
+                            🔄
+                        </button>
+                    }
+
+                    <!-- Auto Play Controls -->
+                    @if (isAutoPlaying)
+                    {
+                        <button class="btn btn-sm btn-warning" style="font-size: 0.7em; padding: 2px 6px;" @onclick="StopAutoPlay" title="停止">
+                            ⏸️
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-primary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="StartAutoPlay" disabled="@(!allTurnData.Any())" title="自動再生">
+                            ▶️
+                        </button>
+                    }
+
+                    <!-- Manual Navigation -->
+                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="GoToPreviousTurn" disabled="@(isAutoPlaying)" title="前のターン">⏪</button>
+                    <button class="btn btn-sm btn-secondary" style="font-size: 0.7em; padding: 2px 6px;" @onclick="GoToNextTurn" disabled="@(isAutoPlaying)" title="次のターン">⏩</button>
+                </div>
+
+                <!-- Turn Slider -->
+                <div class="mt-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="form-label mb-0" style="font-size: 0.7em; min-width: 30px;">Turn</label>
+                        <div class="flex-grow-1">
+                            <input type="range" class="form-range" style="height: 20px;"
+                                    @bind="SelectedTurn"
+                                    @bind:event="oninput"
+                                    @onkeydown="OnTurnSliderKeyDown"
+                                    min="0"
+                                    max="@(Math.Max(0, allTurnData.Count - 1))"
+                                    disabled="@isAutoPlaying" />
+                        </div>
+                        <span class="badge bg-info" style="font-size: 0.6em; padding: 2px 6px;">@(selectedTurn + 1) / @allTurnData.Count</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public BattleClient Client { get; set; } = null!;
+    [Parameter] public int Size { get; set; } = 225;
+    [Parameter] public bool IsHistoricalMode { get; set; } = false;
+
+    [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
+
+    private BattleFieldData? fieldData;
+    private int lastTurn = -1;
+    private bool turnChanged = false;
+
+    // Replay functionality
+    private List<BattleFieldData> allTurnData = new();
+    private int selectedTurn = 0;
+    private bool isReplayMode = false;
+
+    // Auto play functionality
+    private bool isAutoPlaying = false;
+    private Timer? autoPlayTimer;
+    private readonly object autoPlayLock = new();
+
+    // Real-time playback functionality
+    private bool _isRealtimePlayback = true; // Default to real-time playback
+    private bool isRealtimePlayback
+    {
+        get => _isRealtimePlayback;
+        set
+        {
+            if (_isRealtimePlayback != value)
+            {
+                _isRealtimePlayback = value;
+                OnRealtimePlaybackChanged();
+            }
+        }
+    }
+    private Queue<BattleFieldData> pendingTurns = new();
+    private Timer? realtimeTimer;
+    private int displayedTurn = -1; // Currently displayed turn in real-time mode
+    private readonly object realtimeLock = new();
+
+    private int SelectedTurn
+    {
+        get => selectedTurn;
+        set
+        {
+            if (selectedTurn != value && !isAutoPlaying)
+            {
+                selectedTurn = value;
+                OnTurnSliderBindChange();
+            }
+        }
+    }
+
+    // Scale calculations based on game field size
+    private double scaleX => (Size - 8) / (double)BattleReplayDefines.BattleFieldSize; // 8px margin for borders
+    private double scaleY => (Size - 48) / (double)BattleReplayDefines.BattleFieldSize; // 48px for header + status + controls
+    private int entitySize => Math.Max(6, (int)(scaleX * 0.7)); // Entity size with minimum
+
+    protected override void OnInitialized()
+    {
+        // Only attach events for live battles (non-historical mode)
+        if (!IsHistoricalMode)
+        {
+            Client.OnBattleFieldUpdated += OnFieldUpdated;
+            Client.OnBattleComplete += OnBattleCompleted;
+        }
+        else
+        {
+            // For historical mode, initialize with replay-only functionality
+            isReplayMode = true;
+            isRealtimePlayback = false;
+
+            // Initialize allTurnData from client's current field data if available
+            InitializeHistoricalData();
+        }
+    }
+
+    /// <summary>
+    /// Initialize historical data from client
+    /// </summary>
+    private void InitializeHistoricalData()
+    {
+        if (IsHistoricalMode)
+        {
+            // Get historical turn data from client
+            var historicalData = Client.HistoricalTurnData?.ToList() ?? new List<BattleFieldData>();
+
+            if (historicalData.Any())
+            {
+                allTurnData = historicalData;
+                selectedTurn = 0;
+                fieldData = historicalData[0];
+                displayedTurn = historicalData[0].Turn;
+
+                Logger.LogDebug($"BattleField: Initialized historical data with {allTurnData.Count} turns for client {Client.ConnectionId}");
+            }
+            else
+            {
+                Logger.LogInformation($"BattleField: No historical data available for client {Client.ConnectionId}");
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Set replay data for historical mode
+    /// </summary>
+    public void SetReplayData(List<BattleFieldData> replayData)
+    {
+        if (IsHistoricalMode)
+        {
+            allTurnData = new List<BattleFieldData>(replayData);
+            selectedTurn = 0;
+            if (allTurnData.Any())
+            {
+                fieldData = allTurnData[0];
+                displayedTurn = allTurnData[0].Turn;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void OnFieldUpdated(BattleFieldData data)
+    {
+        // Record performance metrics
+        PerformanceMonitor.RecordUpdate(Client.ConnectionId, data.Entities.Count);
+
+        // Store turn data for replay
+        var existingIndex = allTurnData.FindIndex(t => t.Turn == data.Turn);
+        if (existingIndex >= 0)
+        {
+            allTurnData[existingIndex] = data;
+        }
+        else
+        {
+            allTurnData.Add(data);
+            allTurnData.Sort((a, b) => a.Turn.CompareTo(b.Turn));
+        }
+
+        // Handle real-time playback mode
+        if (isRealtimePlayback && !isReplayMode)
+        {
+            lock (realtimeLock)
+            {
+                // Add new turn to pending queue if it's ahead of currently displayed turn
+                if (data.Turn > displayedTurn)
+                {
+                    pendingTurns.Enqueue(data);
+
+                    // Start real-time timer if not already running
+                    if (realtimeTimer == null)
+                    {
+                        StartRealtimePlayback();
+                    }
+                }
+            }
+        }
+        else if (!isReplayMode)
+        {
+            // Immediate display mode (original behavior)
+            fieldData = data;
+            selectedTurn = Math.Max(0, allTurnData.Count - 1);
+            displayedTurn = data.Turn;
+
+            // Check if turn has changed for visual feedback
+            if (lastTurn != -1 && data.Turn != lastTurn)
+            {
+                turnChanged = true;
+                lastTurn = data.Turn;
+
+                // Reset turn change indicator after a short delay
+                _ = Task.Delay(500).ContinueWith(_ =>
+                {
+                    turnChanged = false;
+                    InvokeAsync(StateHasChanged);
+                });
+            }
+            else
+            {
+                lastTurn = data.Turn;
+            }
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnBattleCompleted()
+    {
+        // Determine victory result from the final turn data
+        if (allTurnData.Any())
+        {
+            var finalTurn = allTurnData.Last();
+            var alivePlayers = finalTurn.Entities.Count(e => e.Type == EntityType.Player && e.Health > 0 && IsValidPosition(e.Position));
+            var aliveEnemies = finalTurn.Entities.Count(e => e.Type != EntityType.Player && e.Health > 0 && IsValidPosition(e.Position));
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnTurnSliderBindChange()
+    {
+        if (!isAutoPlaying && allTurnData.Any())
+        {
+            var clampedTurn = Math.Clamp(selectedTurn, 0, allTurnData.Count - 1);
+            if (clampedTurn != selectedTurn)
+            {
+                selectedTurn = clampedTurn;
+            }
+
+            fieldData = allTurnData[selectedTurn];
+            isReplayMode = true;
+            StateHasChanged();
+        }
+    }
+
+    private void GoToPreviousTurn()
+    {
+        if (selectedTurn > 0)
+        {
+            GoToTurn(selectedTurn - 1);
+        }
+    }
+
+    private void GoToNextTurn()
+    {
+        if (selectedTurn < allTurnData.Count - 1)
+        {
+            GoToTurn(selectedTurn + 1);
+        }
+    }
+
+    private void GoToTurn(int turn)
+    {
+        if (allTurnData.Any())
+        {
+            var clampedTurn = Math.Clamp(turn, 0, allTurnData.Count - 1);
+
+            selectedTurn = clampedTurn;
+            fieldData = allTurnData[selectedTurn];
+            isReplayMode = true;
+        }
+    }
+
+    private void EnableRealtimeMode()
+    {
+        isReplayMode = false;
+        isRealtimePlayback = true;
+        StopAutoPlay(); // Stop auto replay if running
+
+        if (allTurnData.Any())
+        {
+            selectedTurn = allTurnData.Count - 1;
+            fieldData = allTurnData[selectedTurn];
+            displayedTurn = allTurnData[selectedTurn].Turn;
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnTurnSliderKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowLeft":
+                GoToPreviousTurn();
+                break;
+            case "ArrowRight":
+                GoToNextTurn();
+                break;
+            case "Home":
+                GoToTurn(0);
+                break;
+            case "End":
+                GoToTurn(allTurnData.Count - 1);
+                break;
+        }
+    }
+
+    private void StartAutoPlay()
+    {
+        if (isAutoPlaying || !allTurnData.Any()) return;
+
+        lock (autoPlayLock)
+        {
+            if (isAutoPlaying) return;
+
+            isAutoPlaying = true;
+            isReplayMode = true;
+            StopRealtimePlayback(); // Stop real-time playback when entering replay mode
+
+            // If we're at the end, start from the beginning
+            if (selectedTurn >= allTurnData.Count - 1)
+            {
+                selectedTurn = 0;
+            }
+
+            autoPlayTimer = new Timer(AutoPlayTick, null, 0, Settings.ReplayFrameTimeMs);
+        }
+
+        StateHasChanged();
+    }
+
+    private void StopAutoPlay()
+    {
+        lock (autoPlayLock)
+        {
+            if (!isAutoPlaying) return;
+
+            isAutoPlaying = false;
+            autoPlayTimer?.Dispose();
+            autoPlayTimer = null;
+        }
+
+        StateHasChanged();
+    }
+
+    private void StartRealtimePlayback()
+    {
+        if (realtimeTimer != null) return;
+
+        realtimeTimer = new Timer(RealtimePlaybackTick, null, 0, Settings.ReplayFrameTimeMs);
+    }
+
+    private void StopRealtimePlayback()
+    {
+        lock (realtimeLock)
+        {
+            realtimeTimer?.Dispose();
+            realtimeTimer = null;
+        }
+    }
+
+    private void RealtimePlaybackTick(object? state)
+    {
+        InvokeAsync(() =>
+        {
+            lock (realtimeLock)
+            {
+                if (!isRealtimePlayback || isReplayMode || !pendingTurns.Any())
+                {
+                    return;
+                }
+
+                // Get the next turn from the queue
+                var nextTurn = pendingTurns.Dequeue();
+                fieldData = nextTurn;
+                displayedTurn = nextTurn.Turn;
+                selectedTurn = Math.Max(0, allTurnData.FindIndex(t => t.Turn == nextTurn.Turn));
+
+                // Visual feedback for turn change
+                if (lastTurn != -1 && nextTurn.Turn != lastTurn)
+                {
+                    turnChanged = true;
+                    lastTurn = nextTurn.Turn;
+
+                    // Reset turn change indicator after a short delay
+                    _ = Task.Delay(500).ContinueWith(_ =>
+                    {
+                        turnChanged = false;
+                        InvokeAsync(StateHasChanged);
+                    });
+                }
+                else
+                {
+                    lastTurn = nextTurn.Turn;
+                }
+
+                // Stop timer if no more pending turns
+                if (!pendingTurns.Any())
+                {
+                    realtimeTimer?.Dispose();
+                    realtimeTimer = null;
+                }
+
+                StateHasChanged();
+            }
+        });
+    }
+
+    private void AutoPlayTick(object? state)
+    {
+        InvokeAsync(() =>
+        {
+            lock (autoPlayLock)
+            {
+                if (!isAutoPlaying || !allTurnData.Any())
+                {
+                    return;
+                }
+
+                // Move to the next turn
+                if (selectedTurn < allTurnData.Count - 1)
+                {
+                    selectedTurn++;
+                    fieldData = allTurnData[selectedTurn];
+                }
+                else
+                {
+                    // Reached the end
+                    if (Settings.AutoReplay)
+                    {
+                        // Loop back to the beginning if auto replay is enabled
+                        selectedTurn = 0;
+                        fieldData = allTurnData[selectedTurn];
+                    }
+                    else
+                    {
+                        // Stop at the end if auto replay is disabled
+                        StopAutoPlay();
+                        return;
+                    }
+                }
+
+                StateHasChanged();
+            }
+        });
+    }
+
+    private bool IsValidPosition(Position position)
+    {
+        return position.X >= 0 && position.Y >= 0
+               && position.X < BattleReplayDefines.BattleFieldSize
+               && position.Y < BattleReplayDefines.BattleFieldSize;
+    }
+
+    private string GetEntityTooltip(EntityData entity)
+    {
+        var status = entity.Health <= 0 ? " [DEAD]" : "";
+        var healthPercent = entity.MaxHealth > 0 ? (entity.Health * 100 / entity.MaxHealth) : 0;
+        return $"{entity.Type} - HP: {entity.Health}/{entity.MaxHealth} ({healthPercent}%) - Pos: ({entity.Position.X}, {entity.Position.Y}){status}";
+    }
+
+    private string GetEnemyIcon(EntityType enemyType) => enemyType switch
+    {
+        EntityType.Small => "👹",
+        EntityType.Medium => "👺",
+        EntityType.Large => "👾",
+        _ => "❓"
+    };
+
+    private void OnRealtimePlaybackChanged()
+    {
+        if (!isRealtimePlayback)
+        {
+            // Stop real-time playback and switch to immediate mode
+            StopRealtimePlayback();
+
+            // Clear pending turns and show the latest turn immediately
+            lock (realtimeLock)
+            {
+                pendingTurns.Clear();
+                if (allTurnData.Any() && !isReplayMode)
+                {
+                    var latestTurn = allTurnData.Last();
+                    fieldData = latestTurn;
+                    displayedTurn = latestTurn.Turn;
+                    selectedTurn = allTurnData.Count - 1;
+                }
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        StopAutoPlay();
+        StopRealtimePlayback();
+
+        // Only detach events if they were attached (non-historical mode)
+        if (!IsHistoricalMode)
+        {
+            Client.OnBattleFieldUpdated -= OnFieldUpdated;
+            Client.OnBattleComplete -= OnBattleCompleted;
+            PerformanceMonitor.RemoveField(Client.ConnectionId);
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿using MagicOnion.Server.Hubs;
+using MagicOnion.Server.Hubs;
 using Shared.Contracts.Http2Server;
 using Shared.Models;
 using Shared.Battle;
@@ -61,7 +61,7 @@ public class MagicOnionBattleHub : StreamingHubBase<IMagicOnionBattleHub, IMagic
         connectionManager.RegisterConnection(connectionId, ConnectionProtocol.MagicOnion);
 
         state.ConnectionCount++;
-        logger.LogDebug("MagicOnion client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
+        logger.LogInformation("MagicOnion client {ConnectionId} connected. Total connections: {Count}", connectionId, state.ConnectionCount);
         return default;
     }
 

@@ -1,0 +1,232 @@
+@page "/"
+@inject BattleSessionManager SessionManager
+@inject NavigationManager Navigation
+@inject SettingsService Settings
+@inject BattleHistoryService HistoryService
+@inject ILogger<Home> Logger
+
+<div class="home-page battle-list-page">
+    <header class="page-header">
+        <h1>Battle List</h1>
+        <nav class="nav-menu">
+            <button class="tab-btn @(currentTab == "active" ? "active" : "")" @onclick="@(() => SetTab("active"))">
+                Running (@SessionManager.ActiveBattles.Count)
+            </button>
+            <button class="tab-btn @(currentTab == "history" ? "active" : "")" @onclick="@(() => SetTab("history"))">
+                History (@battleHistories.Count)
+            </button>
+            <a href="/options" class="nav-link">Options</a>
+        </nav>
+    </header>
+
+    <div class="battle-grid">
+        @if (currentTab == "active")
+        {
+            @foreach (var battle in SessionManager.ActiveBattles)
+            {
+                <div class="battle-card" @onclick="() => NavigateToBattle(battle.SessionId)">
+                    <div class="battle-card-header">
+                        <h3>@battle.GroupName</h3>
+                        <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
+                    </div>
+                    <div class="battle-card-body">
+                        <div class="client-count">
+                            <span class="icon">👥</span>
+                            <span>@battle.ClientCount / 5</span>
+                        </div>
+                        <div class="server-url">
+                            <span class="icon">🌐</span>
+                            <span>@battle.ServerUrl</span>
+                        </div>
+                        <div class="created-time">
+                            <span class="icon">⏰</span>
+                            <span>@battle.CreatedAt.ToLocalTime().ToString("HH:mm")</span>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="add-battle-card">
+                <button class="add-battle-btn" @onclick="ShowCreateBattleDialog">
+                    <div class="plus-icon">+</div>
+                    <div class="add-text">Create New Battle</div>
+                </button>
+            </div>
+        }
+        else if (currentTab == "history")
+        {
+            @if (battleHistories.Any())
+            {
+                @foreach (var history in battleHistories)
+                {
+                    <div class="battle-card history-card" @onclick="() => NavigateToHistoricalBattle(history.BattleId)">
+                        <div class="battle-card-header">
+                            <h3>@history.GroupName</h3>
+                            <span class="battle-result @(history.Result.IsVictory ? "victory" : "defeat")">
+                                @(history.Result.IsVictory ? "Victory" : "Defeat")
+                            </span>
+                        </div>
+                        <div class="battle-card-body">
+                            <div class="battle-id">
+                                <span class="icon">🆔</span>
+                                <span class="battle-id-text">@history.BattleId</span>
+                            </div>
+                            <div class="session-id">
+                                <span class="icon">📝</span>
+                                <span class="session-id-text">@history.SessionId</span>
+                            </div>
+                            <div class="battle-date">
+                                <span class="icon">📅</span>
+                                <span>@history.CompletedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</span>
+                            </div>
+                            <div class="battle-duration">
+                                <span class="icon">⏱️</span>
+                                <span>@history.LocalBattleDuration.TotalMinutes.ToString("F1") Min</span>
+                            </div>
+                            <div class="battle-turns">
+                                <span class="icon">🔄</span>
+                                <span>@history.Result.TotalTurns Turns</span>
+                            </div>
+                            <div class="players-survived">
+                                <span class="icon">💪</span>
+                                <span>@(history.Result.PlayersSurvived)/5 Survivors</span>
+                            </div>
+                        </div>
+                        <div class="battle-card-actions">
+                            <button class="delete-btn" @onclick="(e) => DeleteHistory(e, history.BattleId)" @onclick:stopPropagation="true">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-message">
+                    <div class="empty-icon">📊</div>
+                    <h3>No Battle History</h3>
+                    <p>Battle history will be displayed here once battles are completed.</p>
+                </div>
+            }
+        }
+    </div>
+
+    @if (showCreateDialog)
+    {
+        <div class="dialog-overlay" @onclick="HideCreateBattleDialog">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialog-header">
+                    <h3>Create New Battle</h3>
+                    <button class="close-btn" @onclick="HideCreateBattleDialog">×</button>
+                </div>
+                <div class="dialog-body">
+                    <div class="form-group">
+                        <label>Group Name:</label>
+                        <input @bind="newBattleGroupName" placeholder="battle-group-1" />
+                    </div>
+                    <div class="form-group">
+                        <label>Server URL:</label>
+                        <input @bind="newBattleServerUrl" placeholder="@(Settings.ServerUrl)" />
+                    </div>
+                </div>
+                <div class="dialog-footer">
+                    <button class="btn-secondary" @onclick="HideCreateBattleDialog">Cancel</button>
+                    <button class="btn-primary" @onclick="CreateBattle" disabled="@string.IsNullOrWhiteSpace(newBattleGroupName)">Create</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool showCreateDialog;
+    private string newBattleGroupName = string.Empty;
+    private string newBattleServerUrl = string.Empty;
+    private string currentTab = "active";
+    private List<BattleHistorySummary> battleHistories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // デモ用のモックデータを追加（コメントアウト）
+        // SessionManager.AddMockBattles();
+        newBattleServerUrl = Settings.ServerUrl;
+
+        await LoadBattleHistories();
+    }
+
+    private async Task LoadBattleHistories()
+    {
+        try
+        {
+            battleHistories = await HistoryService.GetBattleHistoryListAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Failed to load battle histories");
+        }
+    }
+
+    private void SetTab(string tab)
+    {
+        currentTab = tab;
+        StateHasChanged();
+    }
+
+    private void ShowCreateBattleDialog()
+    {
+        showCreateDialog = true;
+        newBattleGroupName = string.Empty;
+        newBattleServerUrl = Settings.ServerUrl;
+    }
+
+    private void HideCreateBattleDialog()
+    {
+        showCreateDialog = false;
+    }
+
+    private async Task CreateBattle()
+    {
+        if (!string.IsNullOrWhiteSpace(newBattleGroupName))
+        {
+            try
+            {
+                var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.ServerUrl : newBattleServerUrl;
+                var battle = await SessionManager.CreateBattleAsync(newBattleGroupName, serverUrl);
+                HideCreateBattleDialog();
+                Navigation.NavigateTo($"/battle/{battle.SessionId}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to create battle");
+                // TODO: Show error message to user
+            }
+        }
+    }
+
+    private void NavigateToBattle(string battleId)
+    {
+        Navigation.NavigateTo($"/battle/{battleId}");
+    }
+
+    private void NavigateToHistoricalBattle(string battleId)
+    {
+        // BattleDetailページにhistoryパラメータを渡して履歴モードで開く
+        Navigation.NavigateTo($"/battle/{battleId}?mode=history");
+    }
+
+    private async Task DeleteHistory(MouseEventArgs e, string battleId)
+    {
+        try
+        {
+            await HistoryService.DeleteBattleHistoryAsync(battleId);
+            battleHistories = battleHistories.Where(h => h.BattleId != battleId).ToList();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Failed to delete battle history");
+            // TODO: Show error message to user
+        }
+    }
+}

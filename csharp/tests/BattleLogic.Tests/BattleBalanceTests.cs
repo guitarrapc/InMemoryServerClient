@@ -54,8 +54,8 @@ public class BattleBalanceTests
         // バトルの最終状態を取得して結果を判定
         var finalStatus = battleState.GetStatus();
 
-        // 新しいIsPlayerVictoryプロパティを使用
-        bool playerVictory = finalStatus.IsPlayerVictory ?? false;
+        // 新しいIsVictoryプロパティを使用
+        bool playerVictory = finalStatus.IsVictory ?? false;
 
         // バックアップ検証: 古い方法でも結果を確認
         var allTurnData = battleState.GetAllTurnData();
@@ -65,7 +65,7 @@ public class BattleBalanceTests
         // 新旧の判定が一致することを確認
         if (playerVictory != backupPlayerVictory)
         {
-            _output.WriteLine("Battle result mismatch: IsPlayerVictory={PlayerVictory}, backup calculation={BackupPlayerVictory}",
+            _output.WriteLine("Battle result mismatch: IsVictory={PlayerVictory}, backup calculation={BackupPlayerVictory}",
                 playerVictory, backupPlayerVictory);
         }
 
@@ -126,7 +126,7 @@ public class BattleBalanceTests
 
             // バトルの最終状態を取得して結果を判定
             var finalStatus = battleState.GetStatus();
-            bool playerVictory = finalStatus.IsPlayerVictory ?? false;
+            bool playerVictory = finalStatus.IsVictory ?? false;
 
             // 敵の数を取得（バトル開始時の敵数）
             var allTurnData = battleState.GetAllTurnData();
@@ -245,7 +245,7 @@ public class BattleBalanceTests
 
         // Assert
         Assert.False(finalStatus.IsInProgress); // Battle should be completed
-        Assert.NotNull(finalStatus.IsPlayerVictory); // Should have a victory result
+        Assert.NotNull(finalStatus.IsVictory); // Should have a victory result
 
         // Calculate victory using the correct method based on how the battle ended
         bool calculatedVictory;
@@ -275,10 +275,10 @@ public class BattleBalanceTests
         }
 
         // Verify consistency between new property and correct calculation
-        Assert.Equal(calculatedVictory, finalStatus.IsPlayerVictory.Value);
+        Assert.Equal(calculatedVictory, finalStatus.IsVictory.Value);
 
         // Verify battle state consistency
-        if (finalStatus.IsPlayerVictory.Value)
+        if (finalStatus.IsVictory.Value)
         {
             if (finalStatus.IsEndedByTurnLimit == true)
             {

@@ -1,0 +1,349 @@
+@page "/battle/{BattleId}"
+@inject BattleSessionManager SessionManager
+@inject NavigationManager Navigation
+@inject SettingsService Settings
+@inject BattleHistoryService HistoryService
+@inject ILogger<BattleDetail> Logger
+@implements IDisposable
+
+<div class="battle-detail-page">
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="loading-spinner">⏳</div>
+            <h2>Loading @(isHistoricalMode ? "Historical Battle" : "Battle")...</h2>
+            <p>Please wait while we load the battle data.</p>
+        </div>
+    }
+    else if (battle != null)
+    {
+        <header class="battle-header">
+            <div class="header-left">
+                <button class="back-btn" @onclick="GoBack">← Back</button>
+                <div class="battle-title-section">
+                    <h2>@battle.GroupName</h2>
+                    <div class="battle-metadata">
+                        <span class="session-id">Session ID: @battle.SessionId</span>
+                        @if (!string.IsNullOrEmpty(battle.BattleId))
+                        {
+                            <span class="server-battle-id">Battle ID: @battle.BattleId</span>
+                        }
+                        @if (isHistoricalMode && battleHistory is not null && battleHistory.Seed != 0)
+                        {
+                            <span class="battle-seed">Seed: @battleHistory.Seed</span>
+                        }
+                        else if (!isHistoricalMode && battle.Seed != 0)
+                        {
+                            <span class="battle-seed">Seed: @battle.Seed</span>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-badges">
+                    <span class="battle-status @battle.Status.ToString().ToLower()">@battle.Status</span>
+                    @if (!string.IsNullOrEmpty(battleResult))
+                    {
+                        <span class="battle-result @(battleResult.Contains("Victory") ? "victory" : "defeat")">@battleResult</span>
+                    }
+                    @if (isHistoricalMode)
+                    {
+                        <span class="historical-badge">History</span>
+                    }
+                </div>
+                <span class="server-info">📡 @battle.ServerUrl</span>
+            </div>
+        </header>
+
+        <div class="client-management">
+            <div class="section-header">
+                <h3>Connected Clients (@(battle.ClientCount)/5)</h3>
+                @if (battle.IsFull)
+                {
+                    <span class="full-indicator">✅ Full</span>
+                }
+            </div>
+
+            <div class="connected-clients">
+                @if (battle.Clients.Any())
+                {
+                    @foreach (var client in battle.Clients)
+                    {
+                        <div class="client-card">
+                            <div class="client-header">
+                                <span class="client-id">@client.ConnectionId[..8]</span>
+                                <span class="connection-type @client.Type.ToString().ToLower()">@client.Type</span>
+                                @if (!isHistoricalMode)
+                                {
+                                    <button class="remove-btn" @onclick="() => RemoveClient(client)">×</button>
+                                }
+                            </div>
+                            <div class="client-info">
+                                <div>👤 @(client.PlayerId ?? "Anonymous")</div>
+                                <div>@(client.Type == ConnectionType.SignalR ? "🔌" : "⚡") @client.Type</div>
+                                <div>🕒 @client.ConnectedAt.ToLocalTime().ToString("HH:mm:ss")</div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="no-clients">
+                        <p>No clients are connected yet</p>
+                        <p>Please add clients using the + button below</p>
+                    </div>
+                }
+            </div>
+
+            @if (!isHistoricalMode)
+            {
+                <div class="add-client-buttons">
+                    <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@(battle.IsFull || isAddingSignalR)">
+                        <div class="btn-icon">@(isAddingSignalR ? "⏳" : "🔌")</div>
+                        <div class="btn-text">@(isAddingSignalR ? "Connecting..." : "Add SignalR Client")</div>
+                        <div class="btn-subtitle">WebSocket</div>
+                    </button>
+                    <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(!MagicOnionConnection.Supported || battle.IsFull || isAddingMagicOnion)">
+                        <div class="btn-icon">@(isAddingMagicOnion ? "⏳" : "⚡")</div>
+                        <div class="btn-text">@(isAddingMagicOnion ? "Connecting..." : "Add MagicOnion Client")</div>
+                        <div class="btn-subtitle">gRPC</div>
+                    </button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="error-alert">
+                    <div class="error-content">
+                        <span class="error-icon">⚠️</span>
+                        <span class="error-text">@errorMessage</span>
+                        <button class="error-close" @onclick="() => errorMessage = null">×</button>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (battle.Clients.Any())
+        {
+            <div class="battle-fields">
+                <h3>Battle Fields</h3>
+                <div class="fields-grid d-flex flex-wrap">
+                    @foreach (var client in battle.Clients)
+                    {
+                        <BattleField Client="client" Size="Settings.FieldSize" IsHistoricalMode="isHistoricalMode" />
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="error-message">
+            <h2>Battle Not Found</h2>
+            <p>The specified battle (ID: @BattleId) does not exist.</p>
+            <button class="btn-primary" @onclick="GoBack">Go Back to Home</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string BattleId { get; set; } = string.Empty;
+
+    private BattleSessionModel? battle;
+    private BattleHistory? battleHistory; // 履歴モード用
+    private string? errorMessage;
+    private bool isLoading;
+    private bool isAddingSignalR;
+    private bool isAddingMagicOnion;
+    private string battleResult = "";
+    private bool isHistoricalMode => GetQueryParameter("mode") == "history";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (isHistoricalMode)
+        {
+            await LoadHistoricalBattle();
+        }
+        else
+        {
+            LoadActiveBattle();
+        }
+    }
+
+    private async Task LoadHistoricalBattle()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged(); // UI更新を強制
+
+            Logger.LogInformation($"Loading historical battle: {BattleId}");
+            battleHistory = await HistoryService.GetBattleHistoryAsync(BattleId);
+
+            if (battleHistory != null)
+            {
+                Logger.LogDebug($"Battle history loaded: {battleHistory.ReplayData.Count} chunks, {battleHistory.ReplayData.Sum(r => r.TurnData.Count)} total turns");
+
+                // 履歴データから直接BattleFieldに表示するためのクライアントを作成
+                // 実際の接続は不要、表示用のデータのみ
+                // 履歴データからBattleSessionModelを作成
+                battle = BattleSessionModel.CreateHistorical(battleHistory);
+
+                // 結果を設定
+                battleResult = battleHistory.Result.IsVictory ? "🎉 Victory" : "❌ Defeat";
+            }
+            else
+            {
+                Logger.LogInformation("Battle history not found");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load battle history: {ex.Message}";
+            Logger.LogError(ex, $"Failed to load battle history");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LoadActiveBattle()
+    {
+        battle = SessionManager.GetBattle(BattleId);
+
+        // Subscribe to battle status changes
+        if (battle != null)
+        {
+            battle.OnStatusChanged += OnBattleStatusChanged;
+
+            // Subscribe to battle completion events for all clients
+            foreach (var client in battle.Clients)
+            {
+                client.OnBattleComplete += () => OnBattleCompleted(client);
+            }
+        }
+    }
+
+    private void OnBattleStatusChanged(BattleStatus status)
+    {
+        InvokeAsync(() =>
+        {
+            // Trigger UI update when battle status changes
+            StateHasChanged();
+        });
+    }
+
+    private void OnBattleCompleted(BattleClient client)
+    {
+        // Determine battle result from the completed client's field data
+        var finalTurnData = client.CurrentField;
+        if (finalTurnData != null)
+        {
+            var alivePlayers = finalTurnData.Entities.Count(e => e.Type == EntityType.Player && e.Health > 0);
+            var aliveEnemies = finalTurnData.Entities.Count(e => e.Type != EntityType.Player && e.Health > 0);
+
+            if (aliveEnemies == 0)
+            {
+                battleResult = "🎉 Victory";
+            }
+            else if (alivePlayers == 0)
+            {
+                battleResult = "❌ Defeat";
+            }
+            else
+            {
+                // Use survivor count to determine result
+                battleResult = alivePlayers > aliveEnemies ? "🎉 Victory" : "❌ Defeat";
+            }
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from events when component is disposed
+        if (battle != null)
+        {
+            battle.OnStatusChanged -= OnBattleStatusChanged;
+        }
+    }
+
+    private async Task AddClient(ConnectionType connectionType)
+    {
+        if (battle != null && !battle.IsFull)
+        {
+            // 個別のローディング状態を設定
+            if (connectionType == ConnectionType.SignalR)
+                isAddingSignalR = true;
+            else if (connectionType == ConnectionType.MagicOnion)
+                isAddingMagicOnion = true;
+
+            errorMessage = null;
+            StateHasChanged();
+
+            try
+            {
+                var client = await battle.AddClientAsync(connectionType);
+
+                // Subscribe to new client's battle completion event
+                client.OnBattleComplete += () => OnBattleCompleted(client);
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, $"Failed to add client");
+                errorMessage = $"Failed to add {connectionType} client: {ex.Message}";
+            }
+            finally
+            {
+                // 個別のローディング状態をクリア
+                isAddingSignalR = false;
+                isAddingMagicOnion = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task RemoveClient(BattleClient client)
+    {
+        if (battle != null)
+        {
+            try
+            {
+                await battle.RemoveClientAsync(client);
+                errorMessage = null; // Clear any previous errors
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, $"Failed to remove client");
+                errorMessage = $"Failed to remove client: {ex.Message}";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private string GetQueryParameter(string parameterName)
+    {
+        var uri = new Uri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        return query[parameterName] ?? string.Empty;
+    }
+
+    private string GetEnemyIcon(EntityType enemyType) => enemyType switch
+    {
+        EntityType.Small => "👹",
+        EntityType.Medium => "👺",
+        EntityType.Large => "👾",
+        _ => "❓"
+    };
+}

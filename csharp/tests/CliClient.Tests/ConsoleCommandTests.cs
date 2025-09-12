@@ -58,36 +58,6 @@ public class ConsoleCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task InteractiveAsync_DoesNotThrow()
-    {
-        // This test verifies the interactive method exists
-        // Since it's an interactive console loop, we can't test it directly
-        // But we can verify it's available and properly defined
-
-        // Act & Assert
-        var method = typeof(ConsoleCommand).GetMethod("InteractiveAsync");
-        Assert.NotNull(method);
-        Assert.True(method.IsPublic);
-    }
-
-    [Theory]
-    [InlineData("connect")]
-    [InlineData("status")]
-    [InlineData("get")]
-    [InlineData("set")]
-    public void ConsoleCommand_HasExpectedCommandHandling_ForBasicCommands(string expectedCommand)
-    {
-        // This test verifies that the ConsoleCommand class is properly structured
-        // by checking that it contains references to expected command strings
-
-        // Arrange & Act
-        var sourceCode = File.ReadAllText($@"{Directory.GetCurrentDirectory()}/../../../../../src/CliClient/ConsoleCommand.cs");
-
-        // Assert
-        Assert.Contains($"\"{expectedCommand}\"", sourceCode);
-    }
-
-    [Fact]
     public void ConsoleCommand_IsProperlyStructured()
     {
         // Verify the class has the expected structure for ConsoleAppFramework

@@ -19,7 +19,7 @@ public readonly struct BattleReplaySummary
     /// <summary>
     /// Whether players won the battle
     /// </summary>
-    public required bool IsPlayerVictory { get; init; }
+    public required bool IsVictory { get; init; }
 
     /// <summary>
     /// Whether the battle ended due to turn limit

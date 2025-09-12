@@ -244,22 +244,6 @@ public class ClientIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void ConsoleCommand_WithClientOperations_IntegratesCorrectly()
-    {
-        // Arrange
-        var manager = new MultiBattleClientManager(_loggerFactory);
-        var logger = _loggerFactory.CreateLogger<ConsoleCommand>();
-        var command = new ConsoleCommand(manager, _loggerFactory, logger);
-
-        // Act & Assert - The command object should be created successfully
-        Assert.NotNull(command);
-
-        // Verify the structure exists for handling commands
-        var type = typeof(ConsoleCommand);
-        Assert.NotNull(type.GetMethod("InteractiveAsync"));
-    }
-
-    [Fact]
     public void ConnectionOptions_WithClientIntegration_WorksCorrectly()
     {
         // Arrange

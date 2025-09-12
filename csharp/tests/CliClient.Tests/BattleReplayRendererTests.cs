@@ -1,8 +1,4 @@
-using CliClient.Services;
-using Microsoft.Extensions.Logging;
-using Shared.Battle;
-using Shared.Models;
-using Shared.Constants;
+﻿using CliClient.Services;
 using Shared.Common;
 
 namespace CliClient.Tests;
@@ -118,7 +114,7 @@ public class BattleReplayRendererTests : IDisposable
         {
             FinalTurn = 2,
             TotalTurns = 100,
-            IsPlayerVictory = true,
+            IsVictory = true,
             IsEndedByTurnLimit = false,
             SurvivingPlayers = 3,
             TotalPlayers = 5,
@@ -214,7 +210,7 @@ public class BattleReplayRendererTests : IDisposable
             {
                 $"Turn {currentTurn}: Some battle action occurred"
             },
-            IsPlayerVictory = isLastTurn,
+            IsVictory = isLastTurn,
             FinalTurn = isLastTurn ? currentTurn : null
         };
     }

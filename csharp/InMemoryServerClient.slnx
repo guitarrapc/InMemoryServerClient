@@ -9,11 +9,12 @@
     <Project Path="src/CliClient/CliClient.csproj" />
     <Project Path="src/InMemoryServer/InMemoryServer.csproj" />
     <Project Path="src/Shared/Shared.csproj" />
+    <Project Path="src/WasmClient/WasmClient.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BattleLogic.Tests/BattleLogic.Tests.csproj" />
+    <Project Path="tests/CliClient.Tests/CliClient.Tests.csproj" />
     <Project Path="tests/E2E.Tests/E2E.Tests.csproj" />
     <Project Path="tests/InMemoryServer.Tests/InMemoryServer.Tests.csproj" />
-    <Project Path="tests/CliClient.Tests/CliClient.Tests.csproj" />
   </Folder>
 </Solution>

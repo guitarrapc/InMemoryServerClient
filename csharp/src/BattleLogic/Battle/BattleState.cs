@@ -198,11 +198,11 @@ public class BattleState
             }
 
             // Check for battle end after each entity action to prevent simultaneous death
-            var (isOver, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+            var (isOver, isVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
             if (isOver)
             {
                 _isCompleted = true;
-                _playerVictory = isPlayerVictory;
+                _playerVictory = isVictory;
                 _battleLogs.Add($"Battle ended mid-turn after {entity.Name}'s action!");
                 return; // Early exit from turn processing
             }
@@ -250,12 +250,12 @@ public class BattleState
             allTurnData.Add(GetStatusSnapshot());
 
             // Check if battle is over
-            var (isOver, isPlayerVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
+            var (isOver, isVictory) = _battleUtilities.CheckBattleOver(_players, _enemies);
             if (isOver)
             {
                 _isCompleted = true;
                 // Store the battle result (for final log display)
-                _playerVictory = isPlayerVictory;
+                _playerVictory = isVictory;
                 break;
             }
 
@@ -341,7 +341,7 @@ public class BattleState
         {
             FinalTurn = _currentTurn,
             TotalTurns = _totalTurns,
-            IsPlayerVictory = _playerVictory,
+            IsVictory = _playerVictory,
             IsEndedByTurnLimit = _currentTurn >= _totalTurns,
             SurvivingPlayers = finalStatus?.Players.Count(p => p.IsAlive) ?? 0,
             TotalPlayers = _players.Count,
@@ -397,7 +397,7 @@ public class BattleState
             Enemies = [.. _enemies],
             FieldSize = BattleSystemDefines.BattleFieldSize,
             RecentLogs = [.. _battleLogs.TakeLast(10)],
-            IsPlayerVictory = _isCompleted ? _playerVictory : null
+            IsVictory = _isCompleted ? _playerVictory : null
         };
     }
 
@@ -417,7 +417,7 @@ public class BattleState
             Enemies = [.. _enemies], // structs automatically create copies
             FieldSize = BattleSystemDefines.BattleFieldSize,
             RecentLogs = [.. _battleLogs.TakeLast(10)],
-            IsPlayerVictory = _isCompleted ? _playerVictory : null
+            IsVictory = _isCompleted ? _playerVictory : null
         };
     }
 

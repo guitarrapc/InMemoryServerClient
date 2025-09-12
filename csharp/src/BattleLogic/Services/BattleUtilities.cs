@@ -260,7 +260,7 @@ internal class BattleUtilities
     /// <summary>
     /// Check if battle is over
     /// </summary>
-    public (bool isOver, bool isPlayerVictory) CheckBattleOver(List<EntityInfo> players, List<EntityInfo> enemies)
+    public (bool isOver, bool isVictory) CheckBattleOver(List<EntityInfo> players, List<EntityInfo> enemies)
     {
         bool allPlayersDead = players.All(p => p.CurrentHp <= 0);
         bool allEnemiesDead = enemies.All(e => e.CurrentHp <= 0);

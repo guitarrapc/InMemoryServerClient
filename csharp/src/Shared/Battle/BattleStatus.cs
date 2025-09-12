@@ -58,7 +58,7 @@ public class BattleStatus
     /// Battle result (null if battle is still in progress)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? IsPlayerVictory { get; set; }
+    public bool? IsVictory { get; set; }
 
     /// <summary>
     /// Whether the battle ended due to turn limit being reached

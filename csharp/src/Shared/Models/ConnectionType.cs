@@ -13,5 +13,10 @@ public enum ConnectionType
     /// <summary>
     /// MagicOnion connection
     /// </summary>
-    MagicOnion
+    MagicOnion,
+
+    /// <summary>
+    /// Historical connection (no actual connection, for replay viewing)
+    /// </summary>
+    Historical
 }

@@ -1,0 +1,316 @@
+@page "/options"
+@inject SettingsService Settings
+@inject NavigationManager Navigation
+@inject BattleHistoryService HistoryService
+@inject ILogger<Options> Logger
+
+<div class="options-page">
+    <header class="page-header">
+        <div class="header-left">
+            <button class="back-btn" @onclick="GoBack">← Back</button>
+            <h1>Settings</h1>
+        </div>
+    </header>
+
+    <div class="settings-form">
+        <div class="setting-group">
+            <h3>🔗 Connection Settings</h3>
+            <div class="form-group">
+                <label>Server Base URL:</label>
+                <input @bind="Settings.ServerUrl" placeholder="http://localhost" />
+                <small class="form-hint">Base server address without port</small>
+            </div>
+            <div class="form-group">
+                <label>SignalR Port:</label>
+                <input type="number" @bind="Settings.SignalRPort" placeholder="5000" min="1" max="65535" />
+                <small class="form-hint">Port for WebSocket connections (Full URL: @Settings.SignalRUrl)</small>
+            </div>
+            <div class="form-group">
+                <label>MagicOnion Port:</label>
+                <input type="number" @bind="Settings.MagicOnionPort" placeholder="5001" min="1" max="65535" />
+                <small class="form-hint">Port for gRPC connections (Full URL: @Settings.MagicOnionUrl)</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🖥️ Display Settings</h3>
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="Settings.ShowDebugInfo" />
+                    <span class="checkbox-text">Show Debug Info</span>
+                </label>
+                <small class="form-hint">Displays connection details and performance information</small>
+            </div>
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="Settings.ShowHealthBars" />
+                    <span class="checkbox-text">Show Entity Health Bars</span>
+                </label>
+                <small class="form-hint">Displays HP status visually on the battlefields</small>
+            </div>
+            <div class="form-group">
+                <label>Battle Field Size: <span class="field-size-value">@Settings.FieldSize px</span></label>
+                <input type="range" @bind="Settings.FieldSize" min="120" max="300" class="range-input" />
+                <div class="range-labels">
+                    <span>Small (120px)</span>
+                    <span>Large (300px)</span>
+                </div>
+                <small class="form-hint">Adjust the display size of each battle field</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>� Battle Replay Settings</h3>
+            <div class="form-group">
+                <label>Replay Frame Rate: <span class="field-size-value">@Settings.ReplayFps FPS</span></label>
+                <input type="range" @bind="Settings.ReplayFps" min="@Settings.MinReplayFps" max="@Settings.MaxReplayFps" class="range-input" />
+                <div class="range-labels">
+                    <span>Slow (@Settings.MinReplayFps FPS)</span>
+                    <span>Fast (@Settings.MaxReplayFps FPS)</span>
+                </div>
+                <small class="form-hint">Adjust the replay animation speed (@Settings.ReplayFrameTimeMs ms per frame)</small>
+            </div>
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" @bind="Settings.AutoReplay" />
+                    <span class="checkbox-text">Auto Loop Replay</span>
+                </label>
+                <small class="form-hint">Automatically restart replay when reaching the end</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>🎮 Action Settings</h3>
+            <div class="form-group">
+                <small class="form-hint">Additional action settings will be added in future updates</small>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <h3>💾 Data Management</h3>
+            <div class="form-group">
+                <label>Battle History Storage:</label>
+                <div class="data-info">
+                    <div class="data-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Battles:</span>
+                            <span class="stat-value">@battleHistoryStats.TotalBattles</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Victories:</span>
+                            <span class="stat-value">@battleHistoryStats.TotalVictories</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Win Rate:</span>
+                            <span class="stat-value">@battleHistoryStats.WinRate.ToString("P1")</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Storage Used:</span>
+                            <span class="stat-value">@FormatDataSize(battleHistoryStats.TotalDataSize)</span>
+                        </div>
+                    </div>
+                </div>
+                <small class="form-hint">Battle history is stored locally in your browser using IndexedDB</small>
+            </div>
+            <div class="form-group">
+                <div class="danger-zone">
+                    <h4>⚠️ Danger Zone</h4>
+                    <p>These actions cannot be undone. All battle history will be permanently deleted.</p>
+                    <div class="danger-actions">
+                        <button @onclick="ShowClearConfirmDialog" class="btn-danger" disabled="@(battleHistoryStats.TotalBattles == 0)">
+                            🗑️ Clear All Battle History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button @onclick="SaveSettings" class="btn-primary">Save Settings</button>
+            <button @onclick="ResetSettings" class="btn-secondary">Reset to Default</button>
+            <button @onclick="TestConnections" class="btn-outline" disabled>Test Connections (Not Implemented)</button>
+        </div>
+
+        @if (showSaveMessage)
+        {
+            <div class="save-message">
+                ✅ Settings have been saved
+            </div>
+        }
+
+        @if (showClearMessage)
+        {
+            <div class="clear-message">
+                ✅ Battle history has been cleared
+            </div>
+        }
+    </div>
+
+    <!-- Clear Confirmation Dialog -->
+    @if (showClearConfirmDialog)
+    {
+        <div class="dialog-overlay" @onclick="HideClearConfirmDialog">
+            <div class="dialog" @onclick:stopPropagation="true">
+                <div class="dialog-header">
+                    <h3>⚠️ Confirm Clear All Battle History</h3>
+                    <button class="close-btn" @onclick="HideClearConfirmDialog">×</button>
+                </div>
+                <div class="dialog-body">
+                    <p><strong>This action cannot be undone.</strong></p>
+                    <p>You are about to delete:</p>
+                    <ul>
+                        <li>@battleHistoryStats.TotalBattles battle records</li>
+                        <li>@FormatDataSize(battleHistoryStats.TotalDataSize) of stored data</li>
+                        <li>All replay data and statistics</li>
+                    </ul>
+                    <p>Are you sure you want to continue?</p>
+                </div>
+                <div class="dialog-footer">
+                    <button class="btn-secondary" @onclick="HideClearConfirmDialog">Cancel</button>
+                    <button class="btn-danger" @onclick="ClearAllBattleHistory" disabled="@isClearing">
+                        @if (isClearing)
+                        {
+                            <span>🔄 Clearing...</span>
+                        }
+                        else
+                        {
+                            <span>🗑️ Clear All</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="info-section">
+        <h3>ℹ️ Information</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Application:</strong>
+                <span>WasmClient v1.0</span>
+            </div>
+            <div class="info-item">
+                <strong>Build Date:</strong>
+                <span>@DateTime.Now.ToString("yyyy/MM/dd")</span>
+            </div>
+            <div class="info-item">
+                <strong>Supported Protocols:</strong>
+                <span>SignalR, MagicOnion</span>
+            </div>
+            <div class="info-item">
+                <strong>Max Concurrent Battles:</strong>
+                <span>Unlimited</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool showSaveMessage = false;
+    private bool showClearMessage = false;
+    private bool showClearConfirmDialog = false;
+    private bool isClearing = false;
+    private BattleHistoryStats battleHistoryStats = BattleHistoryStats.Default;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBattleHistoryStats();
+    }
+
+    private async Task LoadBattleHistoryStats()
+    {
+        try
+        {
+            battleHistoryStats = await HistoryService.GetStorageStatsAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Failed to load battle history stats");
+            battleHistoryStats = BattleHistoryStats.Default;
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        await Settings.SaveAsync();
+        showSaveMessage = true;
+
+        // 3秒後にメッセージを非表示にする
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            showSaveMessage = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task ResetSettings()
+    {
+        Settings.Reset();
+        await Settings.SaveAsync();
+        StateHasChanged();
+    }
+
+    private async Task TestConnections()
+    {
+        // 将来実装: サーバー接続テスト
+        await Task.CompletedTask;
+    }
+
+    private void ShowClearConfirmDialog()
+    {
+        showClearConfirmDialog = true;
+    }
+
+    private void HideClearConfirmDialog()
+    {
+        showClearConfirmDialog = false;
+    }
+
+    private async Task ClearAllBattleHistory()
+    {
+        if (isClearing) return;
+
+        isClearing = true;
+        try
+        {
+            await HistoryService.ClearAllBattleHistoryAsync();
+            await LoadBattleHistoryStats(); // 統計情報を更新
+
+            showClearConfirmDialog = false;
+            showClearMessage = true;
+
+            // 3秒後にメッセージを非表示にする
+            _ = Task.Delay(3000).ContinueWith(_ =>
+            {
+                showClearMessage = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, $"Failed to clear battle history");
+            // TODO: Show error message to user
+        }
+        finally
+        {
+            isClearing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatDataSize(long bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        else if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        else
+            return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
