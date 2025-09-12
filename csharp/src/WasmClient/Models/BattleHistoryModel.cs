@@ -44,12 +44,22 @@ public record BattleHistorySummary
     public string ServerUrl { get; init; } = string.Empty;
     public int TotalTurns { get; init; }
     public bool IsVictory { get; init; } // Simplified for summary
+    public int PlayersSurvived { get; init; } // Added for UI display
+    public int EnemiesKilled { get; init; } // Added for UI display
+    public string VictoryCondition { get; init; } = string.Empty; // Added for UI display
     public int DataSizeKB { get; init; }
     public int ClientCount { get; init; }
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
 
     // Backward compatibility - create a BattleResult from the simple fields
-    public BattleResult Result => new() { IsVictory = IsVictory, TotalTurns = TotalTurns };
+    public BattleResult Result => new()
+    {
+        IsVictory = IsVictory,
+        TotalTurns = TotalTurns,
+        PlayersSurvived = PlayersSurvived,
+        EnemiesKilled = EnemiesKilled,
+        VictoryCondition = VictoryCondition
+    };
 }
 
 /// <summary>

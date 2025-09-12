@@ -47,7 +47,7 @@ window.battleStorage = {
     // データサイズを計算
     const serializedData = JSON.stringify(battleHistoryData);
     const dataSize = new Blob([serializedData]).size;
-    battleHistoryData.dataSizeBytes = dataSize;
+    battleHistoryData.dataSize = dataSize;
 
     return new Promise((resolve, reject) => {
       const request = store.put(battleHistoryData);
@@ -73,7 +73,7 @@ window.battleStorage = {
       request.onsuccess = () => {
         const result = request.result || null;
         if (result) {
-          console.log(`Battle ${battleId} retrieved (${(result.dataSizeBytes / 1024).toFixed(1)}KB)`);
+          console.log(`Battle ${battleId} retrieved (${(result.dataSize / 1024).toFixed(1)}KB)`);
         }
         resolve(result);
       };
@@ -110,7 +110,10 @@ window.battleStorage = {
             serverUrl: battle.serverUrl,
             totalTurns: battle.totalTurns,
             isVictory: battle.result?.isVictory || false,
-            dataSizeKB: Math.round((battle.dataSizeBytes || 0) / 1024),
+            playersSurvived: battle.result?.playersSurvived || 0,
+            enemiesKilled: battle.result?.enemiesKilled || 0,
+            victoryCondition: battle.result?.victoryCondition || '',
+            dataSizeKB: Math.round((battle.dataSize || 0) / 1024),
             clientCount: battle.participatingClients?.length || 0
           });
 
@@ -183,7 +186,7 @@ window.battleStorage = {
         const cursor = event.target.result;
         if (cursor) {
           const battle = cursor.value;
-          totalSize += battle.dataSizeBytes || 0;
+          totalSize += battle.dataSize || 0;
           totalCount++;
 
           const completedAt = new Date(battle.completedAt);
