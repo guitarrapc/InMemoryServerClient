@@ -80,7 +80,7 @@
                             </div>
                             <div class="client-info">
                                 <div>👤 @(client.PlayerId ?? "Anonymous")</div>
-                                <div>🕒 @client.ConnectedAt.ToString("HH:mm:ss")</div>
+                                <div>🕒 @client.ConnectedAt.ToLocalTime().ToString("HH:mm:ss")</div>
                             </div>
                         </div>
                     }

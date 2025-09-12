@@ -36,7 +36,7 @@ public class BattleSessionManager
             GroupName = groupName,
             ServerUrl = serverUrl ?? _settings.SignalRUrl,
             Status = BattleStatus.Waiting,
-            CreatedAt = DateTime.Now
+            CreatedAt = DateTime.UtcNow
         };
 
         // バトル完了イベントを購読

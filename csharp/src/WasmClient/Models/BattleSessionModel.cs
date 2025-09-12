@@ -41,7 +41,7 @@ public class BattleSessionModel : IAsyncDisposable
         }
     }
 
-    public DateTime CreatedAt { get; init; } = DateTime.Now;
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public IReadOnlyList<BattleClient> Clients => _clients.AsReadOnly();
 
     // 履歴バトル用プロパティ
@@ -384,7 +384,7 @@ public class BattleClient : IAsyncDisposable
         // Initialize connection information for real connections
         _connectionId = _connection?.ConnectionId ?? "unknown";
         _connectionType = _connection?.Type ?? Shared.Models.ConnectionType.SignalR;
-        _connectedAt = DateTime.Now;
+        _connectedAt = DateTime.UtcNow;
 
         // Subscribe to battle replay data to update field visualization
         if (_connection != null)
@@ -433,7 +433,7 @@ public class BattleClient : IAsyncDisposable
         var client = new BattleClient(
             connectionId,
             connectionType,
-            connectedAt == default ? DateTime.Now : connectedAt)
+            connectedAt == default ? DateTime.UtcNow : connectedAt)
         {
             PlayerId = playerId
         };

@@ -40,7 +40,7 @@
                         </div>
                         <div class="created-time">
                             <span class="icon">⏰</span>
-                            <span>@battle.CreatedAt.ToString("HH:mm")</span>
+                            <span>@battle.CreatedAt.ToLocalTime().ToString("HH:mm")</span>
                         </div>
                     </div>
                 </div>
@@ -77,11 +77,11 @@
                             </div>
                             <div class="battle-date">
                                 <span class="icon">📅</span>
-                                <span>@history.CompletedAt.ToString("yyyy/MM/dd HH:mm")</span>
+                                <span>@history.CompletedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</span>
                             </div>
                             <div class="battle-duration">
                                 <span class="icon">⏱️</span>
-                                <span>@history.BattleDuration.TotalMinutes.ToString("F1") Min</span>
+                                <span>@history.LocalBattleDuration.TotalMinutes.ToString("F1") Min</span>
                             </div>
                             <div class="battle-turns">
                                 <span class="icon">🔄</span>

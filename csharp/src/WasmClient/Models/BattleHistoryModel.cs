@@ -18,6 +18,11 @@ public record BattleHistory
     public List<BattleClientHistory> ParticipatingClients { get; init; } = new();
     public long DataSize { get; init; } // Changed from DataSizeBytes
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
+
+    /// <summary>
+    /// ローカル時間でのバトル時間を取得
+    /// </summary>
+    public TimeSpan LocalBattleDuration => CompletedAt.ToLocalTime() - CreatedAt.ToLocalTime();
 }
 
 /// <summary>
@@ -50,6 +55,11 @@ public record BattleHistorySummary
     public required int DataSizeKB { get; init; }
     public required int ClientCount { get; init; }
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
+
+    /// <summary>
+    /// ローカル時間でのバトル時間を取得
+    /// </summary>
+    public TimeSpan LocalBattleDuration => CompletedAt.ToLocalTime() - CreatedAt.ToLocalTime();
 
     // Backward compatibility - create a BattleResult from the simple fields
     public BattleResult Result => new()
