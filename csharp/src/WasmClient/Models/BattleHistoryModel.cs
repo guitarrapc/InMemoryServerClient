@@ -37,15 +37,19 @@ public record BattleClientHistory
 public record BattleHistorySummary
 {
     public string BattleId { get; init; } = string.Empty;
+    public string SessionId { get; init; } = string.Empty; // Session ID (client-generated)
     public DateTime CreatedAt { get; init; }
     public DateTime CompletedAt { get; init; }
     public string GroupName { get; init; } = string.Empty;
     public string ServerUrl { get; init; } = string.Empty;
     public int TotalTurns { get; init; }
-    public BattleResult Result { get; init; } = new(); // Changed from IsVictory
+    public bool IsVictory { get; init; } // Simplified for summary
     public int DataSizeKB { get; init; }
     public int ClientCount { get; init; }
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
+
+    // Backward compatibility - create a BattleResult from the simple fields
+    public BattleResult Result => new() { IsVictory = IsVictory, TotalTurns = TotalTurns };
 }
 
 /// <summary>
