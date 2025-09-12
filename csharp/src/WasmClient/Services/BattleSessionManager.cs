@@ -126,7 +126,7 @@ public class BattleSessionManager
                 GroupName = battle.GroupName,
                 ServerUrl = battle.ServerUrl,
                 Seed = battle.Seed,
-                TotalTurns = battle.TotalTurns,
+                TotalTurns = result.TotalTurns > 0 ? result.TotalTurns : battle.TotalTurns,
                 ReplayData = battle.ReplayData.ToList(),
                 Result = result,
                 ParticipatingClients = battle.Clients.Select(c => new BattleClientHistory

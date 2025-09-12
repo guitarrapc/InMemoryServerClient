@@ -171,14 +171,8 @@ public class BattleSessionModel : IAsyncDisposable
                 Status = BattleStatus.Completed;
                 _logger.LogInformation("Battle session {SessionId} status updated to Completed", SessionId);
 
-                // Create battle result and trigger completion event
-                var result = new BattleResult
-                {
-                    IsVictory = true, // TODO: Extract from actual battle data
-                    PlayersSurvived = 0,   // TODO: Extract from actual battle data
-                    EnemiesKilled = 0,   // TODO: Extract from actual battle data
-                    VictoryCondition = "All enemies defeated" // TODO: Extract from actual battle data
-                };
+                // Extract actual battle result from the final turn data
+                var result = CalculateBattleResult(client);
 
                 OnBattleCompleted?.Invoke(this, result);
             };
@@ -235,6 +229,77 @@ public class BattleSessionModel : IAsyncDisposable
             _logger.LogInformation("Removing client {ConnectionId} from battle session {SessionId}",
                 client.ConnectionId, SessionId);
             await client.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Calculate battle result from the final turn data
+    /// </summary>
+    private BattleResult CalculateBattleResult(BattleClient client)
+    {
+        try
+        {
+            var finalTurnData = client.CurrentField;
+            if (finalTurnData != null)
+            {
+                var alivePlayers = finalTurnData.Entities.Count(e => e.Type == EntityType.Player && e.Health > 0);
+                var aliveEnemies = finalTurnData.Entities.Count(e => e.Type != EntityType.Player && e.Health > 0);
+                var totalPlayers = finalTurnData.Entities.Count(e => e.Type == EntityType.Player);
+                var totalEnemies = finalTurnData.Entities.Count(e => e.Type != EntityType.Player);
+
+                bool isVictory;
+                string victoryCondition;
+
+                if (aliveEnemies == 0)
+                {
+                    isVictory = true;
+                    victoryCondition = "All enemies defeated";
+                }
+                else if (alivePlayers == 0)
+                {
+                    isVictory = false;
+                    victoryCondition = "All players defeated";
+                }
+                else
+                {
+                    // Turn limit case - determine by survivor count
+                    isVictory = alivePlayers > aliveEnemies;
+                    victoryCondition = $"Turn limit reached - {(isVictory ? "Players" : "Enemies")} have more survivors";
+                }
+
+                return new BattleResult
+                {
+                    IsVictory = isVictory,
+                    PlayersSurvived = alivePlayers,
+                    EnemiesKilled = totalEnemies - aliveEnemies,
+                    TotalTurns = finalTurnData.Turn,
+                    VictoryCondition = victoryCondition
+                };
+            }
+            else
+            {
+                _logger.LogWarning("No final turn data available for battle result calculation");
+                return new BattleResult
+                {
+                    IsVictory = false,
+                    PlayersSurvived = 0,
+                    EnemiesKilled = 0,
+                    TotalTurns = 0,
+                    VictoryCondition = "Unknown - no final turn data"
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating battle result");
+            return new BattleResult
+            {
+                IsVictory = false,
+                PlayersSurvived = 0,
+                EnemiesKilled = 0,
+                TotalTurns = 0,
+                VictoryCondition = "Error calculating result"
+            };
         }
     }
 
