@@ -130,7 +130,11 @@
                 <div class="fields-grid d-flex flex-wrap">
                     @foreach (var client in battle.Clients)
                     {
-                        <BattleField Client="client" Size="Settings.FieldSize" IsHistoricalMode="isHistoricalMode" TotalTurns="@(isHistoricalMode && battleHistory != null ? battleHistory.Result.TotalTurns : null)" />
+                        <BattleField Client="client"
+                                   Size="Settings.FieldSize"
+                                   IsHistoricalMode="isHistoricalMode"
+                                   TotalTurns="@(isHistoricalMode && battleHistory != null ? battleHistory.Result.TotalTurns : null)"
+                                   OnExpandRequested="() => OpenModal(client.ConnectionId)" />
                     }
                 </div>
             </div>
@@ -157,6 +161,11 @@
     private bool isAddingMagicOnion;
     private string battleResult = "";
     private bool isHistoricalMode => GetQueryParameter("mode") == "history";
+
+    // Modal state management
+    private bool isModalOpen = false;
+    private string? expandedClientId = null;
+    private bool isModalClosing = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -346,4 +355,78 @@
         EntityType.Large => "👾",
         _ => "❓"
     };
+
+    // Modal management methods
+    private void OpenModal(string clientId)
+    {
+        expandedClientId = clientId;
+        isModalOpen = true;
+        isModalClosing = false;
+        StateHasChanged();
+    }
+
+    private async Task CloseModal()
+    {
+        isModalClosing = true;
+        StateHasChanged();
+        await Task.Delay(200); // Wait for animation
+        isModalOpen = false;
+        expandedClientId = null;
+        isModalClosing = false;
+        StateHasChanged();
+    }
+
+    private async Task CloseModalBackdrop(MouseEventArgs e)
+    {
+        // In Blazor, we can't directly access e.Target
+        // Instead, we'll close the modal when clicking the backdrop
+        // The stopPropagation on the content will prevent this from firing when clicking inside
+        await CloseModal();
+    }
+
+    private async Task OnModalKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CloseModal();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Focus the modal when it opens for accessibility
+        if (isModalOpen && !isModalClosing)
+        {
+            await Task.Delay(50); // Short delay to ensure modal is rendered
+            // In a real implementation, you might use IJSRuntime to focus the modal
+        }
+    }
+}
+
+<!-- Modal for expanded battle field -->
+@if (isModalOpen && expandedClientId != null && battle != null)
+{
+    var expandedClient = battle.Clients.FirstOrDefault(c => c.ConnectionId == expandedClientId);
+    if (expandedClient != null)
+    {
+        <div class="battle-field-modal @(isModalClosing ? "closing" : "")" @onclick="@(async (e) => await CloseModalBackdrop(e))" @onkeydown="@(async (e) => await OnModalKeyDown(e))">
+            <div class="battle-field-modal-content" @onclick:stopPropagation="true">
+                <div class="battle-field-modal-header">
+                    <h3 class="battle-field-modal-title">
+                        🎮 Battle Field: @expandedClient.ConnectionId[..8] (@expandedClient.Type)
+                    </h3>
+                    <button class="battle-field-modal-close" @onclick="CloseModal" title="Close">
+                        ✕
+                    </button>
+                </div>
+                <div class="battle-field-expanded">
+                    <BattleField Client="expandedClient"
+                               Size="500"
+                               IsHistoricalMode="isHistoricalMode"
+                               TotalTurns="@(isHistoricalMode && battleHistory != null ? battleHistory.Result.TotalTurns : null)"
+                               IsExpanded="true" />
+                </div>
+            </div>
+        </div>
+    }
 }

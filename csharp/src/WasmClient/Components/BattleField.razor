@@ -6,7 +6,13 @@
 @inject SettingsService Settings
 @inject ILogger<BattleField> Logger
 
-<div class="battle-field-container" style="width: @(Size)px; display: flex; flex-direction: column; align-items: center; margin: 5px;">
+<div class="battle-field-container @(IsExpanded ? "" : "clickable")"
+     style="width: @(Size)px; display: flex; flex-direction: column; align-items: center; margin: 5px;"
+     @onclick="OnFieldClick"
+     role="@(IsExpanded ? "img" : "button")"
+     aria-label="@(IsExpanded ? $"Battle field for {Client.ConnectionId[..8]}" : $"Click to expand battle field for {Client.ConnectionId[..8]}")"
+     tabindex="@(IsExpanded ? "-1" : "0")"
+     @onkeydown="OnFieldKeyDown">
     <!-- Field panel -->
     <div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px; margin-bottom: 5px;">
         <div class="field-header">
@@ -151,6 +157,8 @@
     [Parameter] public int Size { get; set; } = 225;
     [Parameter] public bool IsHistoricalMode { get; set; } = false;
     [Parameter] public int? TotalTurns { get; set; } = null; // For historical battles
+    [Parameter] public bool IsExpanded { get; set; } = false; // For modal display
+    [Parameter] public EventCallback OnExpandRequested { get; set; } // Event to notify parent
 
     [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
 
@@ -626,6 +634,26 @@
         // Use TotalTurns parameter if available (for historical battles)
         // Otherwise fall back to allTurnData.Count for real-time battles
         return TotalTurns ?? allTurnData.Count;
+    }
+
+    private async Task OnFieldClick()
+    {
+        // Only allow expansion if not already expanded
+        if (!IsExpanded)
+        {
+            await OnExpandRequested.InvokeAsync();
+        }
+    }
+
+    private async Task OnFieldKeyDown(KeyboardEventArgs e)
+    {
+        // Allow keyboard activation with Enter or Space
+        if (!IsExpanded && (e.Key == "Enter" || e.Key == " "))
+        {
+            // Note: PreventDefault is not available in Blazor KeyboardEventArgs
+            // The default behavior will be handled by the browser
+            await OnExpandRequested.InvokeAsync();
+        }
     }
 
     public void Dispose()
