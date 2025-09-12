@@ -130,7 +130,7 @@
                 <div class="fields-grid d-flex flex-wrap">
                     @foreach (var client in battle.Clients)
                     {
-                        <BattleField Client="client" Size="Settings.FieldSize" IsHistoricalMode="isHistoricalMode" />
+                        <BattleField Client="client" Size="Settings.FieldSize" IsHistoricalMode="isHistoricalMode" TotalTurns="@(isHistoricalMode && battleHistory != null ? battleHistory.Result.TotalTurns : null)" />
                     }
                 </div>
             </div>

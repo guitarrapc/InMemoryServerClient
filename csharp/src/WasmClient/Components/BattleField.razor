@@ -11,7 +11,7 @@
     <div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px; margin-bottom: 5px;">
         <div class="field-header">
             <span class="client-id">@Client.ConnectionId[..8]</span>
-            <span class="turn-number">@(lastTurn != -1 ? $"Turn {fieldData?.Turn + 1}/{allTurnData.Count}" : "")</span>
+            <span class="turn-number">@(lastTurn != -1 ? $"Turn {fieldData?.Turn + 1}/{GetTotalTurnsDisplay()}" : "")</span>
             <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
         </div>
 
@@ -138,7 +138,7 @@
                                     max="@(Math.Max(0, allTurnData.Count - 1))"
                                     disabled="@isAutoPlaying" />
                         </div>
-                        <span class="badge bg-info" style="font-size: 0.6em; padding: 2px 6px;">@(selectedTurn + 1) / @allTurnData.Count</span>
+                        <span class="badge bg-info" style="font-size: 0.6em; padding: 2px 6px;">@(selectedTurn + 1) / @GetTotalTurnsDisplay()</span>
                     </div>
                 </div>
             </div>
@@ -150,6 +150,7 @@
     [Parameter] public BattleClient Client { get; set; } = null!;
     [Parameter] public int Size { get; set; } = 225;
     [Parameter] public bool IsHistoricalMode { get; set; } = false;
+    [Parameter] public int? TotalTurns { get; set; } = null; // For historical battles
 
     [Inject] private FieldPerformanceMonitor PerformanceMonitor { get; set; } = null!;
 
@@ -258,7 +259,11 @@
     {
         if (IsHistoricalMode)
         {
-            allTurnData = new List<BattleFieldData>(replayData);
+            // Remove duplicates - keep the first occurrence of each turn number
+            // This handles cases where isInProgress: false data is duplicated
+            var dedupedData = replayData.DistinctBy(x => x.Turn).ToList();
+
+            allTurnData = dedupedData;
             selectedTurn = 0;
             if (allTurnData.Any())
             {
@@ -274,11 +279,16 @@
         // Record performance metrics
         PerformanceMonitor.RecordUpdate(Client.ConnectionId, data.Entities.Count);
 
-        // Store turn data for replay
+        // Store turn data for replay, avoiding duplicates for the same turn
         var existingIndex = allTurnData.FindIndex(t => t.Turn == data.Turn);
         if (existingIndex >= 0)
         {
-            allTurnData[existingIndex] = data;
+            // Only update if the new data is different (to avoid overwriting with duplicates)
+            var existing = allTurnData[existingIndex];
+            if (existing.Entities.Count != data.Entities.Count)
+            {
+                allTurnData[existingIndex] = data;
+            }
         }
         else
         {
@@ -609,6 +619,13 @@
         }
 
         StateHasChanged();
+    }
+
+    private int GetTotalTurnsDisplay()
+    {
+        // Use TotalTurns parameter if available (for historical battles)
+        // Otherwise fall back to allTurnData.Count for real-time battles
+        return TotalTurns ?? allTurnData.Count;
     }
 
     public void Dispose()
