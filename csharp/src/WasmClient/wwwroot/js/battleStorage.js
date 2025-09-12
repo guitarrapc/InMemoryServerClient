@@ -178,6 +178,7 @@ window.battleStorage = {
     return new Promise((resolve, reject) => {
       let totalSize = 0;
       let totalCount = 0;
+      let totalVictories = 0;
       let oldestDate = null;
       let newestDate = null;
 
@@ -188,6 +189,7 @@ window.battleStorage = {
           const battle = cursor.value;
           totalSize += battle.dataSize || 0;
           totalCount++;
+          if (battle.result?.isVictory) totalVictories++;
 
           const completedAt = new Date(battle.completedAt);
           if (!oldestDate || completedAt < oldestDate) oldestDate = completedAt;
@@ -197,7 +199,8 @@ window.battleStorage = {
         } else {
           resolve({
             totalBattles: totalCount,
-            totalSizeBytes: totalSize,
+            totalVictories: totalVictories,
+            totalDataSize: totalSize,
             oldestBattle: oldestDate?.toISOString(),
             newestBattle: newestDate?.toISOString()
           });

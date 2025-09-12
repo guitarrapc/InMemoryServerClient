@@ -14,7 +14,7 @@ public record BattleHistory
     public required string ServerUrl { get; init; }
     public required int TotalTurns { get; init; }
     public List<BattleReplayData> ReplayData { get; init; } = new();
-    public BattleResult Result { get; init; } = new();
+    public BattleResult Result { get; init; } = BattleResult.Default;
     public List<BattleClientHistory> ParticipatingClients { get; init; } = new();
     public long DataSize { get; init; } // Changed from DataSizeBytes
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
@@ -36,19 +36,19 @@ public record BattleClientHistory
 /// </summary>
 public record BattleHistorySummary
 {
-    public string BattleId { get; init; } = string.Empty;
-    public string SessionId { get; init; } = string.Empty; // Session ID (client-generated)
-    public DateTime CreatedAt { get; init; }
-    public DateTime CompletedAt { get; init; }
-    public string GroupName { get; init; } = string.Empty;
-    public string ServerUrl { get; init; } = string.Empty;
-    public int TotalTurns { get; init; }
-    public bool IsVictory { get; init; } // Simplified for summary
-    public int PlayersSurvived { get; init; } // Added for UI display
-    public int EnemiesKilled { get; init; } // Added for UI display
-    public string VictoryCondition { get; init; } = string.Empty; // Added for UI display
-    public int DataSizeKB { get; init; }
-    public int ClientCount { get; init; }
+    public required string BattleId { get; init; }
+    public required string SessionId { get; init; } // Session ID (client-generated)
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime CompletedAt { get; init; }
+    public required string GroupName { get; init; }
+    public required string ServerUrl { get; init; }
+    public required int TotalTurns { get; init; }
+    public required bool IsVictory { get; init; } // Simplified for summary
+    public required int PlayersSurvived { get; init; } // Added for UI display
+    public required int EnemiesKilled { get; init; } // Added for UI display
+    public required string VictoryCondition { get; init; } // Added for UI display
+    public required int DataSizeKB { get; init; }
+    public required int ClientCount { get; init; }
     public TimeSpan BattleDuration => CompletedAt - CreatedAt;
 
     // Backward compatibility - create a BattleResult from the simple fields
@@ -67,11 +67,23 @@ public record BattleHistorySummary
 /// </summary>
 public record BattleResult
 {
-    public bool IsVictory { get; init; } // Changed from IsVictory
-    public int PlayersSurvived { get; init; } // Changed from RemainingPlayers
-    public int EnemiesKilled { get; init; } // Changed from RemainingEnemies
-    public int TotalTurns { get; init; } // Added for consistency
-    public string VictoryCondition { get; init; } = string.Empty;
+    public required bool IsVictory { get; init; }
+    public required int PlayersSurvived { get; init; }
+    public required int EnemiesKilled { get; init; }
+    public required int TotalTurns { get; init; }
+    public required string VictoryCondition { get; init; }
+
+    /// <summary>
+    /// デフォルトの敗北結果
+    /// </summary>
+    public static BattleResult Default => new()
+    {
+        IsVictory = false,
+        PlayersSurvived = 0,
+        EnemiesKilled = 0,
+        TotalTurns = 0,
+        VictoryCondition = string.Empty
+    };
 }
 
 /// <summary>
@@ -79,11 +91,21 @@ public record BattleResult
 /// </summary>
 public record BattleHistoryStats
 {
-    public int TotalBattles { get; init; }
-    public int TotalVictories { get; init; } // Added
-    public long TotalDataSize { get; init; } // Changed from TotalSizeBytes
+    public required int TotalBattles { get; init; }
+    public required int TotalVictories { get; init; }
+    public required long TotalDataSize { get; init; }
     public DateTime? OldestBattle { get; init; }
     public DateTime? NewestBattle { get; init; }
-    public double WinRate => TotalBattles > 0 ? (double)TotalVictories / TotalBattles : 0; // Added
-    public double AverageBattleSizeKB => TotalBattles > 0 ? (TotalDataSize / 1024.0) / TotalBattles : 0; // Updated
+    public double WinRate => TotalBattles > 0 ? (double)TotalVictories / TotalBattles : 0;
+    public double AverageBattleSizeKB => TotalBattles > 0 ? (TotalDataSize / 1024.0) / TotalBattles : 0;
+
+    /// <summary>
+    /// デフォルトの空の統計情報
+    /// </summary>
+    public static BattleHistoryStats Default => new()
+    {
+        TotalBattles = 0,
+        TotalVictories = 0,
+        TotalDataSize = 0
+    };
 }

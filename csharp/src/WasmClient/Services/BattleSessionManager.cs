@@ -135,7 +135,8 @@ public class BattleSessionManager
                     PlayerId = c.PlayerId ?? "Unknown",
                     ConnectionType = c.Type,
                     ConnectedAt = c.ConnectedAt
-                }).ToList()
+                }).ToList(),
+                DataSize = 0 // JavaScript側で実際のサイズが設定される
             };
 
             await _battleHistory.SaveBattleHistoryAsync(history);

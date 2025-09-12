@@ -111,7 +111,7 @@ public class BattleHistoryService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to retrieve storage stats");
-            return new BattleHistoryStats();
+            return BattleHistoryStats.Default;
         }
     }
 }
