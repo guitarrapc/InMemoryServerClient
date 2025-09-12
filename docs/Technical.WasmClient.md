@@ -22,6 +22,17 @@ CliClientと比較して、以下の利点があります：
 - **Battle History**: ブラウザリロード後も利用可能な永続的なバトル履歴
 - **Real-time Visualization**: リアルタイムバトル進行の可視化とリプレイ機能
 
+### MagicOnion Support Status
+
+**⚠️ Important Limitation**: MagicOnion StreamingHubは現在Blazor WebAssemblyでサポートされていません。
+
+- **制約の理由**: grpc-webの制限により、gRPCのbidirectional streaming（双方向ストリーミング）がWebAssembly環境では利用できません
+- **MagicOnion StreamingHub**: リアルタイム双方向通信を前提としているため、現在の技術的制約下では動作しません
+- **実装状況**: 将来のサポートに備えて実装コードは含まれていますが、現在は無効化されています
+- **代替手段**: SignalRを使用することで同等の機能を実現しています
+
+**対応予定**: grpc-webのbidirectional streaming対応、またはMagicOnionのWebAssembly専用実装が提供された時点でサポートを有効化予定です。
+
 ## Architecture
 
 ### Component Structure
@@ -42,7 +53,7 @@ WasmClient/
 │   ├── ConnectionFactory.cs       # 接続ファクトリー実装
 │   ├── IBattleConnection.cs       # 統一接続インターフェース
 │   ├── SignalRConnection.cs       # SignalR接続実装
-│   └── MagicOnionConnection.cs    # MagicOnion接続実装
+│   └── MagicOnionConnection.cs    # MagicOnion接続実装（現在無効化）
 ├── Models/
 │   ├── BattleSessionModel.cs      # バトルセッション・クライアントモデル
 │   ├── BattleHistoryModel.cs      # バトル履歴データモデル
@@ -388,6 +399,7 @@ builder.Services.AddLogging(logging =>
 
 - CliClientのConstants（BattleReplayDefines等）を共有して一貫性を保つ
 - SignalR接続はWebSocketsを、MagicOnion接続はgRPCを使用
+  - **注意**: MagicOnionは現在grpc-webの制約によりBlazor WebAssemblyで利用できません（実装は将来対応のため含まれていますが無効化済み）
 - リプレイデータの蓄積と再生にはCliClientと同じフレームレート（5fps）を使用
 - 接続エラー処理とリトライロジックをCliClientから移植
 - IndexedDBを使用したバトル履歴の永続化により、ブラウザリロード後もデータアクセス可能

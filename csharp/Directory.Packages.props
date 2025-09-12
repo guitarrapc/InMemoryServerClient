@@ -6,6 +6,7 @@
   <ItemGroup>
     <!-- Server -->
     <PackageVersion Include="MagicOnion.Server" Version="7.0.5" />
+    <PackageVersion Include="Grpc.AspNetCore.Web" Version="2.71.0" />
     <!-- Client (CLI) -->
     <PackageVersion Include="ConsoleAppFramework" Version="5.5.0" />
     <PackageVersion Include="MagicOnion.Client" Version="7.0.5" />

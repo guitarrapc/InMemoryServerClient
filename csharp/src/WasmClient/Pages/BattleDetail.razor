@@ -80,6 +80,7 @@
                             </div>
                             <div class="client-info">
                                 <div>👤 @(client.PlayerId ?? "Anonymous")</div>
+                                <div>@(client.Type == ConnectionType.SignalR ? "🔌" : "⚡") @client.Type</div>
                                 <div>🕒 @client.ConnectedAt.ToLocalTime().ToString("HH:mm:ss")</div>
                             </div>
                         </div>
@@ -98,14 +99,13 @@
             {
                 <div class="add-client-buttons">
                     <button class="add-client-btn signalr" @onclick="() => AddClient(ConnectionType.SignalR)" disabled="@(battle.IsFull || isAddingSignalR)">
-                        <div class="btn-icon">@(isAddingSignalR ? "⏳" : "+")</div>
-                        <div class="btn-text">@(isAddingSignalR ? "Connecting..." : "Add SignalR")</div>
+                        <div class="btn-icon">@(isAddingSignalR ? "⏳" : "🔌")</div>
+                        <div class="btn-text">@(isAddingSignalR ? "Connecting..." : "Add SignalR Client")</div>
                         <div class="btn-subtitle">WebSocket</div>
                     </button>
-
-                    <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(battle.IsFull || isAddingMagicOnion)">
-                        <div class="btn-icon">@(isAddingMagicOnion ? "⏳" : "+")</div>
-                        <div class="btn-text">@(isAddingMagicOnion ? "Connecting..." : "Add MagicOnion")</div>
+                    <button class="add-client-btn magiconion" @onclick="() => AddClient(ConnectionType.MagicOnion)" disabled="@(!MagicOnionConnection.Supported || battle.IsFull || isAddingMagicOnion)">
+                        <div class="btn-icon">@(isAddingMagicOnion ? "⏳" : "⚡")</div>
+                        <div class="btn-text">@(isAddingMagicOnion ? "Connecting..." : "Add MagicOnion Client")</div>
                         <div class="btn-subtitle">gRPC</div>
                     </button>
                 </div>
@@ -271,29 +271,22 @@
         }
     }
 
-    private async Task AddClient(ConnectionType type)
+    private async Task AddClient(ConnectionType connectionType)
     {
         if (battle != null && !battle.IsFull)
         {
-
             // 個別のローディング状態を設定
-
-            isAddingSignalR = type == ConnectionType.SignalR;
-            isAddingMagicOnion = type == ConnectionType.MagicOnion;
+            if (connectionType == ConnectionType.SignalR)
+                isAddingSignalR = true;
+            else if (connectionType == ConnectionType.MagicOnion)
+                isAddingMagicOnion = true;
 
             errorMessage = null;
             StateHasChanged();
 
             try
             {
-                var connectionInfo = new ConnectionInfo
-                {
-                    ServerUrl = battle.ServerUrl,
-                    GroupName = battle.GroupName,
-                    Type = type
-                };
-
-                var client = await battle.AddClientAsync(connectionInfo);
+                var client = await battle.AddClientAsync(connectionType);
 
                 // Subscribe to new client's battle completion event
                 client.OnBattleComplete += () => OnBattleCompleted(client);
@@ -303,16 +296,13 @@
             catch (Exception ex)
             {
                 Logger.LogError(ex, $"Failed to add client");
-                errorMessage = $"Failed to add {type} client: {ex.Message}";
+                errorMessage = $"Failed to add {connectionType} client: {ex.Message}";
             }
             finally
             {
-
                 // 個別のローディング状態をクリア
-
                 isAddingSignalR = false;
                 isAddingMagicOnion = false;
-
                 StateHasChanged();
             }
         }

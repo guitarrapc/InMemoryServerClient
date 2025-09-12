@@ -126,7 +126,7 @@
                     </div>
                     <div class="form-group">
                         <label>Server URL:</label>
-                        <input @bind="newBattleServerUrl" placeholder="@Settings.SignalRUrl" />
+                        <input @bind="newBattleServerUrl" placeholder="@(Settings.ServerUrl)" />
                     </div>
                 </div>
                 <div class="dialog-footer">
@@ -149,7 +149,7 @@
     {
         // デモ用のモックデータを追加（コメントアウト）
         // SessionManager.AddMockBattles();
-        newBattleServerUrl = Settings.SignalRUrl;
+        newBattleServerUrl = Settings.ServerUrl;
 
         await LoadBattleHistories();
     }
@@ -177,7 +177,7 @@
     {
         showCreateDialog = true;
         newBattleGroupName = string.Empty;
-        newBattleServerUrl = Settings.SignalRUrl;
+        newBattleServerUrl = Settings.ServerUrl;
     }
 
     private void HideCreateBattleDialog()
@@ -191,14 +191,14 @@
         {
             try
             {
-                var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.SignalRUrl : newBattleServerUrl;
+                var serverUrl = string.IsNullOrWhiteSpace(newBattleServerUrl) ? Settings.ServerUrl : newBattleServerUrl;
                 var battle = await SessionManager.CreateBattleAsync(newBattleGroupName, serverUrl);
                 HideCreateBattleDialog();
                 Navigation.NavigateTo($"/battle/{battle.SessionId}");
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, $"Failed to create battle");
+                Logger.LogError(ex, "Failed to create battle");
                 // TODO: Show error message to user
             }
         }

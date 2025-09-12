@@ -30,11 +30,12 @@ public class BattleSessionManager
     {
         var battle = new BattleSessionModel(
             _connectionFactory,
-            _logger)
+            _logger,
+            _settings)
         {
             SessionId = Guid.NewGuid().ToString(),
             GroupName = groupName,
-            ServerUrl = serverUrl ?? _settings.SignalRUrl,
+            ServerUrl = serverUrl ?? _settings.ServerUrl, // Use base server URL without port
             Status = BattleStatus.Waiting,
             CreatedAt = DateTime.UtcNow
         };
@@ -43,7 +44,8 @@ public class BattleSessionManager
         battle.OnBattleCompleted += OnBattleCompleted;
 
         _battles[battle.SessionId] = battle;
-        _logger.LogInformation("Created battle session {SessionId} with group {GroupName}", battle.SessionId, groupName);
+        _logger.LogInformation("Created battle session {SessionId} with group {GroupName}",
+            battle.SessionId, groupName);
         return battle;
     }
 
@@ -82,7 +84,7 @@ public class BattleSessionManager
             return null;
         }
 
-        var battle = new BattleSessionModel(_connectionFactory, _logger)
+        var battle = new BattleSessionModel(_connectionFactory, _logger, _settings)
         {
             SessionId = history.SessionId, // Note: battleHistory.BattleId is actually the session ID
             GroupName = history.GroupName,

@@ -10,6 +10,7 @@ public class BattleSessionModel : IAsyncDisposable
     private readonly List<BattleClient> _clients = new();
     private readonly IConnectionFactory _connectionFactory;
     private readonly ILogger _logger;
+    private readonly SettingsService _settings;
     private BattleStatus _status = BattleStatus.Waiting;
 
     /// <summary>
@@ -66,10 +67,11 @@ public class BattleSessionModel : IAsyncDisposable
     public int ClientCount => _clients.Count;
     public bool IsFull => _clients.Count >= 5;
 
-    public BattleSessionModel(IConnectionFactory connectionFactory, ILogger logger)
+    public BattleSessionModel(IConnectionFactory connectionFactory, ILogger logger, SettingsService settings)
     {
         _connectionFactory = connectionFactory;
         _logger = logger;
+        _settings = settings;
     }
 
     /// <summary>
@@ -79,7 +81,7 @@ public class BattleSessionModel : IAsyncDisposable
     /// <returns>Historical battle session</returns>
     public static BattleSessionModel CreateHistorical(BattleHistory battleHistory)
     {
-        var session = new BattleSessionModel(null!, null!)
+        var session = new BattleSessionModel(null!, null!, null!)
         {
             SessionId = battleHistory.SessionId, // Note: battleHistory.BattleId is actually the session ID
             BattleId = battleHistory.BattleId,
@@ -116,9 +118,9 @@ public class BattleSessionModel : IAsyncDisposable
     /// <summary>
     /// Add a client to this battle
     /// </summary>
-    /// <param name="connectionInfo">Connection information</param>
+    /// <param name="connectionType">Connection type for this client</param>
     /// <returns>Created battle client</returns>
-    public async Task<BattleClient> AddClientAsync(ConnectionInfo connectionInfo)
+    public async Task<BattleClient> AddClientAsync(Shared.Models.ConnectionType connectionType)
     {
         if (IsHistoricalBattle)
             throw new InvalidOperationException("Cannot add clients to historical battles");
@@ -128,12 +130,27 @@ public class BattleSessionModel : IAsyncDisposable
 
         try
         {
+            // Create connection info with the specified type and appropriate URL
+            var fullServerUrl = connectionType switch
+            {
+                ConnectionType.SignalR => $"{ServerUrl}:{_settings.SignalRPort}",
+                ConnectionType.MagicOnion => $"{ServerUrl}:{_settings.MagicOnionPort}",
+                _ => throw new ArgumentException($"Unsupported connection type: {connectionType}")
+            };
+
+            var connectionInfo = new ConnectionInfo
+            {
+                Type = connectionType,
+                GroupName = GroupName,
+                ServerUrl = fullServerUrl
+            };
+
             // Create connection using factory
-            var connection = connectionInfo.Type switch
+            var connection = connectionType switch
             {
                 ConnectionType.SignalR => await _connectionFactory.CreateSignalRConnectionAsync(connectionInfo),
                 ConnectionType.MagicOnion => await _connectionFactory.CreateMagicOnionConnectionAsync(connectionInfo),
-                _ => throw new ArgumentException($"Unsupported connection type: {connectionInfo.Type}")
+                _ => throw new ArgumentException($"Unsupported connection type: {connectionType}")
             };
 
             var client = new BattleClient(connection, _logger);

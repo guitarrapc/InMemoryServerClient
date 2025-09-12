@@ -37,8 +37,8 @@ public class ConnectionFactory : IConnectionFactory
     {
         _logger.LogInformation("Creating MagicOnion connection to {ServerUrl}", connectionInfo.ServerUrl);
 
-        // TODO: Implement MagicOnion connection
-        var connection = new MagicOnionConnection(connectionInfo);
+        var magicOnionLogger = _loggerFactory.CreateLogger<MagicOnionConnection>();
+        var connection = new MagicOnionConnection(connectionInfo, magicOnionLogger);
 
         var connected = await connection.ConnectAsync();
         if (!connected)

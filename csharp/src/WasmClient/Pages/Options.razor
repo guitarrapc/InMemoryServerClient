@@ -16,14 +16,19 @@
         <div class="setting-group">
             <h3>🔗 Connection Settings</h3>
             <div class="form-group">
-                <label>SignalR Server URL:</label>
-                <input @bind="Settings.SignalRUrl" placeholder="http://localhost:5000" />
-                <small class="form-hint">WebSocket connection server address</small>
+                <label>Server Base URL:</label>
+                <input @bind="Settings.ServerUrl" placeholder="http://localhost" />
+                <small class="form-hint">Base server address without port</small>
             </div>
             <div class="form-group">
-                <label>MagicOnion Server URL:</label>
-                <input @bind="Settings.MagicOnionUrl" placeholder="http://localhost:5001" />
-                <small class="form-hint">MagicOnion connection server address</small>
+                <label>SignalR Port:</label>
+                <input type="number" @bind="Settings.SignalRPort" placeholder="5000" min="1" max="65535" />
+                <small class="form-hint">Port for WebSocket connections (Full URL: @Settings.SignalRUrl)</small>
+            </div>
+            <div class="form-group">
+                <label>MagicOnion Port:</label>
+                <input type="number" @bind="Settings.MagicOnionPort" placeholder="5001" min="1" max="65535" />
+                <small class="form-hint">Port for gRPC connections (Full URL: @Settings.MagicOnionUrl)</small>
             </div>
         </div>
 

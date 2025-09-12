@@ -2,11 +2,22 @@
 
 public class SettingsService
 {
-    public string SignalRUrl { get; set; } = "http://localhost:5000";
-    public string MagicOnionUrl { get; set; } = "http://localhost:5001";
+    public string ServerUrl { get; set; } = "http://localhost";
+    public int SignalRPort { get; set; } = 5000;
+    public int MagicOnionPort { get; set; } = 5001;
     public bool ShowDebugInfo { get; set; } = false;
     public bool ShowHealthBars { get; set; } = true;
     public int FieldSize { get; set; } = 225;
+
+    /// <summary>
+    /// Get full SignalR URL with port
+    /// </summary>
+    public string SignalRUrl => $"{ServerUrl}:{SignalRPort}";
+
+    /// <summary>
+    /// Get full MagicOnion URL with port
+    /// </summary>
+    public string MagicOnionUrl => $"{ServerUrl}:{MagicOnionPort}";
 
     // Battle replay FPS settings
     private int _replayFps = 5;
@@ -50,8 +61,9 @@ public class SettingsService
 
     public void Reset()
     {
-        SignalRUrl = "http://localhost:5000";
-        MagicOnionUrl = "http://localhost:5001";
+        ServerUrl = "http://localhost";
+        SignalRPort = 5000;
+        MagicOnionPort = 5001;
         ShowDebugInfo = false;
         ShowHealthBars = true;
         FieldSize = 225;

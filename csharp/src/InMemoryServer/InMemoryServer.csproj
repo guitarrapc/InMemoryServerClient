@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <PackageReference Include="MagicOnion.Server" />
+    <PackageReference Include="Grpc.AspNetCore.Web" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
   </ItemGroup>
 
