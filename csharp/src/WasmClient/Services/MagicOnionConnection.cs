@@ -55,7 +55,9 @@ public class MagicOnionConnection : IBattleConnection, IMagicOnionBattleHubRecei
                 // Use GrpcWebHandler for WASM compatibility
                 HttpClient = new HttpClient(new GrpcWebHandler(GrpcWebMode.GrpcWeb, new HttpClientHandler())),
                 UnsafeUseInsecureChannelCallCredentials = Info.ServerUrl.StartsWith("http://"),
-            });            // Connect to the streaming hub
+            });
+
+            // Connect to the streaming hub
             _logger.LogDebug("Connecting to StreamingHub...");
             _hub = await StreamingHubClient.ConnectAsync<IMagicOnionBattleHub, IMagicOnionBattleHubReceiver>(_channel, this);
 
