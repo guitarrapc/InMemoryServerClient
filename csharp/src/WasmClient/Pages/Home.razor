@@ -10,7 +10,7 @@
         <h1>Battle List</h1>
         <nav class="nav-menu">
             <button class="tab-btn @(currentTab == "active" ? "active" : "")" @onclick="@(() => SetTab("active"))">
-                Running (@SessionManager.ActiveBattles.Count)
+                Running (@RunningBattles.Count())
             </button>
             <button class="tab-btn @(currentTab == "history" ? "active" : "")" @onclick="@(() => SetTab("history"))">
                 History (@battleHistories.Count)
@@ -22,7 +22,7 @@
     <div class="battle-grid">
         @if (currentTab == "active")
         {
-            @foreach (var battle in SessionManager.ActiveBattles)
+            @foreach (var battle in RunningBattles)
             {
                 <div class="battle-card" @onclick="() => NavigateToBattle(battle.SessionId)">
                     <div class="battle-card-header">
@@ -139,11 +139,17 @@
 </div>
 
 @code {
+
     private bool showCreateDialog;
     private string newBattleGroupName = string.Empty;
     private string newBattleServerUrl = string.Empty;
     private string currentTab = "active";
     private List<BattleHistorySummary> battleHistories = new();
+
+    /// <summary>
+    /// アクティブなバトル（Completed状態を除外）
+    /// </summary>
+    private IEnumerable<BattleSessionModel> RunningBattles => SessionManager.ActiveBattles.Where(b => b.Status != BattleStatus.Completed && !b.IsHistoricalBattle);
 
     protected override async Task OnInitializedAsync()
     {
@@ -151,7 +157,37 @@
         // SessionManager.AddMockBattles();
         newBattleServerUrl = Settings.ServerUrl;
 
+        // 完了したバトルセッションをクリーンアップ
+        await CleanupCompletedBattles();
+
         await LoadBattleHistories();
+    }
+
+    private async Task CleanupCompletedBattles()
+    {
+        try
+        {
+
+            var completedBattles = SessionManager.ActiveBattles
+                .Where(b => !b.IsHistoricalBattle && // 履歴バトルは除外
+                    (b.Status == BattleStatus.Completed || (b.ClientCount > 0 && b.IsAllClientsDisconnected)))
+                .ToArray();
+
+            foreach (var battle in completedBattles)
+            {
+                await SessionManager.RemoveBattleAsync(battle.SessionId);
+                Logger.LogInformation("Cleaned up completed battle session {SessionId} (Status: {Status}, Disconnected: {Disconnected})", battle.SessionId, battle.Status, battle.IsAllClientsDisconnected);
+            }
+
+            if (completedBattles.Any())
+            {
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to cleanup completed battles");
+        }
     }
 
     private async Task LoadBattleHistories()

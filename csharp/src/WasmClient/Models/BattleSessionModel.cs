@@ -67,6 +67,11 @@ public class BattleSessionModel : IAsyncDisposable
     public int ClientCount => _clients.Count;
     public bool IsFull => _clients.Count >= 5;
 
+    /// <summary>
+    /// すべてのクライアントが切断されているかを確認
+    /// </summary>
+    public bool IsAllClientsDisconnected => _clients.All(c => !c.IsConnected);
+
     public BattleSessionModel(IConnectionFactory connectionFactory, ILogger logger, SettingsService settings)
     {
         _connectionFactory = connectionFactory;
@@ -379,6 +384,11 @@ public class BattleClient : IAsyncDisposable
     public string? PlayerId { get; set; }
     public DateTime ConnectedAt => _connectedAt;
     public BattleFieldData? CurrentField { get; set; }
+
+    /// <summary>
+    /// 接続が有効かどうかを確認
+    /// </summary>
+    public bool IsConnected => _connection?.IsConnected ?? false;
 
     /// <summary>
     /// Get all historical turn data (for historical clients only)
