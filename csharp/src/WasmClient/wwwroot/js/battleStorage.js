@@ -100,6 +100,13 @@ window.battleStorage = {
         if (cursor && battles.length < limit) {
           const battle = cursor.value;
 
+          // sessionIdが存在しない古いデータはスキップ
+          if (!battle.sessionId) {
+            console.warn(`Skipping battle ${battle.battleId} - missing sessionId (legacy data)`);
+            cursor.continue();
+            return;
+          }
+
           // 軽量なサマリーデータのみ抽出
           battles.push({
             sessionId: battle.sessionId,
