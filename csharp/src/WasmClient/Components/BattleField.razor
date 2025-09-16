@@ -6,13 +6,8 @@
 @inject SettingsService Settings
 @inject ILogger<BattleField> Logger
 
-<div class="battle-field-container @(IsExpanded ? "" : "clickable")"
-     style="width: @(Size)px; display: flex; flex-direction: column; align-items: center; margin: 5px;"
-     @onclick="OnFieldClick"
-     role="@(IsExpanded ? "img" : "button")"
-     aria-label="@(IsExpanded ? $"Battle field for {Client.ConnectionId[..8]}" : $"Click to expand battle field for {Client.ConnectionId[..8]}")"
-     tabindex="@(IsExpanded ? "-1" : "0")"
-     @onkeydown="OnFieldKeyDown">
+<div class="battle-field-container"
+     style="width: @(Size)px; display: flex; flex-direction: column; align-items: center; margin: 5px;">
     <!-- Field panel -->
     <div class="battle-field @(fieldData != null && fieldData.Entities.Any(e => e.Health > 0) ? "active" : "")" style="width: @(Size)px; height: @(Size)px; margin-bottom: 5px;">
         <div class="field-header">
@@ -21,7 +16,13 @@
             <span class="connection-type @Client.Type.ToString().ToLower()">@Client.Type</span>
         </div>
 
-        <div class="field-canvas" style="position: relative; width: 100%; height: calc(100% - 48px);">
+        <div class="field-canvas @(IsExpanded ? "" : "clickable")"
+             style="position: relative; width: 100%; height: calc(100% - 48px);"
+             @onclick="OnFieldClick"
+             role="@(IsExpanded ? "img" : "button")"
+             aria-label="@(IsExpanded ? $"Battle field canvas for {Client.ConnectionId[..8]}" : $"Click to expand battle field for {Client.ConnectionId[..8]}")"
+             tabindex="@(IsExpanded ? "-1" : "0")"
+             @onkeydown="OnFieldKeyDown">
             @if (fieldData != null)
             {
                 @foreach (var entity in fieldData.Entities.Where(e => IsValidPosition(e.Position)))
