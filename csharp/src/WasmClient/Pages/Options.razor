@@ -17,17 +17,26 @@
             <h3>🔗 Connection Settings</h3>
             <div class="form-group">
                 <label>Server Base URL:</label>
-                <input @bind="Settings.ServerUrl" placeholder="http://localhost" />
+                <div class="input-container">
+                    <div class="input-icon">🌐</div>
+                    <input @bind="Settings.ServerUrl" placeholder="http://localhost" class="styled-input" />
+                </div>
                 <small class="form-hint">Base server address without port</small>
             </div>
             <div class="form-group">
                 <label>SignalR Port:</label>
-                <input type="number" @bind="Settings.SignalRPort" placeholder="5000" min="1" max="65535" />
+                <div class="input-container">
+                    <div class="input-icon">🔌</div>
+                    <input type="number" @bind="Settings.SignalRPort" placeholder="5000" min="1" max="65535" class="styled-input" />
+                </div>
                 <small class="form-hint">Port for WebSocket connections (Full URL: @Settings.SignalRUrl)</small>
             </div>
             <div class="form-group">
                 <label>MagicOnion Port:</label>
-                <input type="number" @bind="Settings.MagicOnionPort" placeholder="5001" min="1" max="65535" />
+                <div class="input-container">
+                    <div class="input-icon">⚡</div>
+                    <input type="number" @bind="Settings.MagicOnionPort" placeholder="5001" min="1" max="65535" class="styled-input" />
+                </div>
                 <small class="form-hint">Port for gRPC connections (Full URL: @Settings.MagicOnionUrl)</small>
             </div>
         </div>

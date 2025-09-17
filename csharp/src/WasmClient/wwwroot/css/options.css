@@ -78,7 +78,8 @@
 }
 
 .options-page .form-group input[type="text"],
-.options-page .form-group input[type="url"] {
+.options-page .form-group input[type="url"],
+.options-page .form-group input[type="number"] {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid #ddd;
@@ -87,7 +88,86 @@
     transition: border-color 0.2s;
 }
 
-.options-page .form-group input:focus {
+/* Modern styled input containers */
+.options-page .input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.options-page .input-container:focus-within {
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.options-page .input-container:hover {
+    border-color: #c6cbcf;
+}
+
+.options-page .input-icon {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #6c757d;
+    font-size: 16px;
+    border-right: 1px solid #e1e5e9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 50px;
+    transition: all 0.3s ease;
+}
+
+.options-page .input-container:focus-within .input-icon {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-right-color: #007bff;
+}
+
+.options-page .styled-input {
+    flex: 1;
+    border: none;
+    padding: 14px 16px;
+    font-size: 15px;
+    background: transparent;
+    outline: none;
+    color: #495057;
+    font-weight: 500;
+}
+
+.options-page .styled-input::placeholder {
+    color: #9ca3af;
+    font-weight: 400;
+    transition: color 0.3s ease;
+}
+
+.options-page .styled-input:focus::placeholder {
+    color: #d1d5db;
+}
+
+/* Number input specific styling */
+.options-page .styled-input[type="number"] {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* Remove number input spinners for cleaner look */
+.options-page .styled-input[type="number"]::-webkit-outer-spin-button,
+.options-page .styled-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.options-page .styled-input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.options-page .form-group input:focus:not(.styled-input) {
     outline: none;
     border-color: #007bff;
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
@@ -424,4 +504,56 @@
 
 .options-page .info-item span {
     color: #666;
+}
+
+/* Responsive Design for Input Containers */
+@media (max-width: 768px) {
+    .options-page .input-container {
+        flex-direction: row;
+    }
+
+    .options-page .input-icon {
+        min-width: 45px;
+        padding: 10px 14px;
+        font-size: 14px;
+    }
+
+    .options-page .styled-input {
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+}
+
+/* Dark mode support for input containers */
+@media (prefers-color-scheme: dark) {
+    .options-page .input-container {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+
+    .options-page .input-container:focus-within {
+        border-color: #4299e1;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+    }
+
+    .options-page .input-icon {
+        background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+        color: #a0aec0;
+        border-right-color: #4a5568;
+    }
+
+    .options-page .input-container:focus-within .input-icon {
+        background: linear-gradient(135deg, #4299e1 0%, #2b6cb0 100%);
+        color: white;
+        border-right-color: #4299e1;
+    }
+
+    .options-page .styled-input {
+        color: #f7fafc;
+        background: transparent;
+    }
+
+    .options-page .styled-input::placeholder {
+        color: #718096;
+    }
 }
